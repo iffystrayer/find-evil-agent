@@ -1,0 +1,460 @@
+# SIFT Tool Metadata for Find Evil Agent
+# Source: https://www.sans.org/tools/sift-workstation/
+# Last Updated: 2026-04-10
+
+tools:
+  # =============================================================================
+  # Memory Forensics
+  # =============================================================================
+  - name: "volatility"
+    category: "memory"
+    description: "Advanced memory forensics framework for analyzing RAM dumps and extracting artifacts like running processes, network connections, and loaded modules"
+    command: "volatility"
+    confidence_keywords:
+      - "memory dump"
+      - "RAM analysis"
+      - "process list"
+      - "memory forensics"
+      - "volatility"
+      - "running processes"
+      - "memory artifacts"
+      - "pslist"
+      - "pstree"
+      - "netscan"
+      - "malfind"
+    inputs:
+      - name: "profile"
+        type: "string"
+        required: true
+        description: "Memory profile (Win7SP1x64, Win10x64, LinuxUbuntu64)"
+        examples: ["Win7SP1x64", "Win10x64", "LinuxUbuntu64"]
+      - name: "file"
+        type: "path"
+        required: true
+        description: "Path to memory dump file"
+      - name: "plugin"
+        type: "string"
+        required: true
+        description: "Plugin to run"
+        examples: ["pslist", "pstree", "netscan", "malfind", "handles"]
+    examples:
+      - "volatility -f memory.raw --profile=Win7SP1x64 pslist"
+      - "volatility -f memory.raw --profile=Win10x64 netscan"
+      - "volatility -f memory.raw --profile=Win7SP1x64 malfind"
+    output_format: "text"
+    typical_runtime: "30-300 seconds"
+
+  - name: "rekall"
+    category: "memory"
+    description: "Memory forensics framework similar to Volatility with advanced features for analyzing memory dumps"
+    command: "rekall"
+    confidence_keywords:
+      - "memory analysis"
+      - "RAM forensics"
+      - "rekall"
+      - "memory dump"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: true
+      - name: "plugin"
+        type: "string"
+        required: true
+    examples:
+      - "rekall -f memory.raw pslist"
+    output_format: "text"
+    typical_runtime: "30-300 seconds"
+
+  # =============================================================================
+  # Disk Forensics
+  # =============================================================================
+  - name: "fls"
+    category: "disk"
+    description: "List file and directory names in a disk image including deleted files (part of The Sleuth Kit)"
+    command: "fls"
+    confidence_keywords:
+      - "list files"
+      - "disk image"
+      - "file system"
+      - "deleted files"
+      - "sleuthkit"
+      - "file listing"
+      - "directory listing"
+    inputs:
+      - name: "image"
+        type: "path"
+        required: true
+        description: "Path to disk image"
+      - name: "options"
+        type: "string"
+        required: false
+        description: "Options like -r (recursive), -d (deleted only)"
+    examples:
+      - "fls -r disk.dd"
+      - "fls -d disk.dd"
+      - "fls -rp disk.dd"
+    output_format: "text"
+    typical_runtime: "10-120 seconds"
+
+  - name: "icat"
+    category: "disk"
+    description: "Extract file contents by inode number from a disk image"
+    command: "icat"
+    confidence_keywords:
+      - "extract file"
+      - "recover file"
+      - "inode"
+      - "file recovery"
+      - "disk image"
+    inputs:
+      - name: "image"
+        type: "path"
+        required: true
+      - name: "inode"
+        type: "integer"
+        required: true
+        description: "Inode number to extract"
+    examples:
+      - "icat disk.dd 12345 > recovered_file.txt"
+    output_format: "binary"
+    typical_runtime: "1-30 seconds"
+
+  - name: "mmls"
+    category: "disk"
+    description: "Display partition layout of a disk image"
+    command: "mmls"
+    confidence_keywords:
+      - "partition layout"
+      - "disk partitions"
+      - "partition table"
+      - "disk structure"
+    inputs:
+      - name: "image"
+        type: "path"
+        required: true
+    examples:
+      - "mmls disk.dd"
+    output_format: "text"
+    typical_runtime: "1-5 seconds"
+
+  - name: "fsstat"
+    category: "disk"
+    description: "Display file system details and statistics"
+    command: "fsstat"
+    confidence_keywords:
+      - "file system"
+      - "filesystem details"
+      - "disk statistics"
+      - "filesystem info"
+    inputs:
+      - name: "image"
+        type: "path"
+        required: true
+    examples:
+      - "fsstat disk.dd"
+    output_format: "text"
+    typical_runtime: "1-10 seconds"
+
+  # =============================================================================
+  # Timeline Analysis
+  # =============================================================================
+  - name: "log2timeline"
+    category: "timeline"
+    description: "Create super timeline from various log sources and artifacts for temporal analysis"
+    command: "log2timeline.py"
+    confidence_keywords:
+      - "timeline"
+      - "log analysis"
+      - "event correlation"
+      - "plaso"
+      - "super timeline"
+      - "temporal analysis"
+      - "timeline creation"
+    inputs:
+      - name: "output"
+        type: "path"
+        required: true
+        description: "Output plaso file"
+      - name: "source"
+        type: "path"
+        required: true
+        description: "Source disk image or directory"
+    examples:
+      - "log2timeline.py timeline.plaso disk.dd"
+      - "log2timeline.py timeline.plaso /mnt/evidence/"
+    output_format: "plaso"
+    typical_runtime: "300-3600 seconds"
+
+  - name: "psort"
+    category: "timeline"
+    description: "Process and filter plaso timeline files created by log2timeline"
+    command: "psort.py"
+    confidence_keywords:
+      - "timeline filtering"
+      - "plaso processing"
+      - "timeline output"
+      - "event filtering"
+    inputs:
+      - name: "plaso_file"
+        type: "path"
+        required: true
+      - name: "output_format"
+        type: "string"
+        required: false
+        default: "l2tcsv"
+    examples:
+      - "psort.py -o l2tcsv -w timeline.csv timeline.plaso"
+    output_format: "csv"
+    typical_runtime: "30-300 seconds"
+
+  # =============================================================================
+  # Network Analysis
+  # =============================================================================
+  - name: "tcpdump"
+    category: "network"
+    description: "Capture and analyze network packets from PCAP files"
+    command: "tcpdump"
+    confidence_keywords:
+      - "network traffic"
+      - "packet capture"
+      - "pcap"
+      - "network analysis"
+      - "packet analysis"
+      - "network forensics"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: false
+        description: "PCAP file to read"
+      - name: "filter"
+        type: "string"
+        required: false
+        description: "BPF filter expression"
+    examples:
+      - "tcpdump -r capture.pcap"
+      - "tcpdump -r capture.pcap 'port 80'"
+      - "tcpdump -r capture.pcap 'host 192.168.1.1'"
+    output_format: "text"
+    typical_runtime: "1-60 seconds"
+
+  - name: "wireshark"
+    category: "network"
+    description: "Network protocol analyzer for detailed packet inspection (CLI: tshark)"
+    command: "tshark"
+    confidence_keywords:
+      - "wireshark"
+      - "packet inspection"
+      - "protocol analysis"
+      - "network traffic"
+      - "tshark"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: true
+      - name: "filter"
+        type: "string"
+        required: false
+    examples:
+      - "tshark -r capture.pcap"
+      - "tshark -r capture.pcap -Y 'http'"
+    output_format: "text"
+    typical_runtime: "1-60 seconds"
+
+  # =============================================================================
+  # String & Binary Analysis
+  # =============================================================================
+  - name: "strings"
+    category: "analysis"
+    description: "Extract printable strings from binary files and memory dumps"
+    command: "strings"
+    confidence_keywords:
+      - "extract strings"
+      - "text extraction"
+      - "binary analysis"
+      - "readable text"
+      - "string extraction"
+      - "printable characters"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: true
+      - name: "min-length"
+        type: "integer"
+        required: false
+        default: 4
+        description: "Minimum string length"
+    examples:
+      - "strings -n 8 malware.exe"
+      - "strings memory.raw | grep http"
+      - "strings -a -n 10 suspicious.bin"
+    output_format: "text"
+    typical_runtime: "1-60 seconds"
+
+  - name: "bulk_extractor"
+    category: "analysis"
+    description: "Extract structured information like emails, URLs, credit cards, and IP addresses from files"
+    command: "bulk_extractor"
+    confidence_keywords:
+      - "extract emails"
+      - "find URLs"
+      - "extract IPs"
+      - "bulk extraction"
+      - "data carving"
+      - "email extraction"
+      - "URL extraction"
+    inputs:
+      - name: "output_dir"
+        type: "path"
+        required: true
+      - name: "input_file"
+        type: "path"
+        required: true
+    examples:
+      - "bulk_extractor -o output/ disk.dd"
+      - "bulk_extractor -o results/ memory.raw"
+    output_format: "directory"
+    typical_runtime: "60-600 seconds"
+
+  # =============================================================================
+  # Pattern Searching
+  # =============================================================================
+  - name: "grep"
+    category: "analysis"
+    description: "Search file contents for patterns and keywords using regular expressions"
+    command: "grep"
+    confidence_keywords:
+      - "search for"
+      - "find pattern"
+      - "keyword search"
+      - "regex search"
+      - "text search"
+      - "pattern matching"
+    inputs:
+      - name: "pattern"
+        type: "string"
+        required: true
+        description: "Search pattern or regex"
+      - name: "file"
+        type: "path"
+        required: true
+      - name: "options"
+        type: "string"
+        required: false
+        description: "Additional flags (-i, -r, -E, etc.)"
+    examples:
+      - "grep -i 'password' evidence.txt"
+      - "grep -rE '\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}' logs/"
+      - "grep -i 'malware' suspicious.log"
+    output_format: "text"
+    typical_runtime: "1-10 seconds"
+
+  # =============================================================================
+  # Hash & Integrity
+  # =============================================================================
+  - name: "md5sum"
+    category: "hash"
+    description: "Calculate MD5 hash of files for integrity verification"
+    command: "md5sum"
+    confidence_keywords:
+      - "md5 hash"
+      - "file hash"
+      - "integrity check"
+      - "hash calculation"
+      - "checksum"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: true
+    examples:
+      - "md5sum evidence.bin"
+      - "md5sum * > hashes.txt"
+    output_format: "text"
+    typical_runtime: "1-30 seconds"
+
+  - name: "sha256sum"
+    category: "hash"
+    description: "Calculate SHA256 hash of files for secure integrity verification"
+    command: "sha256sum"
+    confidence_keywords:
+      - "sha256"
+      - "sha hash"
+      - "file hash"
+      - "integrity"
+      - "cryptographic hash"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: true
+    examples:
+      - "sha256sum malware.exe"
+    output_format: "text"
+    typical_runtime: "1-30 seconds"
+
+  # =============================================================================
+  # Registry Analysis (Windows)
+  # =============================================================================
+  - name: "regripper"
+    category: "registry"
+    description: "Parse and analyze Windows registry hives for forensic artifacts"
+    command: "rip.pl"
+    confidence_keywords:
+      - "windows registry"
+      - "registry analysis"
+      - "registry hive"
+      - "regripper"
+      - "windows artifacts"
+    inputs:
+      - name: "hive"
+        type: "path"
+        required: true
+        description: "Registry hive file"
+      - name: "plugin"
+        type: "string"
+        required: false
+    examples:
+      - "rip.pl -r NTUSER.DAT -p userassist"
+      - "rip.pl -r SOFTWARE -p soft"
+    output_format: "text"
+    typical_runtime: "5-30 seconds"
+
+  # =============================================================================
+  # File System Analysis
+  # =============================================================================
+  - name: "file"
+    category: "analysis"
+    description: "Determine file type by examining file contents and magic numbers"
+    command: "file"
+    confidence_keywords:
+      - "file type"
+      - "identify file"
+      - "magic number"
+      - "file identification"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: true
+    examples:
+      - "file suspicious.bin"
+      - "file -b unknown_file"
+    output_format: "text"
+    typical_runtime: "1 second"
+
+  - name: "exiftool"
+    category: "metadata"
+    description: "Read and write metadata in files (images, documents, etc.)"
+    command: "exiftool"
+    confidence_keywords:
+      - "metadata"
+      - "exif data"
+      - "file metadata"
+      - "image metadata"
+      - "document properties"
+    inputs:
+      - name: "file"
+        type: "path"
+        required: true
+    examples:
+      - "exiftool photo.jpg"
+      - "exiftool document.pdf"
+    output_format: "text"
+    typical_runtime: "1-5 seconds"
