@@ -112,7 +112,7 @@ class FindingSeverity(str, Enum):
 
 class Finding(BaseModel):
     """Schema for incident findings."""
-    
+
     title: str
     description: str
     severity: FindingSeverity
@@ -120,3 +120,23 @@ class Finding(BaseModel):
     evidence: list[str] = Field(default_factory=list)
     tool_references: list[str] = Field(default_factory=list)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AnalysisResult(BaseModel):
+    """Schema for tool output analysis results.
+
+    Attributes:
+        tool_name: Name of the analyzed tool
+        findings: List of extracted findings
+        iocs: Extracted indicators of compromise (IPs, hashes, domains, etc.)
+        raw_output: Original tool output
+        parsed_output: Structured parsed data
+        analysis_summary: Brief summary of analysis
+    """
+
+    tool_name: str
+    findings: list[Finding] = Field(default_factory=list)
+    iocs: dict[str, list[str]] = Field(default_factory=dict)
+    raw_output: str
+    parsed_output: dict[str, Any] = Field(default_factory=dict)
+    analysis_summary: str = Field(default="")
