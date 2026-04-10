@@ -21,12 +21,12 @@ class MCPServer:
     AI agents with SIFT forensic tools.
     """
     
-    def __init__(self, host: str = "localhost", port: int = 8080):
+    def __init__(self, host: str = "localhost", port: int = 16790):
         """Initialize MCP server.
-        
+
         Args:
             host: Server bind address
-            port: Server port
+            port: Server port (5-digit per CLAUDE.md)
         """
         self.host = host
         self.port = port

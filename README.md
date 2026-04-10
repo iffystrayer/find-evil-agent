@@ -99,7 +99,7 @@ find-evil
 find-evil analyze --evidence /mnt/evidence/disk.raw --memory-only
 
 # Start MCP server for integration
-find-evil mcp-server --port 8080
+find-evil mcp-server --port 16790
 ```
 
 ## 🛡️ Security Features

@@ -6,9 +6,17 @@ Configuration is loaded from:
 3. Default values
 """
 
+from enum import Enum
 from typing import Optional
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class LLMProviderEnum(str, Enum):
+    """Supported LLM providers."""
+    OLLAMA = "ollama"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
 
 
 class Settings(BaseSettings):
@@ -29,10 +37,10 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
     
-    # SIFT Workstation (placeholders - update after starter code)
-    sift_vm_host: str = "localhost"
-    sift_vm_port: int = 8080
-    sift_ssh_user: Optional[str] = None
+    # SIFT Workstation
+    sift_vm_host: str = "192.168.12.101"
+    sift_vm_port: int = 16789
+    sift_ssh_user: Optional[str] = "sansforensics"
     sift_ssh_key_path: Optional[str] = None
     
     # Security
@@ -43,10 +51,19 @@ class Settings(BaseSettings):
     default_tool_timeout: int = 60  # 1 minute for most tools
     
     # LLM Configuration
+    llm_provider: LLMProviderEnum = LLMProviderEnum.OLLAMA
+    llm_model_name: str = "gemma4:31b-cloud"
+    llm_temperature: float = 0.1  # Low temp for deterministic tool selection
+
+    # Ollama Configuration
+    ollama_base_url: str = "http://192.168.12.124:11434"
+
+    # Provider API Keys (optional, based on selected provider)
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
+
+    # Deprecated (kept for backward compatibility)
     default_llm_model: str = "claude-3-opus-20240229"
-    llm_temperature: float = 0.1  # Low temp for deterministic tool selection
     
     # Tool Selector
     tool_confidence_threshold: float = 0.7
@@ -54,11 +71,26 @@ class Settings(BaseSettings):
     
     # MCP
     mcp_server_host: str = "localhost"
-    mcp_server_port: int = 8080
+    mcp_server_port: int = 16790
     
     # Reporting
     default_report_format: str = "markdown"
     report_output_dir: str = "./reports"
+
+    # Observability - Langfuse
+    langfuse_secret_key: Optional[str] = None
+    langfuse_public_key: Optional[str] = None
+    langfuse_base_url: Optional[str] = None
+    langfuse_enabled: bool = True  # Can disable for testing
+
+    @model_validator(mode='after')
+    def validate_provider_config(self) -> 'Settings':
+        """Validate required configuration for selected LLM provider."""
+        if self.llm_provider == LLMProviderEnum.OPENAI and not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY environment variable required when using openai provider")
+        if self.llm_provider == LLMProviderEnum.ANTHROPIC and not self.anthropic_api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable required when using anthropic provider")
+        return self
 
 
 # Singleton instance

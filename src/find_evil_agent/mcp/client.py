@@ -19,9 +19,9 @@ class MCPClient:
     to execute forensic tools remotely.
     """
     
-    def __init__(self, server_url: str = "http://localhost:8080"):
+    def __init__(self, server_url: str = "http://localhost:16790"):
         """Initialize client.
-        
+
         Args:
             server_url: MCP server endpoint
         """
