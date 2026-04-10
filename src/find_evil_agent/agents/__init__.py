@@ -19,6 +19,7 @@ from .schemas import ToolSelection, AgentState, ExecutionResult, AnalysisResult,
 from .tool_selector import ToolSelectorAgent
 from .tool_executor import ToolExecutorAgent
 from .analyzer import AnalyzerAgent
+from .orchestrator import OrchestratorAgent
 
 __all__ = [
     "BaseAgent",
@@ -30,4 +31,5 @@ __all__ = [
     "ToolSelectorAgent",
     "ToolExecutorAgent",
     "AnalyzerAgent",
+    "OrchestratorAgent",
 ]
