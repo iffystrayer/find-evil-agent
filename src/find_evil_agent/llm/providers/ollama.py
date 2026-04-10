@@ -78,6 +78,33 @@ class OllamaProvider:
         self._temperature = temperature
         self._client = httpx.AsyncClient(timeout=timeout)
 
+    async def generate(self, prompt: str, **kwargs) -> str:
+        """Generate text from simple prompt (convenience wrapper).
+
+        This is a simpler interface than chat() for single-shot prompts.
+        Internally converts to chat format with user message.
+
+        Args:
+            prompt: Text prompt for generation
+            **kwargs: Override temperature or other options
+
+        Returns:
+            Generated text response
+
+        Raises:
+            RuntimeError: If Ollama request fails
+
+        Example:
+            >>> response = await provider.generate(
+            ...     "List 3 DFIR tools for memory analysis",
+            ...     temperature=0.7
+            ... )
+            >>> print(response)
+            "1. Volatility\\n2. Rekall\\n3. MemProcFS"
+        """
+        messages = [{"role": "user", "content": prompt}]
+        return await self.chat(messages, **kwargs)
+
     async def chat(self, messages: list[dict[str, str]], **kwargs) -> str:
         """Send chat request to Ollama API.
 
@@ -123,6 +150,69 @@ class OllamaProvider:
         except httpx.HTTPError as e:
             logger.error("ollama_request_failed", error=str(e), url=self._base_url)
             raise RuntimeError(f"Ollama request failed: {e}")
+
+    async def generate_json(
+        self,
+        prompt: str,
+        schema: type[BaseModel] | None = None,
+        **kwargs
+    ) -> dict[str, Any] | BaseModel:
+        """Generate structured JSON from prompt (convenience wrapper).
+
+        Simpler interface than chat_with_schema() for single-shot JSON generation.
+
+        Args:
+            prompt: Text prompt for generation
+            schema: Optional Pydantic model for validation
+            **kwargs: Override temperature or other options
+
+        Returns:
+            If schema provided: Validated Pydantic model instance
+            If no schema: Raw dict from JSON response
+
+        Raises:
+            RuntimeError: If request fails or validation fails
+
+        Example:
+            >>> from find_evil_agent.agents.schemas import ToolSelection
+            >>> selection = await provider.generate_json(
+            ...     "Select a tool for memory analysis. Respond in JSON.",
+            ...     schema=ToolSelection
+            ... )
+            >>> print(selection.tool_name)
+            "volatility"
+        """
+        messages = [{"role": "user", "content": prompt}]
+
+        if schema:
+            return await self.chat_with_schema(messages, schema, **kwargs)
+        else:
+            # Return raw JSON dict
+            temperature = kwargs.get('temperature', self._temperature)
+            payload = {
+                "model": self._model_name,
+                "messages": messages,
+                "stream": False,
+                "format": "json",
+                "options": {
+                    "temperature": temperature
+                }
+            }
+
+            try:
+                response = await self._client.post(
+                    f"{self._base_url}/api/chat",
+                    json=payload
+                )
+                response.raise_for_status()
+
+                data = response.json()
+                json_str = data["message"]["content"]
+                return orjson.loads(json_str)
+
+            except httpx.HTTPError as e:
+                logger.error("ollama_json_request_failed", error=str(e))
+                raise RuntimeError(f"Ollama JSON request failed: {e}")
 
     async def chat_with_schema(
         self,

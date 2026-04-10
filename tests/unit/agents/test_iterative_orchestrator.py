@@ -337,13 +337,22 @@ class TestIterativeOrchestrationExecution:
     @pytest.mark.asyncio
     async def test_synthesize_creates_investigation_chain(self):
         """Should create coherent investigation narrative from iterations."""
+        from find_evil_agent.agents.schemas import Finding, FindingSeverity
+
         orchestrator = OrchestratorAgent()
 
         iterations = [
             IterationResult(
                 iteration_number=1,
                 tool_used="volatility",
-                findings=[{"description": "Found ransom.exe"}],
+                findings=[
+                    Finding(
+                        title="Malicious Process",
+                        description="Found ransom.exe",
+                        severity=FindingSeverity.CRITICAL,
+                        confidence=0.9
+                    )
+                ],
                 iocs={},
                 leads_discovered=[],
                 lead_followed=None,
@@ -352,7 +361,14 @@ class TestIterativeOrchestrationExecution:
             IterationResult(
                 iteration_number=2,
                 tool_used="bulk_extractor",
-                findings=[{"description": "Found C2 IP"}],
+                findings=[
+                    Finding(
+                        title="C2 Communication",
+                        description="Found C2 IP",
+                        severity=FindingSeverity.HIGH,
+                        confidence=0.85
+                    )
+                ],
                 iocs={"ips": ["203.0.113.42"]},
                 leads_discovered=[],
                 lead_followed=InvestigativeLead(
@@ -366,11 +382,20 @@ class TestIterativeOrchestrationExecution:
             )
         ]
 
-        result = orchestrator._synthesize_investigation(iterations)
+        result = orchestrator._synthesize_investigation(
+            session_id="test-session",
+            incident_description="Test incident",
+            analysis_goal="Test goal",
+            iterations=iterations,
+            investigation_chain=[iterations[1].lead_followed],  # One lead was followed
+            all_findings=[f for it in iterations for f in it.findings],
+            all_iocs={"ips": ["203.0.113.42"]},
+            total_duration=75.0
+        )
 
         assert isinstance(result, IterativeAnalysisResult)
         assert len(result.iterations) == 2
-        assert len(result.investigation_chain) == 2
+        assert len(result.investigation_chain) == 1  # One lead followed (not 2)
         assert result.total_duration == 75.0
 
 

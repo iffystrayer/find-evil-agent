@@ -900,8 +900,10 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
     def _select_next_lead(self, leads: list[InvestigativeLead]) -> InvestigativeLead | None:
         """Select the next lead to follow.
 
+        Selects the lead with highest priority, then highest confidence.
+
         Args:
-            leads: List of available leads
+            leads: List of available leads (will be sorted)
 
         Returns:
             Lead to follow, or None if no suitable lead
@@ -909,9 +911,14 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
         if not leads:
             return None
 
-        # Leads are already sorted by priority and confidence
+        # Sort by priority (high first) then by confidence (high first)
+        sorted_leads = sorted(leads, key=lambda l: (
+            0 if l.priority == LeadPriority.HIGH else 1 if l.priority == LeadPriority.MEDIUM else 2,
+            -l.confidence  # Negative for descending order
+        ))
+
         # Return the first (highest priority, highest confidence)
-        return leads[0]
+        return sorted_leads[0]
 
     def _should_continue(
         self,
