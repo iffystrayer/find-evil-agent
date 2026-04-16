@@ -1,14 +1,15 @@
-"""MCP (Model Context Protocol) Integration Module.
+"""Model Context Protocol integration.
 
-This module provides MCP server and client implementations
-for integration with SANS SIFT Workstation.
+Provides MCP server for exposing Find Evil Agent tools to AI clients.
 
-Note:
-    Implementations are stubs pending April 15 starter code.
-    MCP spec: https://spec.modelcontextprotocol.io
+Usage:
+    # Run as stdio server
+    python -m find_evil_agent.mcp.server
+
+    # Run as HTTP server
+    python -m find_evil_agent.mcp.server --http --port 16790
 """
 
-from .server import MCPServer
-from .client import MCPClient
+from .server import mcp
 
-__all__ = ["MCPServer", "MCPClient"]
+__all__ = ["mcp"]
