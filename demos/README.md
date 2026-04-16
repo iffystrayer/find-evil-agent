@@ -6,15 +6,15 @@ This directory contains demonstration scripts showcasing the unique capabilities
 
 **File:** `hackathon_demo.py`
 
-Demonstrates the two key differentiators for the FIND EVIL! hackathon:
+Demonstrates the two key features for the FIND EVIL! hackathon:
 
-### Differentiator #1: Hallucination-Resistant Tool Selection
+### Feature #1: Hallucination-Resistant Tool Selection
 - Two-stage validation process
 - Semantic search → LLM ranking → Confidence threshold → Registry validation
 - Prevents LLM from selecting non-existent or inappropriate tools
 - Shows confidence scores and selection reasoning
 
-### Differentiator #2: Autonomous Investigative Reasoning  
+### Feature #2: Autonomous Investigative Reasoning  
 - Automatically follows investigative leads
 - Multi-iteration workflow without manual intervention
 - Builds complete attack chains
@@ -56,7 +56,7 @@ The demo will:
 
 ```
 ╭─────────────────────────────────────────────────────╮
-│ Differentiator #1: Hallucination-Resistant         │
+│ Feature #1: Hallucination-Resistant                │
 │ Tool Selection                                       │
 ╰─────────────────────────────────────────────────────╯
 
@@ -77,7 +77,7 @@ Challenge: LLM might hallucinate non-existent tools
 ---
 
 ╭─────────────────────────────────────────────────────╮
-│ Differentiator #2: Autonomous Investigative        │
+│ Feature #2: Autonomous Investigative               │
 │ Reasoning                                           │
 ╰─────────────────────────────────────────────────────╯
 

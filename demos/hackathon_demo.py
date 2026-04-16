@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Hackathon Demo - Showcases Find Evil Agent's Two Differentiators.
+"""Hackathon Demo - Showcases Find Evil Agent's Two Unique Features.
 
 This demo script demonstrates:
-1. Hallucination-Resistant Tool Selection (Differentiator #1)
-2. Autonomous Investigative Reasoning (Differentiator #2)
+1. Hallucination-Resistant Tool Selection (Feature #1)
+2. Autonomous Investigative Reasoning (Feature #2)
 
 Usage:
     python demos/hackathon_demo.py
@@ -37,7 +37,7 @@ async def demo_hallucination_prevention():
     """Demo 1: Show two-stage hallucination prevention."""
     console.print()
     console.print(Panel.fit(
-        "[bold cyan]Differentiator #1: Hallucination-Resistant Tool Selection[/bold cyan]\n"
+        "[bold cyan]Feature #1: Hallucination-Resistant Tool Selection[/bold cyan]\n"
         "[dim]Two-stage validation: Semantic Search → LLM Ranking → Confidence Threshold → Registry Validation[/dim]",
         border_style="cyan"
     ))
@@ -133,7 +133,7 @@ async def demo_autonomous_investigation():
     """Demo 2: Show autonomous iterative investigation."""
     console.print()
     console.print(Panel.fit(
-        "[bold magenta]Differentiator #2: Autonomous Investigative Reasoning[/bold magenta]\n"
+        "[bold magenta]Feature #2: Autonomous Investigative Reasoning[/bold magenta]\n"
         "[dim]Automatically follows leads like a real analyst: Initial → Follow-up → Follow-up → Complete Picture[/dim]",
         border_style="magenta"
     ))
@@ -239,7 +239,7 @@ async def main():
     console.print()
     console.print(Panel.fit(
         "[bold white]Find Evil Agent - Hackathon Demo[/bold white]\n"
-        "[dim]Showcasing Two Unique Differentiators[/dim]",
+        "[dim]Showcasing Two Unique Features[/dim]",
         border_style="white"
     ))
 
@@ -266,7 +266,7 @@ async def main():
     console.print()
     console.print(Panel.fit(
         "[bold green]Demo Complete![/bold green]\n\n"
-        "[bold]Two Differentiators Demonstrated:[/bold]\n"
+        "[bold]Two Unique Features Demonstrated:[/bold]\n"
         "1. Hallucination-Resistant Tool Selection\n"
         "   [dim]→ Two-stage validation prevents LLM from selecting non-existent tools[/dim]\n\n"
         "2. Autonomous Investigative Reasoning\n"
