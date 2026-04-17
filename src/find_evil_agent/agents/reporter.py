@@ -21,8 +21,9 @@ from .base import BaseAgent, AgentResult, AgentStatus
 from .schemas import Finding, FindingSeverity, AnalysisResult, IterativeAnalysisResult
 from .report_schemas import (
     ReportFormat, ReportSchema, ExecutiveSummary, MITREMapping,
-    IOCTableEntry, TimelineEntry, Recommendation, ReportMetadata
+    IOCTableEntry, TimelineEntry, Recommendation, ReportMetadata, AttackGraph
 )
+from .graph_builder import GraphBuilder
 
 logger = structlog.get_logger(__name__)
 
@@ -234,6 +235,7 @@ class ReporterAgent(BaseAgent):
         ioc_tables = await self.aggregate_iocs(iocs=iocs)
         timeline = await self.generate_timeline(findings=findings)
         recommendations = await self.generate_recommendations(findings=findings)
+        attack_graph = await self.generate_attack_graph(findings=findings)
 
         # Build metadata
         metadata = ReportMetadata(
@@ -264,6 +266,7 @@ class ReporterAgent(BaseAgent):
             timeline=timeline,
             mitre_mappings=mitre_mappings,
             recommendations=recommendations,
+            attack_graph=attack_graph,
             metadata=metadata,
             evidence_citations=evidence_citations,
         )
@@ -530,6 +533,104 @@ Detailed recommendations are provided in the Recommendations section of this rep
             ))
 
         return recommendations
+
+    async def generate_attack_graph(self, findings: list[Finding]) -> Optional[AttackGraph]:
+        """Generate attack chain graph from findings.
+
+        Args:
+            findings: List of findings with entity relationships
+
+        Returns:
+            AttackGraph object or None if no relationships found
+        """
+        try:
+            builder = GraphBuilder()
+            graph = builder.build_graph(findings)
+
+            # Only return graph if it has nodes
+            if graph.nodes:
+                logger.info("attack_graph_generated",
+                           node_count=len(graph.nodes),
+                           edge_count=len(graph.edges))
+                return graph
+            else:
+                logger.debug("attack_graph_empty", message="No relationships extracted")
+                return None
+
+        except Exception as e:
+            logger.error("attack_graph_generation_failed", error=str(e))
+            return None
+
+    async def _generate_graph_html(self, attack_graph: AttackGraph) -> str:
+        """Generate inline HTML for attack chain graph visualization.
+
+        Args:
+            attack_graph: AttackGraph object with nodes and edges
+
+        Returns:
+            HTML string with embedded D3.js graph
+        """
+        import json
+
+        # Convert graph to JSON for D3.js
+        graph_data = {
+            "nodes": [
+                {
+                    "id": node.id,
+                    "label": node.label,
+                    "node_type": node.node_type,
+                    "severity": node.severity,
+                    "occurrences": node.occurrences,
+                    "properties": node.properties,
+                }
+                for node in attack_graph.nodes
+            ],
+            "edges": [
+                {
+                    "source": edge.source,
+                    "target": edge.target,
+                    "edge_type": edge.edge_type,
+                    "label": edge.label,
+                    "properties": edge.properties,
+                }
+                for edge in attack_graph.edges
+            ],
+            "entry_points": attack_graph.entry_points,
+            "critical_path": attack_graph.critical_path,
+        }
+
+        # Read template and inject data
+        template_path = Path(__file__).parent.parent.parent / "templates" / "report_graph_template.html"
+
+        try:
+            with open(template_path, 'r') as f:
+                template_html = f.read()
+
+            # Inject graph data into template
+            graph_html = template_html.replace(
+                "{{ GRAPH_DATA }}",
+                json.dumps(graph_data)
+            )
+
+            # Wrap in section for embedding
+            return f"""
+    <div class="section" style="padding: 0; height: 800px; position: relative;">
+        <iframe
+            srcdoc="{graph_html.replace('"', '&quot;')}"
+            style="width: 100%; height: 100%; border: none; border-radius: 8px;"
+            sandbox="allow-scripts"
+        ></iframe>
+    </div>
+"""
+        except Exception as e:
+            logger.error("graph_html_generation_failed", error=str(e))
+            return f"""
+    <div class="section">
+        <h2>🕸️ Attack Chain Graph</h2>
+        <p style="color: #dc3545;">Graph visualization unavailable: {str(e)}</p>
+        <p>Nodes: {len(attack_graph.nodes)}, Edges: {len(attack_graph.edges)}</p>
+    </div>
+"""
 
     async def format_markdown(self, report: ReportSchema) -> str:
         """Format report as Markdown.
@@ -880,6 +981,10 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 html.append(f"<p><small><strong>Urgency:</strong> {rec.urgency}</small></p>")
                 html.append("</div>")
         html.append("</div>\n")
+
+        # Attack Chain Graph
+        if report.attack_graph and report.attack_graph.nodes:
+            html.append(await self._generate_graph_html(report.attack_graph))
 
         # Footer
         html.append("""

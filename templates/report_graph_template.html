@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attack Chain Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #0f0f23;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            background: #1a1a2e;
+            padding: 15px 20px;
+            border-bottom: 2px solid #16213e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        #title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #00d9ff;
+        }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #00d9ff;
+            color: #0f0f23;
+        }
+
+        .btn-primary:hover {
+            background: #00b8d4;
+        }
+
+        .btn-secondary {
+            background: #2c2c3e;
+            color: #e0e0e0;
+            border: 1px solid #3c3c4e;
+        }
+
+        .btn-secondary:hover {
+            background: #3c3c4e;
+        }
+
+        #graph-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+
+        #legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c4e;
+            font-size: 13px;
+            max-width: 250px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-section {
+            margin-bottom: 15px;
+        }
+
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #00d9ff;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }
+
+        .legend-shape {
+            margin-right: 8px;
+        }
+
+        #tooltip {
+            position: absolute;
+            background: rgba(26, 26, 46, 0.98);
+            padding: 12px 16px;
+            border-radius: 6px;
+            border: 1px solid #3c3c4e;
+            pointer-events: none;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #00d9ff;
+            font-size: 14px;
+        }
+
+        .tooltip-row {
+            margin-bottom: 4px;
+        }
+
+        .tooltip-label {
+            color: #888;
+            margin-right: 6px;
+        }
+
+        .node {
+            cursor: pointer;
+            stroke-width: 2;
+            transition: all 0.2s;
+        }
+
+        .node.selected {
+            stroke: #00d9ff;
+            stroke-width: 4;
+        }
+
+        .node.entry-point {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                filter: drop-shadow(0 0 5px currentColor);
+            }
+            50% {
+                filter: drop-shadow(0 0 15px currentColor);
+            }
+        }
+
+        .link {
+            stroke: #555;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .link.critical-path {
+            stroke: #dc3545;
+            stroke-width: 4;
+        }
+
+        .link-label {
+            font-size: 10px;
+            fill: #888;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-label {
+            font-size: 11px;
+            fill: #e0e0e0;
+            text-anchor: middle;
+            pointer-events: none;
+            font-weight: 500;
+        }
+
+        #stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c4e;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-item {
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #888;
+            margin-right: 8px;
+        }
+
+        .stat-value {
+            color: #00d9ff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="header">
+            <div id="title">Attack Chain Visualization</div>
+            <div id="controls">
+                <button class="btn btn-secondary" onclick="resetZoom()">Reset View</button>
+                <button class="btn btn-secondary" onclick="toggleLabels()">Toggle Labels</button>
+                <button class="btn btn-secondary" onclick="togglePhysics()">Toggle Physics</button>
+                <button class="btn btn-primary" onclick="exportGraph('json')">Export JSON</button>
+                <button class="btn btn-primary" onclick="exportGraph('graphml')">Export GraphML</button>
+            </div>
+        </div>
+
+        <div id="graph-container">
+            <svg id="graph"></svg>
+
+            <div id="legend">
+                <div class="legend-section">
+                    <div class="legend-title">Severity</div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc3545;"></div>
+                        <span>Critical</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fd7e14;"></div>
+                        <span>High</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffc107;"></div>
+                        <span>Medium</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #0d6efd;"></div>
+                        <span>Low</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6c757d;"></div>
+                        <span>Info</span>
+                    </div>
+                </div>
+
+                <div class="legend-section">
+                    <div class="legend-title">Node Types</div>
+                    <div class="legend-item">
+                        <svg width="16" height="16" class="legend-shape">
+                            <circle cx="8" cy="8" r="6" fill="#888" />
+                        </svg>
+                        <span>Process</span>
+                    </div>
+                    <div class="legend-item">
+                        <svg width="16" height="16" class="legend-shape">
+                            <rect x="2" y="2" width="12" height="12" fill="#888" />
+                        </svg>
+                        <span>File</span>
+                    </div>
+                    <div class="legend-item">
+                        <svg width="16" height="16" class="legend-shape">
+                            <path d="M 8 2 L 14 14 L 2 14 Z" fill="#888" />
+                        </svg>
+                        <span>Network</span>
+                    </div>
+                    <div class="legend-item">
+                        <svg width="16" height="16" class="legend-shape">
+                            <path d="M 8 2 L 14 8 L 8 14 L 2 8 Z" fill="#888" />
+                        </svg>
+                        <span>Registry</span>
+                    </div>
+                    <div class="legend-item">
+                        <svg width="16" height="16" class="legend-shape">
+                            <path d="M 8 1 L 11 4 L 14 3 L 13 6 L 15 8 L 13 10 L 14 13 L 11 12 L 8 15 L 5 12 L 2 13 L 3 10 L 1 8 L 3 6 L 2 3 L 5 4 Z" fill="#888" />
+                        </svg>
+                        <span>IOC</span>
+                    </div>
+                </div>
+
+                <div class="legend-section">
+                    <div class="legend-title">Special</div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #00d9ff; animation: pulse 2s infinite;"></div>
+                        <span>Entry Point</span>
+                    </div>
+                    <div class="legend-item">
+                        <div style="width: 16px; height: 3px; background: #dc3545; margin-right: 8px;"></div>
+                        <span>Critical Path</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stats">
+                <div class="stat-item">
+                    <span class="stat-label">Nodes:</span>
+                    <span class="stat-value" id="node-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Edges:</span>
+                    <span class="stat-value" id="edge-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Entry Points:</span>
+                    <span class="stat-value" id="entry-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Critical Path:</span>
+                    <span class="stat-value" id="critical-count">0</span>
+                </div>
+            </div>
+
+            <div id="tooltip"></div>
+        </div>
+    </div>
+
+    <script>
+        // Graph data (injected by server)
+        const graphData = {{ GRAPH_DATA }};
+
+        // Color mapping
+        const severityColors = {
+            'critical': '#dc3545',
+            'high': '#fd7e14',
+            'medium': '#ffc107',
+            'low': '#0d6efd',
+            'info': '#6c757d'
+        };
+
+        // SVG setup
+        const svg = d3.select("#graph");
+        const container = svg.append("g");
+
+        // Zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {
+                container.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+
+        // Get dimensions
+        function updateDimensions() {
+            const graphContainer = document.getElementById('graph-container');
+            const width = graphContainer.clientWidth;
+            const height = graphContainer.clientHeight;
+            svg.attr("width", width).attr("height", height);
+            return { width, height };
+        }
+
+        let { width, height } = updateDimensions();
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            ({ width, height } = updateDimensions());
+            simulation.force("center", d3.forceCenter(width / 2, height / 2));
+            simulation.alpha(0.3).restart();
+        });
+
+        // Create critical path set
+        const criticalPathSet = new Set();
+        if (graphData.critical_path) {
+            for (let i = 0; i < graphData.critical_path.length - 1; i++) {
+                criticalPathSet.add(`${graphData.critical_path[i]}-${graphData.critical_path[i + 1]}`);
+            }
+        }
+
+        // Create entry points set
+        const entryPointSet = new Set(graphData.entry_points || []);
+
+        // Arrow markers
+        const defs = svg.append("defs");
+
+        defs.append("marker")
+            .attr("id", "arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 20)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#555");
+
+        defs.append("marker")
+            .attr("id", "arrow-critical")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 20)
+            .attr("refY", 0)
+            .attr("markerWidth", 8)
+            .attr("markerHeight", 8)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#dc3545");
+
+        // Force simulation
+        let simulation = d3.forceSimulation(graphData.nodes)
+            .force("link", d3.forceLink(graphData.edges).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-400))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(30))
+            .force("x", d3.forceX(width / 2).strength(0.05))
+            .force("y", d3.forceY(height / 2).strength(0.05));
+
+        // Create links
+        const link = container.append("g")
+            .selectAll("path")
+            .data(graphData.edges)
+            .enter()
+            .append("path")
+            .attr("class", d => {
+                const edgeKey = `${d.source.id || d.source}-${d.target.id || d.target}`;
+                return criticalPathSet.has(edgeKey) ? "link critical-path" : "link";
+            })
+            .attr("marker-end", d => {
+                const edgeKey = `${d.source.id || d.source}-${d.target.id || d.target}`;
+                return criticalPathSet.has(edgeKey) ? "url(#arrow-critical)" : "url(#arrow)";
+            });
+
+        // Node shape drawing function
+        function drawNodeShape(selection) {
+            selection.each(function(d) {
+                const g = d3.select(this);
+                const color = severityColors[d.severity] || '#6c757d';
+                const size = 12;
+
+                switch(d.node_type) {
+                    case 'process':
+                        g.append("circle")
+                            .attr("r", size)
+                            .attr("fill", color);
+                        break;
+                    case 'file':
+                        g.append("rect")
+                            .attr("x", -size)
+                            .attr("y", -size)
+                            .attr("width", size * 2)
+                            .attr("height", size * 2)
+                            .attr("fill", color);
+                        break;
+                    case 'network':
+                        g.append("path")
+                            .attr("d", `M 0 ${-size} L ${size} ${size} L ${-size} ${size} Z`)
+                            .attr("fill", color);
+                        break;
+                    case 'registry':
+                        g.append("path")
+                            .attr("d", `M 0 ${-size} L ${size} 0 L 0 ${size} L ${-size} 0 Z`)
+                            .attr("fill", color);
+                        break;
+                    case 'ioc':
+                        const points = [];
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (Math.PI / 3) * i - Math.PI / 2;
+                            points.push([Math.cos(angle) * size, Math.sin(angle) * size]);
+                        }
+                        g.append("path")
+                            .attr("d", `M ${points.map(p => p.join(',')).join(' L ')} Z`)
+                            .attr("fill", color);
+                        break;
+                    default:
+                        g.append("circle")
+                            .attr("r", size)
+                            .attr("fill", color);
+                }
+            });
+        }
+
+        // Create nodes
+        const node = container.append("g")
+            .selectAll("g")
+            .data(graphData.nodes)
+            .enter()
+            .append("g")
+            .attr("class", d => {
+                let classes = "node";
+                if (entryPointSet.has(d.id)) classes += " entry-point";
+                return classes;
+            })
+            .call(drawNodeShape)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended))
+            .on("click", nodeClicked)
+            .on("mouseover", showTooltip)
+            .on("mouseout", hideTooltip);
+
+        // Node labels
+        let showLabels = true;
+        const nodeLabel = container.append("g")
+            .selectAll("text")
+            .data(graphData.nodes)
+            .enter()
+            .append("text")
+            .attr("class", "node-label")
+            .attr("dy", 25)
+            .text(d => d.label.length > 20 ? d.label.substring(0, 17) + '...' : d.label);
+
+        // Update positions on tick
+        simulation.on("tick", () => {
+            link.attr("d", d => {
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                return `M ${d.source.x},${d.source.y} L ${d.target.x},${d.target.y}`;
+            });
+
+            node.attr("transform", d => `translate(${d.x},${d.y})`);
+            nodeLabel.attr("x", d => d.x).attr("y", d => d.y);
+        });
+
+        // Update stats
+        document.getElementById('node-count').textContent = graphData.nodes.length;
+        document.getElementById('edge-count').textContent = graphData.edges.length;
+        document.getElementById('entry-count').textContent = entryPointSet.size;
+        document.getElementById('critical-count').textContent = graphData.critical_path ? graphData.critical_path.length : 0;
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Node click
+        let selectedNode = null;
+        function nodeClicked(event, d) {
+            event.stopPropagation();
+
+            // Deselect previous
+            if (selectedNode) {
+                d3.select(selectedNode).classed("selected", false);
+            }
+
+            // Select new
+            if (selectedNode !== this) {
+                d3.select(this).classed("selected", true);
+                selectedNode = this;
+                highlightConnected(d);
+            } else {
+                selectedNode = null;
+                resetHighlight();
+            }
+        }
+
+        // Highlight connected nodes
+        function highlightConnected(d) {
+            const connected = new Set();
+            connected.add(d.id);
+
+            graphData.edges.forEach(e => {
+                if (e.source.id === d.id) connected.add(e.target.id);
+                if (e.target.id === d.id) connected.add(e.source.id);
+            });
+
+            node.style("opacity", n => connected.has(n.id) ? 1 : 0.2);
+            link.style("opacity", e =>
+                (e.source.id === d.id || e.target.id === d.id) ? 1 : 0.1
+            );
+            nodeLabel.style("opacity", n => connected.has(n.id) ? 1 : 0.2);
+        }
+
+        function resetHighlight() {
+            node.style("opacity", 1);
+            link.style("opacity", 1);
+            nodeLabel.style("opacity", 1);
+        }
+
+        // Deselect on background click
+        svg.on("click", () => {
+            if (selectedNode) {
+                d3.select(selectedNode).classed("selected", false);
+                selectedNode = null;
+                resetHighlight();
+            }
+        });
+
+        // Tooltip
+        const tooltip = d3.select("#tooltip");
+
+        function showTooltip(event, d) {
+            const props = Object.entries(d.properties || {})
+                .map(([k, v]) => `<div class="tooltip-row"><span class="tooltip-label">${k}:</span>${v}</div>`)
+                .join('');
+
+            tooltip
+                .style("opacity", 1)
+                .style("left", (event.pageX + 15) + "px")
+                .style("top", (event.pageY - 15) + "px")
+                .html(`
+                    <div class="tooltip-title">${d.label}</div>
+                    <div class="tooltip-row"><span class="tooltip-label">Type:</span>${d.node_type}</div>
+                    <div class="tooltip-row"><span class="tooltip-label">Severity:</span>${d.severity}</div>
+                    <div class="tooltip-row"><span class="tooltip-label">Occurrences:</span>${d.occurrences}</div>
+                    ${props}
+                `);
+        }
+
+        function hideTooltip() {
+            tooltip.style("opacity", 0);
+        }
+
+        // Control functions
+        function resetZoom() {
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity
+            );
+        }
+
+        function toggleLabels() {
+            showLabels = !showLabels;
+            nodeLabel.style("display", showLabels ? "block" : "none");
+        }
+
+        let physicsEnabled = true;
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            if (physicsEnabled) {
+                simulation.alphaTarget(0.3).restart();
+            } else {
+                simulation.stop();
+            }
+        }
+
+        function exportGraph(format) {
+            if (format === 'json') {
+                const dataStr = "data:text/json;charset=utf-8," +
+                    encodeURIComponent(JSON.stringify(graphData, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", "attack_graph.json");
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+            } else if (format === 'graphml') {
+                // Trigger server-side export
+                alert('GraphML export: Use ReporterAgent.export_graphml() method');
+            }
+        }
+    </script>
+</body>
+</html>
