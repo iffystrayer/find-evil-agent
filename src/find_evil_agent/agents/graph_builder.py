@@ -114,8 +114,9 @@ class GraphBuilder:
 
         # Process each finding
         for finding in findings:
-            # Extract IOCs as nodes
-            for ioc in finding.iocs:
+            # Extract IOCs as nodes (if finding has iocs attribute)
+            finding_iocs = getattr(finding, 'iocs', [])
+            for ioc in finding_iocs:
                 node_id = self._generate_node_id(ioc.type, ioc.value)
                 self._add_or_update_node(
                     nodes_dict,
@@ -126,7 +127,7 @@ class GraphBuilder:
                     {
                         "ioc_type": ioc.type,
                         "finding_title": finding.title,
-                        "tool_name": finding.tool_name,
+                        "tool_name": getattr(finding, 'tool_name', 'unknown'),
                         "confidence": finding.confidence,
                     }
                 )

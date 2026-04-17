@@ -600,7 +600,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
         }
 
         # Read template and inject data
-        template_path = Path(__file__).parent.parent.parent / "templates" / "report_graph_template.html"
+        template_path = Path(__file__).parent.parent.parent.parent / "templates" / "report_graph_template.html"
 
         try:
             with open(template_path, 'r') as f:
