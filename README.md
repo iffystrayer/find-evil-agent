@@ -4,7 +4,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-222%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen.svg)]()
 [![Hackathon](https://img.shields.io/badge/FIND%20EVIL!-Hackathon-red.svg)](https://findevil.devpost.com)
 
 > **Mission**: Minimize LLM hallucination in DFIR workflows through two-stage tool selection with confidence thresholds.
@@ -12,7 +12,7 @@
 ## ✨ Status: HACKATHON READY ✅
 
 - ✅ **Both unique features verified on live SIFT VM**
-- ✅ **239 tests passing** (191 unit + 48 integration)
+- ✅ **262 tests passing** (214 unit + 48 integration)
 - ✅ **Live SIFT VM integration** (tested end-to-end at 192.168.12.101)
 - ✅ **LangGraph orchestration** (3-step workflow + iterative investigation)
 - ✅ **CLI interface** with Rich UI (analyze + investigate commands)
@@ -67,6 +67,7 @@
 | **ToolSelectorAgent** | Two-stage tool selection | ✅ Complete (semantic + LLM) |
 | **ToolExecutorAgent** | SSH execution on SIFT VM | ✅ Complete (asyncssh) |
 | **AnalyzerAgent** | IOC extraction & severity | ✅ Complete (LLM + regex) |
+| **ReporterAgent** | Professional IR reports | ✅ Complete (MITRE ATT&CK mapping) |
 
 **Supporting Systems:**
 - ✅ ToolRegistry (18 SIFT tools, FAISS embeddings)
