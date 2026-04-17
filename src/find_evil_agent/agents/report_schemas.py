@@ -6,7 +6,7 @@ IR reports that meet Valhuntir quality standards.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
@@ -141,6 +141,68 @@ class ReportMetadata(BaseModel):
     version: str = Field(default="0.1.0", description="Agent version")
 
 
+class GraphNode(BaseModel):
+    """Node in attack chain graph.
+
+    Represents an entity (process, file, network, etc.) in the attack chain.
+
+    Attributes:
+        id: Unique node identifier
+        label: Display label (e.g., "malware.exe", "192.168.1.1")
+        node_type: Type of entity (process/file/network/registry/ioc)
+        severity: Severity level inherited from findings
+        properties: Additional metadata
+        occurrences: Number of times this entity appeared
+    """
+
+    id: str = Field(..., description="Unique node ID")
+    label: str = Field(..., description="Display label")
+    node_type: str = Field(..., description="Node type")
+    severity: str = Field(default="info", description="Severity level")
+    properties: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    occurrences: int = Field(default=1, ge=1, description="Occurrence count")
+
+
+class GraphEdge(BaseModel):
+    """Edge in attack chain graph.
+
+    Represents a relationship between entities.
+
+    Attributes:
+        source: Source node ID
+        target: Target node ID
+        edge_type: Type of relationship (spawned/created/connected_to/modified/referenced)
+        label: Display label for edge
+        properties: Additional metadata
+    """
+
+    source: str = Field(..., description="Source node ID")
+    target: str = Field(..., description="Target node ID")
+    edge_type: str = Field(..., description="Edge type")
+    label: str = Field(default="", description="Display label")
+    properties: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+
+class AttackGraph(BaseModel):
+    """Complete attack chain graph.
+
+    Graph representation of attack progression showing entities and relationships.
+
+    Attributes:
+        nodes: All graph nodes
+        edges: All graph edges
+        entry_points: Initial attack entry point node IDs
+        critical_path: Most critical attack chain node IDs
+        metadata: Graph generation metadata
+    """
+
+    nodes: list[GraphNode] = Field(default_factory=list, description="Graph nodes")
+    edges: list[GraphEdge] = Field(default_factory=list, description="Graph edges")
+    entry_points: list[str] = Field(default_factory=list, description="Entry point node IDs")
+    critical_path: list[str] = Field(default_factory=list, description="Critical path node IDs")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Graph metadata")
+
+
 class ReportSchema(BaseModel):
     """Complete IR report schema.
 
@@ -159,6 +221,7 @@ class ReportSchema(BaseModel):
         recommendations: Prioritized action items
         metadata: Report generation metadata
         evidence_citations: Tool output references
+        attack_graph: Attack chain graph visualization data
     """
 
     session_id: str = Field(..., description="Session ID")
@@ -172,6 +235,7 @@ class ReportSchema(BaseModel):
     recommendations: list[Recommendation] = Field(default_factory=list, description="Recommendations")
     metadata: ReportMetadata = Field(..., description="Report metadata")
     evidence_citations: dict[str, str] = Field(default_factory=dict, description="Evidence references")
+    attack_graph: Optional[AttackGraph] = Field(default=None, description="Attack chain graph")
 
     class Config:
         arbitrary_types_allowed = True
