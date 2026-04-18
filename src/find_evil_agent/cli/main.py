@@ -240,6 +240,69 @@ def config():
     console.print()
 
 
+@app.command()
+def web(
+    host: str = typer.Option(
+        "0.0.0.0",
+        "--host",
+        "-h",
+        help="Host to bind to"
+    ),
+    port: int = typer.Option(
+        17000,
+        "--port",
+        "-p",
+        help="Port to run on (5-digit required)"
+    ),
+    share: bool = typer.Option(
+        False,
+        "--share",
+        help="Create a public share link"
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable debug mode"
+    )
+):
+    """Launch the Gradio web interface.
+
+    Provides an accessible web UI with three tabs:
+    - Single Analysis: One-shot incident analysis
+    - Investigative Mode: Multi-iteration autonomous investigation
+    - About: Project information and features
+
+    Example:
+        find-evil web
+        find-evil web --port 17000 --share
+    """
+    try:
+        from find_evil_agent.web.gradio_app import launch_app
+
+        console.print(Panel.fit(
+            "[bold cyan]🌐 Find Evil Agent - Web Interface[/bold cyan]\n\n"
+            f"[green]Starting server at:[/green] http://{host}:{port}\n"
+            f"[dim]Press Ctrl+C to stop[/dim]",
+            title="Web UI",
+            border_style="cyan"
+        ))
+
+        launch_app(
+            server_name=host,
+            server_port=port,
+            share=share,
+            debug=debug
+        )
+
+    except ImportError as e:
+        console.print(f"[red]✗ Failed to import Gradio:[/red] {e}")
+        console.print("[yellow]Install Gradio with:[/yellow] uv pip install gradio")
+    except Exception as e:
+        console.print(f"[red]✗ Failed to launch web interface:[/red] {e}")
+        if debug:
+            console.print_exception()
+
+
 async def _run_analysis(
     incident_description: str,
     analysis_goal: str,

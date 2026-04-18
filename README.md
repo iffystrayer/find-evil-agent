@@ -15,7 +15,9 @@
 - ✅ **262 tests passing** (214 unit + 48 integration)
 - ✅ **Live SIFT VM integration** (tested end-to-end at 192.168.12.101)
 - ✅ **LangGraph orchestration** (3-step workflow + iterative investigation)
-- ✅ **CLI interface** with Rich UI (analyze + investigate commands)
+- ✅ **Three Interfaces**: CLI (Rich UI), Web UI (Gradio), REST API (OpenAPI)
+- ✅ **CLI interface** with Rich UI (analyze + investigate + web commands)
+- ✅ **Web UI** with Gradio (interactive browser interface)
 - ✅ **REST API** with OpenAPI documentation
 - ✅ **IOC extraction** (IPs, domains, hashes, paths)
 - ✅ **Demo scripts** ready for presentation
@@ -69,10 +71,14 @@
 | **AnalyzerAgent** | IOC extraction & severity | ✅ Complete (LLM + regex) |
 | **ReporterAgent** | Professional IR reports | ✅ Complete (MITRE ATT&CK mapping) |
 
+**Three User Interfaces:**
+- ✅ CLI Interface (Typer + Rich) - For power users and automation
+- ✅ Web UI (Gradio) - For everyone else, mouse-friendly
+- ✅ REST API (FastAPI + OpenAPI) - For developers and integrations
+
 **Supporting Systems:**
 - ✅ ToolRegistry (18 SIFT tools, FAISS embeddings)
 - ✅ BaseAgent (lazy LLM initialization)
-- ✅ CLI Interface (Typer + Rich)
 - ✅ Telemetry (structlog + Langfuse + Prometheus)
 
 ## 📁 Architecture
@@ -165,6 +171,33 @@ find-evil config
 # Show version
 find-evil version
 ```
+
+#### Web UI 🌐
+
+```bash
+# Launch interactive web interface (Gradio)
+find-evil web
+
+# Custom port
+find-evil web --port 17001
+
+# Create public share link
+find-evil web --share
+
+# Alternative: Direct Python launch
+python launch_web.py
+```
+
+**Features:**
+- 🎯 **Single Analysis Tab** - One-shot incident analysis with real-time progress
+- 🔬 **Investigative Mode Tab** - Multi-iteration autonomous investigation (2-10 iterations)
+- ℹ️ **About Tab** - Project information, architecture, MITRE ATT&CK coverage
+- 📊 **HTML Report Preview** - View reports inline with interactive graph visualization
+- 💾 **Download Reports** - Export as HTML or Markdown
+
+**Access:** http://localhost:17000
+
+**Perfect for:** Entry-level users, management, less technical stakeholders
 
 #### REST API
 
