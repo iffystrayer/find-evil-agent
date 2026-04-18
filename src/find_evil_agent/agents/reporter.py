@@ -11,7 +11,7 @@ Generates professional IR reports meeting Valhuntir quality standards:
 8. Multiple output formats (Markdown, HTML, PDF)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 from collections import defaultdict
@@ -240,7 +240,7 @@ class ReporterAgent(BaseAgent):
         # Build metadata
         metadata = ReportMetadata(
             session_id=session_id,
-            generated_at=datetime.now(datetime.UTC),
+            generated_at=datetime.now(timezone.utc),
             tool_count=tool_count,
             finding_count=len(findings),
             ioc_count=sum(len(v) for v in iocs.values()),
@@ -423,7 +423,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 entries.append(IOCTableEntry(
                     value=ioc_value,
                     ioc_type=ioc_type,
-                    first_seen=datetime.now(datetime.UTC),
+                    first_seen=datetime.now(timezone.utc),
                     occurrences=count,
                     context=f"Found {count} time(s) during analysis",
                 ))

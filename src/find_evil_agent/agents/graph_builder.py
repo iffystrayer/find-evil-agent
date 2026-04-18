@@ -13,7 +13,7 @@ Key Features:
 
 import re
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 from typing import Any
 import structlog
@@ -104,7 +104,7 @@ class GraphBuilder:
                     "node_count": 0,
                     "edge_count": 0,
                     "entry_point_count": 0,
-                    "generated_at": datetime.now(datetime.UTC).isoformat(),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                 }
             )
 
