@@ -240,7 +240,7 @@ class ReporterAgent(BaseAgent):
         # Build metadata
         metadata = ReportMetadata(
             session_id=session_id,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(datetime.UTC),
             tool_count=tool_count,
             finding_count=len(findings),
             ioc_count=sum(len(v) for v in iocs.values()),
@@ -423,7 +423,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 entries.append(IOCTableEntry(
                     value=ioc_value,
                     ioc_type=ioc_type,
-                    first_seen=datetime.utcnow(),
+                    first_seen=datetime.now(datetime.UTC),
                     occurrences=count,
                     context=f"Found {count} time(s) during analysis",
                 ))

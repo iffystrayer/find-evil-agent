@@ -104,7 +104,7 @@ class GraphBuilder:
                     "node_count": 0,
                     "edge_count": 0,
                     "entry_point_count": 0,
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(datetime.UTC).isoformat(),
                 }
             )
 
@@ -205,7 +205,7 @@ class GraphBuilder:
             "node_count": len(nodes),
             "edge_count": len(edges),
             "entry_point_count": len(entry_points),
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(datetime.UTC).isoformat(),
             "severity_distribution": self._calculate_severity_distribution(nodes),
             "node_type_distribution": self._calculate_node_type_distribution(nodes),
         }
