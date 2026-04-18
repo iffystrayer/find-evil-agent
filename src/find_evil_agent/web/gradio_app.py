@@ -53,13 +53,13 @@ async def analyze_incident(
         # Run analysis based on mode
         if max_iterations == 1:
             progress(0.3, desc="Running single analysis...")
-            result = await orchestrator.analyze(
-                incident_description=incident_description,
-                analysis_goal=analysis_goal
-            )
+            result = await orchestrator.process({
+                "incident_description": incident_description,
+                "analysis_goal": analysis_goal
+            })
         else:
             progress(0.3, desc=f"Starting investigation ({max_iterations} iterations)...")
-            result = await orchestrator.investigate(
+            result = await orchestrator.process_iterative(
                 incident_description=incident_description,
                 analysis_goal=analysis_goal,
                 max_iterations=max_iterations
@@ -82,19 +82,32 @@ async def analyze_incident(
         else:
             format_enum = ReportFormat.MARKDOWN
 
-        # Generate report
-        report = await reporter.generate_report(
-            findings=result.findings if hasattr(result, 'findings') else [],
-            incident_description=incident_description,
-            analysis_goal=analysis_goal,
-            output_format=format_enum,
-            output_path=report_path
-        )
+        # Generate report based on analysis mode
+        if max_iterations == 1:
+            report_content = await reporter.generate_report(
+                analysis_result=result if result.success else None,
+                format=format_enum,
+                incident_description=incident_description,
+                analysis_goal=analysis_goal,
+                output_path=report_path
+            )
+        else:
+            report_content = await reporter.generate_report(
+                iterative_result=result if result.success else None,
+                format=format_enum,
+                incident_description=incident_description,
+                analysis_goal=analysis_goal,
+                output_path=report_path
+            )
 
         progress(0.9, desc="Finalizing report...")
 
-        # Read report content
-        report_content = report_path.read_text()
+        # Read report content from file if PDF, otherwise use returned content
+        if output_format == "pdf" and report_path.exists():
+            report_content = report_path.read_text()
+        elif output_format == "html" or output_format == "markdown":
+            # For HTML/Markdown, write content to file for download
+            report_path.write_text(report_content)
 
         # Build status message
         findings_count = len(result.findings) if hasattr(result, 'findings') else 0
