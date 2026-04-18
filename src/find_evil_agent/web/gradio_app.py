@@ -41,7 +41,7 @@ async def analyze_incident(
         return (
             "<p style='color: red;'>Error: Please provide both incident description and analysis goal.</p>",
             "❌ Error: Missing required inputs",
-            ""
+            None
         )
 
     try:
@@ -71,8 +71,11 @@ async def analyze_incident(
         reporter = ReporterAgent()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_filename = f"find_evil_report_{timestamp}.{output_format}"
-        report_path = Path("reports") / report_filename
-        report_path.parent.mkdir(exist_ok=True)
+
+        # Use absolute path from the start
+        reports_dir = Path.cwd() / "reports"
+        reports_dir.mkdir(exist_ok=True)
+        report_path = reports_dir / report_filename
 
         # Determine format
         if output_format == "html":
@@ -83,17 +86,43 @@ async def analyze_incident(
             format_enum = ReportFormat.MARKDOWN
 
         # Generate report based on analysis mode
+        from find_evil_agent.agents.schemas import AnalysisResult, Finding
         if max_iterations == 1:
+            analysis_res = None
+            session_id = "N/A"
+            duration_val = 0.0
+            findings_count = 0
+            if result.success:
+                state_obj = result.data.get("state")
+                session_id = state_obj.session_id if state_obj else "unknown"
+                findings = [Finding(**f) for f in getattr(state_obj, 'findings', [])]
+                findings_count = len(findings)
+                iocs = {}
+                for ioc_entry in getattr(state_obj, 'iocs', []):
+                    iocs.setdefault(ioc_entry["type"], []).extend(ioc_entry["values"])
+                tool_name = state_obj.selected_tools[0].tool_name if getattr(state_obj, 'selected_tools', []) else "unknown"
+                
+                analysis_res = AnalysisResult(
+                    tool_name=tool_name,
+                    findings=findings,
+                    iocs=iocs,
+                    raw_output="",
+                )
             report_content = await reporter.generate_report(
-                analysis_result=result if result.success else None,
+                analysis_result=analysis_res,
                 format=format_enum,
+                session_id=session_id,
                 incident_description=incident_description,
                 analysis_goal=analysis_goal,
                 output_path=report_path
             )
         else:
+            session_id = getattr(result, "session_id", "N/A")
+            duration_val = getattr(result, "total_duration", 0.0)
+            findings_count = len(getattr(result, "all_findings", []))
+            
             report_content = await reporter.generate_report(
-                iterative_result=result if result.success else None,
+                iterative_result=result,
                 format=format_enum,
                 incident_description=incident_description,
                 analysis_goal=analysis_goal,
@@ -110,15 +139,14 @@ async def analyze_incident(
             report_path.write_text(report_content)
 
         # Build status message
-        findings_count = len(result.findings) if hasattr(result, 'findings') else 0
         iterations_text = f"{max_iterations} iterations" if max_iterations > 1 else "single analysis"
 
         status = f"""✅ Analysis Complete
 
-**Session ID:** {result.session_id if hasattr(result, 'session_id') else 'N/A'}
+**Session ID:** {session_id}
 **Mode:** {iterations_text}
 **Findings:** {findings_count}
-**Duration:** {result.duration:.1f}s
+**Duration:** {duration_val:.1f}s
 **Report:** {report_path.name}
 
 The report includes:
@@ -143,7 +171,7 @@ The report includes:
         return (
             f"<p style='color: red;'>Error: {str(e)}</p>",
             error_msg,
-            ""
+            None  # Return None instead of empty string for gr.File
         )
 
 

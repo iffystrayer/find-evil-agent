@@ -145,6 +145,14 @@ cp .env.example .env
 #   - OLLAMA_BASE_URL or API keys
 #   - SIFT_VM_HOST, SIFT_VM_PORT, SIFT_SSH_USER
 #   - Langfuse credentials (optional, for observability)
+
+### 🐋 Docker Deployment (Recommended)
+
+To deploy the Web UI and API side-by-side using containers:
+```bash
+docker-compose up -d
+```
+Access the Web Interface at `http://localhost:17000` and the API at `http://localhost:18000`.
 ```
 
 ### Usage
@@ -344,7 +352,7 @@ mypy src/find_evil_agent
 - [ ] Optimize LLM prompts for faster lead extraction
 
 **Medium Priority:**
-- [ ] HTML/PDF report formats
+- [x] HTML/PDF report formats (Completed)
 - [ ] Streaming progress updates during execution
 - [ ] Report templates for common scenarios
 - [ ] Parallel tool execution for faster workflows
@@ -402,8 +410,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
-**📅 Last Updated:** April 10, 2026  
+**📅 Last Updated:** April 2026  
 **🏆 Hackathon Status:** READY FOR SUBMISSION  
 **✅ Unique Features:** Both verified on live SIFT VM  
 **🎬 Demo Scripts:** Ready for presentation  
 **📊 Test Coverage:** 239 tests (85%+ passing)
+**🐋 Deployment:** Docker-Compose Support Added

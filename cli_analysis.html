@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Evil Agent - Incident Response Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .metadata {
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .severity-critical {
+            border-left: 5px solid #dc3545;
+            padding-left: 15px;
+            background-color: #ffe6e6;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-high {
+            border-left: 5px solid #fd7e14;
+            padding-left: 15px;
+            background-color: #fff3e6;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-medium {
+            border-left: 5px solid #ffc107;
+            padding-left: 15px;
+            background-color: #fffbf0;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-low {
+            border-left: 5px solid #17a2b8;
+            padding-left: 15px;
+            background-color: #e6f7f9;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-info {
+            border-left: 5px solid #6c757d;
+            padding-left: 15px;
+            background-color: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .ioc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .ioc-table th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .ioc-table td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .ioc-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .ioc-value {
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .timeline-entry {
+            border-left: 3px solid #667eea;
+            padding-left: 15px;
+            margin: 15px 0;
+        }
+        .recommendation {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .recommendation-priority {
+            background-color: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🔍 Find Evil Agent - Incident Response Report</h1>
+        <div class="metadata">
+            <strong>Session ID:</strong> ab58f33c-76cd-4a1b-8f77-0685bc8e7755<br>
+            <strong>Generated:</strong> 2026-04-18 18:41:08 UTC<br>
+            <strong>Incident:</strong> Suspicious files in /tmp directory
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Executive Summary</h2>
+<p>This report documents the forensic analysis of a security incident: Suspicious files in /tmp directory.
+The investigation was conducted using the Find Evil Agent autonomous incident response system,
+which performed comprehensive analysis across multiple forensic tools. A total of 1
+findings were identified during the investigation, including 0 critical and 0
+high-severity discoveries that require immediate attention.</p><h3>Key Findings</h3><p>No critical or high-severity findings identified during analysis. All findings are medium severity or lower.</p><h3>Impact Assessment</h3><p>The investigation identified 1 findings of varying severity levels. No critical or
+high-severity indicators of compromise were discovered, suggesting the incident may be lower risk
+or require additional investigation to confirm the threat level. Continued monitoring and implementation
+of recommended security controls are advised to maintain security posture.</p><h3>Recommendations Summary</h3><p>Recommended actions include: (1) Review and validate findings to rule out false positives,
+(2) Implement additional monitoring for suspicious activities identified, (3) Review security
+configurations and policies based on findings, and (4) Conduct follow-up investigation if warranted.
+Detailed recommendations are provided in the Recommendations section of this report.</p></div>
+
+    <div class="section">
+        <h2>🎯 MITRE ATT&CK Mapping</h2>
+<p><em>No MITRE ATT&CK techniques mapped.</em></p></div>
+
+    <div class="section">
+        <h2>🚨 Indicators of Compromise (IOCs)</h2>
+<h3>FILE_PATH_UNIX</h3><table class="ioc-table"><tr><th>IOC Value</th><th>Occurrences</th><th>Context</th></tr><tr><td><span class="ioc-value">/usr/bin/fls</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr></table></div>
+
+    <div class="section">
+        <h2>🔍 Findings by Severity</h2>
+<div class="severity-info"><h3>Forensic Tool Presence Identified</h3><p>The output indicates the presence of 'fls' (Sleuth Kit), a command-line tool used to list files and directories in a file system image. While this is a legitimate forensic tool, its presence on a production system may indicate an investigator's activity or a sophisticated attacker attempting to perform local forensics/anti-forensics.</p><p><strong>Confidence:</strong> 0.90</p><p><strong>Evidence:</strong></p><ul><li>/usr/bin/fls</li></ul></div></div>
+
+    <div class="section">
+        <h2>💡 Recommendations</h2>
+</div>
+
+</body>
+</html>

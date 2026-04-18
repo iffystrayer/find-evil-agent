@@ -691,6 +691,24 @@ Detailed recommendations are provided in the Recommendations section of this rep
         else:
             md.append("*No IOCs extracted during analysis.*\n\n")
         md.append("---\n\n")
+        
+        # Attack Chain Graph 
+        if report.attack_graph and report.attack_graph.nodes:
+            md.append("## 🕸️ Attack Chain Graph\n\n")
+            md.append("```mermaid\n")
+            md.append("graph TD\n")
+            for node in report.attack_graph.nodes:
+                node_label = node.label.replace('"', '\\"').replace("'", "")
+                md.append(f'  {node.id}["{node_label}"]\n')
+                if node.severity == FindingSeverity.CRITICAL.value:
+                    md.append(f"  style {node.id} fill:#f8d7da,stroke:#dc3545\n")
+                elif node.severity == FindingSeverity.HIGH.value:
+                    md.append(f"  style {node.id} fill:#fff3cd,stroke:#ffc107\n")
+            for edge in report.attack_graph.edges:
+                edge_label = edge.label.replace('"', '')
+                md.append(f'  {edge.source} -->|"{edge_label}"| {edge.target}\n')
+            md.append("```\n\n")
+            md.append("---\n\n")
 
         # Timeline
         md.append("## Timeline\n\n")

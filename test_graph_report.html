@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Evil Agent - Incident Response Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .metadata {
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .severity-critical {
+            border-left: 5px solid #dc3545;
+            padding-left: 15px;
+            background-color: #ffe6e6;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-high {
+            border-left: 5px solid #fd7e14;
+            padding-left: 15px;
+            background-color: #fff3e6;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-medium {
+            border-left: 5px solid #ffc107;
+            padding-left: 15px;
+            background-color: #fffbf0;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-low {
+            border-left: 5px solid #17a2b8;
+            padding-left: 15px;
+            background-color: #e6f7f9;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-info {
+            border-left: 5px solid #6c757d;
+            padding-left: 15px;
+            background-color: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .ioc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .ioc-table th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .ioc-table td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .ioc-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .ioc-value {
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .timeline-entry {
+            border-left: 3px solid #667eea;
+            padding-left: 15px;
+            margin: 15px 0;
+        }
+        .recommendation {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .recommendation-priority {
+            background-color: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🔍 Find Evil Agent - Incident Response Report</h1>
+        <div class="metadata">
+            <strong>Session ID:</strong> 4d1a7e47-975f-4bcd-8c8b-005d6adf8707<br>
+            <strong>Generated:</strong> 2026-04-17 22:40:24 UTC<br>
+            <strong>Incident:</strong> Ransomware attack detected on production server
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Executive Summary</h2>
+<p>This report documents the forensic analysis of a security incident: Ransomware attack detected on production server.
+The investigation was conducted using the Find Evil Agent autonomous incident response system,
+which performed comprehensive analysis across multiple forensic tools. A total of 3
+findings were identified during the investigation, including 2 critical and 1
+high-severity discoveries that require immediate attention.</p><h3>Key Findings</h3><p><br>• **CRITICAL**: Suspicious PowerShell Execution
+<br>• **CRITICAL**: Network Connection to C2 Server
+<br>• **HIGH**: Malicious Registry Modification</p><h3>Impact Assessment</h3><p>The investigation identified 2 critical-severity findings indicating active compromise
+of the system. Immediate containment and remediation actions are required to prevent further damage.
+The presence of 1 high-severity findings suggests the threat actor has established persistence
+and may have achieved their objectives. This represents a significant security incident requiring
+executive awareness and coordinated response across IT, Security, and Business teams.</p><h3>Recommendations Summary</h3><p>Immediate actions are required: (1) Isolate affected systems to prevent lateral movement,
+(2) Conduct credential reset for potentially compromised accounts, (3) Review and block
+identified command and control infrastructure, (4) Deploy enhanced monitoring for indicators
+identified in this report, and (5) Initiate incident response procedures per organizational policy.
+Detailed recommendations are provided in the Recommendations section of this report.</p></div>
+
+    <div class="section">
+        <h2>🎯 MITRE ATT&CK Mapping</h2>
+<table class="ioc-table"><tr><th>Technique ID</th><th>Technique Name</th><th>Tactic</th><th>Related Findings</th></tr><tr><td><code>T1059.001</code></td><td>PowerShell</td><td>Execution</td><td>Suspicious PowerShell Execution</td></tr><tr><td><code>T1059.003</code></td><td>Windows Command Shell</td><td>Execution</td><td>Suspicious PowerShell Execution, Network Connection to C2 Server</td></tr><tr><td><code>T1071</code></td><td>Application Layer Protocol</td><td>Command and Control</td><td>Network Connection to C2 Server</td></tr><tr><td><code>T1071.001</code></td><td>Web Protocols</td><td>Command and Control</td><td>Network Connection to C2 Server</td></tr><tr><td><code>T1543</code></td><td>Create or Modify System Process</td><td>Persistence</td><td>Malicious Registry Modification</td></tr><tr><td><code>T1547.001</code></td><td>Registry Run Keys / Startup Folder</td><td>Persistence</td><td>Malicious Registry Modification</td></tr></table></div>
+
+    <div class="section">
+        <h2>🚨 Indicators of Compromise (IOCs)</h2>
+<h3>DOMAIN</h3><table class="ioc-table"><tr><th>IOC Value</th><th>Occurrences</th><th>Context</th></tr><tr><td><span class="ioc-value">malicious.com</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr></table><h3>FILE</h3><table class="ioc-table"><tr><th>IOC Value</th><th>Occurrences</th><th>Context</th></tr><tr><td><span class="ioc-value">/tmp/malware.bin</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr></table><h3>IPV4</h3><table class="ioc-table"><tr><th>IOC Value</th><th>Occurrences</th><th>Context</th></tr><tr><td><span class="ioc-value">192.168.1.100</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr></table><h3>PROCESS</h3><table class="ioc-table"><tr><th>IOC Value</th><th>Occurrences</th><th>Context</th></tr><tr><td><span class="ioc-value">cmd.exe</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr><tr><td><span class="ioc-value">malware.exe</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr><tr><td><span class="ioc-value">powershell.exe</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr></table><h3>REGISTRY</h3><table class="ioc-table"><tr><th>IOC Value</th><th>Occurrences</th><th>Context</th></tr><tr><td><span class="ioc-value">HKLM\Software\Microsoft\Windows\CurrentVersion\Run</span></td><td>1</td><td>Found 1 time(s) during analysis</td></tr></table></div>
+
+    <div class="section">
+        <h2>🔍 Findings by Severity</h2>
+<div class="severity-critical"><h3>Suspicious PowerShell Execution</h3><p>powershell.exe spawned cmd.exe which created file /tmp/malware.bin and connected to 192.168.1.100:4444</p><p><strong>Confidence:</strong> 0.95</p><p><strong>Evidence:</strong></p><ul><li>Process tree analysis</li></ul></div><div class="severity-critical"><h3>Network Connection to C2 Server</h3><p>Process cmd.exe connected to malicious.com via DNS query and established connection to 192.168.1.100:4444</p><p><strong>Confidence:</strong> 0.98</p><p><strong>Evidence:</strong></p><ul><li>Network traffic analysis</li></ul></div><div class="severity-high"><h3>Malicious Registry Modification</h3><p>Process malware.exe modified registry HKLM\Software\Microsoft\Windows\CurrentVersion\Run for persistence</p><p><strong>Confidence:</strong> 0.90</p><p><strong>Evidence:</strong></p><ul><li>Registry analysis</li></ul></div></div>
+
+    <div class="section">
+        <h2>💡 Recommendations</h2>
+<div class="recommendation"><span class="recommendation-priority">Priority 1</span><strong>Immediate Response: Suspicious PowerShell Execution</strong><p>CRITICAL: powershell.exe spawned cmd.exe which created file /tmp/malware.bin and connected to 192.168.1.100:4444. Immediate containment and investigation required. Isolate affected systems, preserve evidence, and escalate to incident response team.</p><p><small><strong>Urgency:</strong> immediate</small></p></div><div class="recommendation"><span class="recommendation-priority">Priority 2</span><strong>Immediate Response: Network Connection to C2 Server</strong><p>CRITICAL: Process cmd.exe connected to malicious.com via DNS query and established connection to 192.168.1.100:4444. Immediate containment and investigation required. Isolate affected systems, preserve evidence, and escalate to incident response team.</p><p><small><strong>Urgency:</strong> immediate</small></p></div><div class="recommendation"><span class="recommendation-priority">Priority 3</span><strong>Urgent Investigation: Malicious Registry Modification</strong><p>HIGH: Process malware.exe modified registry HKLM\Software\Microsoft\Windows\CurrentVersion\Run for persistence. Conduct detailed investigation within 24 hours. Review logs, identify affected assets, and implement containment if compromise confirmed.</p><p><small><strong>Urgency:</strong> urgent</small></p></div><div class="recommendation"><span class="recommendation-priority">Priority 4</span><strong>Credential Reset and Access Review</strong><p>Reset credentials for all accounts with access to affected systems. Review and revoke unnecessary access privileges. Enable multi-factor authentication where not already deployed.</p><p><small><strong>Urgency:</strong> urgent</small></p></div><div class="recommendation"><span class="recommendation-priority">Priority 5</span><strong>Enhanced Monitoring and Detection</strong><p>Deploy enhanced monitoring for indicators identified in this report. Review SIEM rules and detection logic to ensure similar activity would be detected in the future. Consider threat hunting exercises for similar indicators across the environment.</p><p><small><strong>Urgency:</strong> short-term</small></p></div></div>
+
+    <div class="section" style="padding: 0; height: 800px; position: relative;">
+        <iframe
+            srcdoc="<!DOCTYPE html>
+<html lang=&quot;en&quot;>
+<head>
+    <meta charset=&quot;UTF-8&quot;>
+    <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;>
+    <title>Attack Chain Visualization</title>
+    <script src=&quot;https://d3js.org/d3.v7.min.js&quot;></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;
+            background: #0f0f23;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            background: #1a1a2e;
+            padding: 15px 20px;
+            border-bottom: 2px solid #16213e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        #title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #00d9ff;
+        }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #00d9ff;
+            color: #0f0f23;
+        }
+
+        .btn-primary:hover {
+            background: #00b8d4;
+        }
+
+        .btn-secondary {
+            background: #2c2c3e;
+            color: #e0e0e0;
+            border: 1px solid #3c3c4e;
+        }
+
+        .btn-secondary:hover {
+            background: #3c3c4e;
+        }
+
+        #graph-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+
+        #legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c4e;
+            font-size: 13px;
+            max-width: 250px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-section {
+            margin-bottom: 15px;
+        }
+
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #00d9ff;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }
+
+        .legend-shape {
+            margin-right: 8px;
+        }
+
+        #tooltip {
+            position: absolute;
+            background: rgba(26, 26, 46, 0.98);
+            padding: 12px 16px;
+            border-radius: 6px;
+            border: 1px solid #3c3c4e;
+            pointer-events: none;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #00d9ff;
+            font-size: 14px;
+        }
+
+        .tooltip-row {
+            margin-bottom: 4px;
+        }
+
+        .tooltip-label {
+            color: #888;
+            margin-right: 6px;
+        }
+
+        .node {
+            cursor: pointer;
+            stroke-width: 2;
+            transition: all 0.2s;
+        }
+
+        .node.selected {
+            stroke: #00d9ff;
+            stroke-width: 4;
+        }
+
+        .node.entry-point {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                filter: drop-shadow(0 0 5px currentColor);
+            }
+            50% {
+                filter: drop-shadow(0 0 15px currentColor);
+            }
+        }
+
+        .link {
+            stroke: #555;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .link.critical-path {
+            stroke: #dc3545;
+            stroke-width: 4;
+        }
+
+        .link-label {
+            font-size: 10px;
+            fill: #888;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-label {
+            font-size: 11px;
+            fill: #e0e0e0;
+            text-anchor: middle;
+            pointer-events: none;
+            font-weight: 500;
+        }
+
+        #stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #3c3c4e;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-item {
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #888;
+            margin-right: 8px;
+        }
+
+        .stat-value {
+            color: #00d9ff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id=&quot;container&quot;>
+        <div id=&quot;header&quot;>
+            <div id=&quot;title&quot;>Attack Chain Visualization</div>
+            <div id=&quot;controls&quot;>
+                <button class=&quot;btn btn-secondary&quot; onclick=&quot;resetZoom()&quot;>Reset View</button>
+                <button class=&quot;btn btn-secondary&quot; onclick=&quot;toggleLabels()&quot;>Toggle Labels</button>
+                <button class=&quot;btn btn-secondary&quot; onclick=&quot;togglePhysics()&quot;>Toggle Physics</button>
+                <button class=&quot;btn btn-primary&quot; onclick=&quot;exportGraph('json')&quot;>Export JSON</button>
+                <button class=&quot;btn btn-primary&quot; onclick=&quot;exportGraph('graphml')&quot;>Export GraphML</button>
+            </div>
+        </div>
+
+        <div id=&quot;graph-container&quot;>
+            <svg id=&quot;graph&quot;></svg>
+
+            <div id=&quot;legend&quot;>
+                <div class=&quot;legend-section&quot;>
+                    <div class=&quot;legend-title&quot;>Severity</div>
+                    <div class=&quot;legend-item&quot;>
+                        <div class=&quot;legend-color&quot; style=&quot;background: #dc3545;&quot;></div>
+                        <span>Critical</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <div class=&quot;legend-color&quot; style=&quot;background: #fd7e14;&quot;></div>
+                        <span>High</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <div class=&quot;legend-color&quot; style=&quot;background: #ffc107;&quot;></div>
+                        <span>Medium</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <div class=&quot;legend-color&quot; style=&quot;background: #0d6efd;&quot;></div>
+                        <span>Low</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <div class=&quot;legend-color&quot; style=&quot;background: #6c757d;&quot;></div>
+                        <span>Info</span>
+                    </div>
+                </div>
+
+                <div class=&quot;legend-section&quot;>
+                    <div class=&quot;legend-title&quot;>Node Types</div>
+                    <div class=&quot;legend-item&quot;>
+                        <svg width=&quot;16&quot; height=&quot;16&quot; class=&quot;legend-shape&quot;>
+                            <circle cx=&quot;8&quot; cy=&quot;8&quot; r=&quot;6&quot; fill=&quot;#888&quot; />
+                        </svg>
+                        <span>Process</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <svg width=&quot;16&quot; height=&quot;16&quot; class=&quot;legend-shape&quot;>
+                            <rect x=&quot;2&quot; y=&quot;2&quot; width=&quot;12&quot; height=&quot;12&quot; fill=&quot;#888&quot; />
+                        </svg>
+                        <span>File</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <svg width=&quot;16&quot; height=&quot;16&quot; class=&quot;legend-shape&quot;>
+                            <path d=&quot;M 8 2 L 14 14 L 2 14 Z&quot; fill=&quot;#888&quot; />
+                        </svg>
+                        <span>Network</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <svg width=&quot;16&quot; height=&quot;16&quot; class=&quot;legend-shape&quot;>
+                            <path d=&quot;M 8 2 L 14 8 L 8 14 L 2 8 Z&quot; fill=&quot;#888&quot; />
+                        </svg>
+                        <span>Registry</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <svg width=&quot;16&quot; height=&quot;16&quot; class=&quot;legend-shape&quot;>
+                            <path d=&quot;M 8 1 L 11 4 L 14 3 L 13 6 L 15 8 L 13 10 L 14 13 L 11 12 L 8 15 L 5 12 L 2 13 L 3 10 L 1 8 L 3 6 L 2 3 L 5 4 Z&quot; fill=&quot;#888&quot; />
+                        </svg>
+                        <span>IOC</span>
+                    </div>
+                </div>
+
+                <div class=&quot;legend-section&quot;>
+                    <div class=&quot;legend-title&quot;>Special</div>
+                    <div class=&quot;legend-item&quot;>
+                        <div class=&quot;legend-color&quot; style=&quot;background: #00d9ff; animation: pulse 2s infinite;&quot;></div>
+                        <span>Entry Point</span>
+                    </div>
+                    <div class=&quot;legend-item&quot;>
+                        <div style=&quot;width: 16px; height: 3px; background: #dc3545; margin-right: 8px;&quot;></div>
+                        <span>Critical Path</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id=&quot;stats&quot;>
+                <div class=&quot;stat-item&quot;>
+                    <span class=&quot;stat-label&quot;>Nodes:</span>
+                    <span class=&quot;stat-value&quot; id=&quot;node-count&quot;>0</span>
+                </div>
+                <div class=&quot;stat-item&quot;>
+                    <span class=&quot;stat-label&quot;>Edges:</span>
+                    <span class=&quot;stat-value&quot; id=&quot;edge-count&quot;>0</span>
+                </div>
+                <div class=&quot;stat-item&quot;>
+                    <span class=&quot;stat-label&quot;>Entry Points:</span>
+                    <span class=&quot;stat-value&quot; id=&quot;entry-count&quot;>0</span>
+                </div>
+                <div class=&quot;stat-item&quot;>
+                    <span class=&quot;stat-label&quot;>Critical Path:</span>
+                    <span class=&quot;stat-value&quot; id=&quot;critical-count&quot;>0</span>
+                </div>
+            </div>
+
+            <div id=&quot;tooltip&quot;></div>
+        </div>
+    </div>
+
+    <script>
+        // Graph data (injected by server)
+        const graphData = {&quot;nodes&quot;: [{&quot;id&quot;: &quot;process_728ab2d4&quot;, &quot;label&quot;: &quot;powershell.exe&quot;, &quot;node_type&quot;: &quot;process&quot;, &quot;severity&quot;: &quot;critical&quot;, &quot;occurrences&quot;: 1, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;}}, {&quot;id&quot;: &quot;process_1644ce56&quot;, &quot;label&quot;: &quot;cmd.exe&quot;, &quot;node_type&quot;: &quot;process&quot;, &quot;severity&quot;: &quot;critical&quot;, &quot;occurrences&quot;: 2, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Network Connection to C2 Server&quot;}}, {&quot;id&quot;: &quot;process_d0fa5711&quot;, &quot;label&quot;: &quot;which&quot;, &quot;node_type&quot;: &quot;process&quot;, &quot;severity&quot;: &quot;critical&quot;, &quot;occurrences&quot;: 2, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;}}, {&quot;id&quot;: &quot;process_08bc8e52&quot;, &quot;label&quot;: &quot;file&quot;, &quot;node_type&quot;: &quot;process&quot;, &quot;severity&quot;: &quot;critical&quot;, &quot;occurrences&quot;: 1, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;}}, {&quot;id&quot;: &quot;file_49efe425&quot;, &quot;label&quot;: &quot;/tmp/malware.bin&quot;, &quot;node_type&quot;: &quot;file&quot;, &quot;severity&quot;: &quot;critical&quot;, &quot;occurrences&quot;: 1, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;}}, {&quot;id&quot;: &quot;process_d8ea7e95&quot;, &quot;label&quot;: &quot;and&quot;, &quot;node_type&quot;: &quot;process&quot;, &quot;severity&quot;: &quot;critical&quot;, &quot;occurrences&quot;: 2, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;}}, {&quot;id&quot;: &quot;network_cf5c31c3&quot;, &quot;label&quot;: &quot;192.168.1.100:4444&quot;, &quot;node_type&quot;: &quot;network&quot;, &quot;severity&quot;: &quot;critical&quot;, &quot;occurrences&quot;: 3, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Network Connection to C2 Server&quot;}}, {&quot;id&quot;: &quot;process_4b0e9c59&quot;, &quot;label&quot;: &quot;malware.exe&quot;, &quot;node_type&quot;: &quot;process&quot;, &quot;severity&quot;: &quot;high&quot;, &quot;occurrences&quot;: 2, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Malicious Registry Modification&quot;}}, {&quot;id&quot;: &quot;registry_d44b7b9f&quot;, &quot;label&quot;: &quot;hklm\\software\\microsoft\\windows\\currentversion\\run&quot;, &quot;node_type&quot;: &quot;registry&quot;, &quot;severity&quot;: &quot;high&quot;, &quot;occurrences&quot;: 2, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Malicious Registry Modification&quot;}}], &quot;edges&quot;: [{&quot;source&quot;: &quot;process_728ab2d4&quot;, &quot;target&quot;: &quot;process_1644ce56&quot;, &quot;edge_type&quot;: &quot;spawned&quot;, &quot;label&quot;: &quot;powershell.exe spawned cmd.exe&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;, &quot;confidence&quot;: 0.95}}, {&quot;source&quot;: &quot;process_d0fa5711&quot;, &quot;target&quot;: &quot;process_08bc8e52&quot;, &quot;edge_type&quot;: &quot;spawned&quot;, &quot;label&quot;: &quot;which spawned file&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;, &quot;confidence&quot;: 0.95}}, {&quot;source&quot;: &quot;process_d0fa5711&quot;, &quot;target&quot;: &quot;file_49efe425&quot;, &quot;edge_type&quot;: &quot;created&quot;, &quot;label&quot;: &quot;which created /tmp/malware.bin&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;, &quot;confidence&quot;: 0.95}}, {&quot;source&quot;: &quot;process_d8ea7e95&quot;, &quot;target&quot;: &quot;network_cf5c31c3&quot;, &quot;edge_type&quot;: &quot;connected_to&quot;, &quot;label&quot;: &quot;and connected to 192.168.1.100:4444&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;, &quot;confidence&quot;: 0.95}}, {&quot;source&quot;: &quot;process_d8ea7e95&quot;, &quot;target&quot;: &quot;network_cf5c31c3&quot;, &quot;edge_type&quot;: &quot;connected_to&quot;, &quot;label&quot;: &quot;and connected to 192.168.1.100:4444&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Suspicious PowerShell Execution&quot;, &quot;confidence&quot;: 0.95}}, {&quot;source&quot;: &quot;process_4b0e9c59&quot;, &quot;target&quot;: &quot;registry_d44b7b9f&quot;, &quot;edge_type&quot;: &quot;modified&quot;, &quot;label&quot;: &quot;malware.exe modified hklm\\software\\microsoft\\windows\\currentversion\\run&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Malicious Registry Modification&quot;, &quot;confidence&quot;: 0.9}}, {&quot;source&quot;: &quot;process_4b0e9c59&quot;, &quot;target&quot;: &quot;registry_d44b7b9f&quot;, &quot;edge_type&quot;: &quot;modified&quot;, &quot;label&quot;: &quot;malware.exe modified hklm\\software\\microsoft\\windows\\currentversion\\run&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Malicious Registry Modification&quot;, &quot;confidence&quot;: 0.9}}, {&quot;source&quot;: &quot;process_1644ce56&quot;, &quot;target&quot;: &quot;network_cf5c31c3&quot;, &quot;edge_type&quot;: &quot;connected_to&quot;, &quot;label&quot;: &quot;cmd.exe connected to 192.168.1.100:4444&quot;, &quot;properties&quot;: {&quot;finding_title&quot;: &quot;Network Connection to C2 Server&quot;, &quot;confidence&quot;: 0.98}}], &quot;entry_points&quot;: [&quot;process_728ab2d4&quot;, &quot;process_d0fa5711&quot;, &quot;process_d8ea7e95&quot;, &quot;process_4b0e9c59&quot;], &quot;critical_path&quot;: [&quot;process_728ab2d4&quot;, &quot;process_1644ce56&quot;]};
+
+        // Color mapping
+        const severityColors = {
+            'critical': '#dc3545',
+            'high': '#fd7e14',
+            'medium': '#ffc107',
+            'low': '#0d6efd',
+            'info': '#6c757d'
+        };
+
+        // SVG setup
+        const svg = d3.select(&quot;#graph&quot;);
+        const container = svg.append(&quot;g&quot;);
+
+        // Zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on(&quot;zoom&quot;, (event) => {
+                container.attr(&quot;transform&quot;, event.transform);
+            });
+
+        svg.call(zoom);
+
+        // Get dimensions
+        function updateDimensions() {
+            const graphContainer = document.getElementById('graph-container');
+            const width = graphContainer.clientWidth;
+            const height = graphContainer.clientHeight;
+            svg.attr(&quot;width&quot;, width).attr(&quot;height&quot;, height);
+            return { width, height };
+        }
+
+        let { width, height } = updateDimensions();
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            ({ width, height } = updateDimensions());
+            simulation.force(&quot;center&quot;, d3.forceCenter(width / 2, height / 2));
+            simulation.alpha(0.3).restart();
+        });
+
+        // Create critical path set
+        const criticalPathSet = new Set();
+        if (graphData.critical_path) {
+            for (let i = 0; i < graphData.critical_path.length - 1; i++) {
+                criticalPathSet.add(`${graphData.critical_path[i]}-${graphData.critical_path[i + 1]}`);
+            }
+        }
+
+        // Create entry points set
+        const entryPointSet = new Set(graphData.entry_points || []);
+
+        // Arrow markers
+        const defs = svg.append(&quot;defs&quot;);
+
+        defs.append(&quot;marker&quot;)
+            .attr(&quot;id&quot;, &quot;arrow&quot;)
+            .attr(&quot;viewBox&quot;, &quot;0 -5 10 10&quot;)
+            .attr(&quot;refX&quot;, 20)
+            .attr(&quot;refY&quot;, 0)
+            .attr(&quot;markerWidth&quot;, 6)
+            .attr(&quot;markerHeight&quot;, 6)
+            .attr(&quot;orient&quot;, &quot;auto&quot;)
+            .append(&quot;path&quot;)
+            .attr(&quot;d&quot;, &quot;M0,-5L10,0L0,5&quot;)
+            .attr(&quot;fill&quot;, &quot;#555&quot;);
+
+        defs.append(&quot;marker&quot;)
+            .attr(&quot;id&quot;, &quot;arrow-critical&quot;)
+            .attr(&quot;viewBox&quot;, &quot;0 -5 10 10&quot;)
+            .attr(&quot;refX&quot;, 20)
+            .attr(&quot;refY&quot;, 0)
+            .attr(&quot;markerWidth&quot;, 8)
+            .attr(&quot;markerHeight&quot;, 8)
+            .attr(&quot;orient&quot;, &quot;auto&quot;)
+            .append(&quot;path&quot;)
+            .attr(&quot;d&quot;, &quot;M0,-5L10,0L0,5&quot;)
+            .attr(&quot;fill&quot;, &quot;#dc3545&quot;);
+
+        // Force simulation
+        let simulation = d3.forceSimulation(graphData.nodes)
+            .force(&quot;link&quot;, d3.forceLink(graphData.edges).id(d => d.id).distance(150))
+            .force(&quot;charge&quot;, d3.forceManyBody().strength(-400))
+            .force(&quot;center&quot;, d3.forceCenter(width / 2, height / 2))
+            .force(&quot;collision&quot;, d3.forceCollide().radius(30))
+            .force(&quot;x&quot;, d3.forceX(width / 2).strength(0.05))
+            .force(&quot;y&quot;, d3.forceY(height / 2).strength(0.05));
+
+        // Create links
+        const link = container.append(&quot;g&quot;)
+            .selectAll(&quot;path&quot;)
+            .data(graphData.edges)
+            .enter()
+            .append(&quot;path&quot;)
+            .attr(&quot;class&quot;, d => {
+                const edgeKey = `${d.source.id || d.source}-${d.target.id || d.target}`;
+                return criticalPathSet.has(edgeKey) ? &quot;link critical-path&quot; : &quot;link&quot;;
+            })
+            .attr(&quot;marker-end&quot;, d => {
+                const edgeKey = `${d.source.id || d.source}-${d.target.id || d.target}`;
+                return criticalPathSet.has(edgeKey) ? &quot;url(#arrow-critical)&quot; : &quot;url(#arrow)&quot;;
+            });
+
+        // Node shape drawing function
+        function drawNodeShape(selection) {
+            selection.each(function(d) {
+                const g = d3.select(this);
+                const color = severityColors[d.severity] || '#6c757d';
+                const size = 12;
+
+                switch(d.node_type) {
+                    case 'process':
+                        g.append(&quot;circle&quot;)
+                            .attr(&quot;r&quot;, size)
+                            .attr(&quot;fill&quot;, color);
+                        break;
+                    case 'file':
+                        g.append(&quot;rect&quot;)
+                            .attr(&quot;x&quot;, -size)
+                            .attr(&quot;y&quot;, -size)
+                            .attr(&quot;width&quot;, size * 2)
+                            .attr(&quot;height&quot;, size * 2)
+                            .attr(&quot;fill&quot;, color);
+                        break;
+                    case 'network':
+                        g.append(&quot;path&quot;)
+                            .attr(&quot;d&quot;, `M 0 ${-size} L ${size} ${size} L ${-size} ${size} Z`)
+                            .attr(&quot;fill&quot;, color);
+                        break;
+                    case 'registry':
+                        g.append(&quot;path&quot;)
+                            .attr(&quot;d&quot;, `M 0 ${-size} L ${size} 0 L 0 ${size} L ${-size} 0 Z`)
+                            .attr(&quot;fill&quot;, color);
+                        break;
+                    case 'ioc':
+                        const points = [];
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (Math.PI / 3) * i - Math.PI / 2;
+                            points.push([Math.cos(angle) * size, Math.sin(angle) * size]);
+                        }
+                        g.append(&quot;path&quot;)
+                            .attr(&quot;d&quot;, `M ${points.map(p => p.join(',')).join(' L ')} Z`)
+                            .attr(&quot;fill&quot;, color);
+                        break;
+                    default:
+                        g.append(&quot;circle&quot;)
+                            .attr(&quot;r&quot;, size)
+                            .attr(&quot;fill&quot;, color);
+                }
+            });
+        }
+
+        // Create nodes
+        const node = container.append(&quot;g&quot;)
+            .selectAll(&quot;g&quot;)
+            .data(graphData.nodes)
+            .enter()
+            .append(&quot;g&quot;)
+            .attr(&quot;class&quot;, d => {
+                let classes = &quot;node&quot;;
+                if (entryPointSet.has(d.id)) classes += &quot; entry-point&quot;;
+                return classes;
+            })
+            .call(drawNodeShape)
+            .call(d3.drag()
+                .on(&quot;start&quot;, dragstarted)
+                .on(&quot;drag&quot;, dragged)
+                .on(&quot;end&quot;, dragended))
+            .on(&quot;click&quot;, nodeClicked)
+            .on(&quot;mouseover&quot;, showTooltip)
+            .on(&quot;mouseout&quot;, hideTooltip);
+
+        // Node labels
+        let showLabels = true;
+        const nodeLabel = container.append(&quot;g&quot;)
+            .selectAll(&quot;text&quot;)
+            .data(graphData.nodes)
+            .enter()
+            .append(&quot;text&quot;)
+            .attr(&quot;class&quot;, &quot;node-label&quot;)
+            .attr(&quot;dy&quot;, 25)
+            .text(d => d.label.length > 20 ? d.label.substring(0, 17) + '...' : d.label);
+
+        // Update positions on tick
+        simulation.on(&quot;tick&quot;, () => {
+            link.attr(&quot;d&quot;, d => {
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                return `M ${d.source.x},${d.source.y} L ${d.target.x},${d.target.y}`;
+            });
+
+            node.attr(&quot;transform&quot;, d => `translate(${d.x},${d.y})`);
+            nodeLabel.attr(&quot;x&quot;, d => d.x).attr(&quot;y&quot;, d => d.y);
+        });
+
+        // Update stats
+        document.getElementById('node-count').textContent = graphData.nodes.length;
+        document.getElementById('edge-count').textContent = graphData.edges.length;
+        document.getElementById('entry-count').textContent = entryPointSet.size;
+        document.getElementById('critical-count').textContent = graphData.critical_path ? graphData.critical_path.length : 0;
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Node click
+        let selectedNode = null;
+        function nodeClicked(event, d) {
+            event.stopPropagation();
+
+            // Deselect previous
+            if (selectedNode) {
+                d3.select(selectedNode).classed(&quot;selected&quot;, false);
+            }
+
+            // Select new
+            if (selectedNode !== this) {
+                d3.select(this).classed(&quot;selected&quot;, true);
+                selectedNode = this;
+                highlightConnected(d);
+            } else {
+                selectedNode = null;
+                resetHighlight();
+            }
+        }
+
+        // Highlight connected nodes
+        function highlightConnected(d) {
+            const connected = new Set();
+            connected.add(d.id);
+
+            graphData.edges.forEach(e => {
+                if (e.source.id === d.id) connected.add(e.target.id);
+                if (e.target.id === d.id) connected.add(e.source.id);
+            });
+
+            node.style(&quot;opacity&quot;, n => connected.has(n.id) ? 1 : 0.2);
+            link.style(&quot;opacity&quot;, e =>
+                (e.source.id === d.id || e.target.id === d.id) ? 1 : 0.1
+            );
+            nodeLabel.style(&quot;opacity&quot;, n => connected.has(n.id) ? 1 : 0.2);
+        }
+
+        function resetHighlight() {
+            node.style(&quot;opacity&quot;, 1);
+            link.style(&quot;opacity&quot;, 1);
+            nodeLabel.style(&quot;opacity&quot;, 1);
+        }
+
+        // Deselect on background click
+        svg.on(&quot;click&quot;, () => {
+            if (selectedNode) {
+                d3.select(selectedNode).classed(&quot;selected&quot;, false);
+                selectedNode = null;
+                resetHighlight();
+            }
+        });
+
+        // Tooltip
+        const tooltip = d3.select(&quot;#tooltip&quot;);
+
+        function showTooltip(event, d) {
+            const props = Object.entries(d.properties || {})
+                .map(([k, v]) => `<div class=&quot;tooltip-row&quot;><span class=&quot;tooltip-label&quot;>${k}:</span>${v}</div>`)
+                .join('');
+
+            tooltip
+                .style(&quot;opacity&quot;, 1)
+                .style(&quot;left&quot;, (event.pageX + 15) + &quot;px&quot;)
+                .style(&quot;top&quot;, (event.pageY - 15) + &quot;px&quot;)
+                .html(`
+                    <div class=&quot;tooltip-title&quot;>${d.label}</div>
+                    <div class=&quot;tooltip-row&quot;><span class=&quot;tooltip-label&quot;>Type:</span>${d.node_type}</div>
+                    <div class=&quot;tooltip-row&quot;><span class=&quot;tooltip-label&quot;>Severity:</span>${d.severity}</div>
+                    <div class=&quot;tooltip-row&quot;><span class=&quot;tooltip-label&quot;>Occurrences:</span>${d.occurrences}</div>
+                    ${props}
+                `);
+        }
+
+        function hideTooltip() {
+            tooltip.style(&quot;opacity&quot;, 0);
+        }
+
+        // Control functions
+        function resetZoom() {
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity
+            );
+        }
+
+        function toggleLabels() {
+            showLabels = !showLabels;
+            nodeLabel.style(&quot;display&quot;, showLabels ? &quot;block&quot; : &quot;none&quot;);
+        }
+
+        let physicsEnabled = true;
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            if (physicsEnabled) {
+                simulation.alphaTarget(0.3).restart();
+            } else {
+                simulation.stop();
+            }
+        }
+
+        function exportGraph(format) {
+            if (format === 'json') {
+                const dataStr = &quot;data:text/json;charset=utf-8,&quot; +
+                    encodeURIComponent(JSON.stringify(graphData, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute(&quot;href&quot;, dataStr);
+                downloadAnchor.setAttribute(&quot;download&quot;, &quot;attack_graph.json&quot;);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+            } else if (format === 'graphml') {
+                // Trigger server-side export
+                alert('GraphML export: Use ReporterAgent.export_graphml() method');
+            }
+        }
+    </script>
+</body>
+</html>
+"
+            style="width: 100%; height: 100%; border: none; border-radius: 8px;"
+            sandbox="allow-scripts"
+        ></iframe>
+    </div>
+
+</body>
+</html>
