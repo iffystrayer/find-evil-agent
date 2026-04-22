@@ -60,6 +60,18 @@ class InvestigateRequest(BaseModel):
         }
 
 
+class ResumeRequest(BaseModel):
+    """Request to resume a paused workflow after human approval."""
+    approved: bool = Field(..., description="Whether to approve the lead execution.")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "approved": True
+            }
+        }
+
+
 class AnalyzeResponse(BaseModel):
     """Response from single-shot analysis."""
     success: bool
@@ -243,6 +255,72 @@ def create_app() -> FastAPI:
 
         except Exception as e:
             logger.error(f"Investigation failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Autonomous iterative investigation resume hook
+    @app.post("/api/v1/investigate/{session_id}/resume", response_model=InvestigateResponse, tags=["Investigation"])
+    async def resume_investigation(session_id: str, request: ResumeRequest):
+        """Resume a paused investigation after a human analyst reviews the lead."""
+        try:
+            logger.info(f"Resuming investigation {session_id} - Approved: {request.approved}")
+
+            orchestrator = OrchestratorAgent()
+            config = {"configurable": {"thread_id": session_id}}
+            
+            # Update the state internally
+                        # Get current state to avoid overwriting nested dict
+            current_state_info = orchestrator.iterative_workflow.get_state(config)
+            current_state_dict = current_state_info.values.get("state", {})
+            if hasattr(current_state_dict, "model_dump"):
+                current_state_dict = current_state_dict.model_dump()
+            elif hasattr(current_state_dict, "__dict__"):
+                current_state_dict = vars(current_state_dict)
+            current_state_dict["human_approved"] = request.approved if hasattr(request, "approved") else approved
+            
+            orchestrator.iterative_workflow.update_state(
+                config,
+                {"state": current_state_dict}
+            )
+            
+            # Re-trigger process_iterative to proceed
+            result = await orchestrator.process_iterative(
+                incident_description="",
+                analysis_goal="",
+                session_id=session_id
+            )
+
+            return InvestigateResponse(
+                success=True,
+                session_id=result.session_id,
+                iterations=[
+                    {
+                        "number": it.iteration_number,
+                        "tool": it.tool_used,
+                        "findings_count": len(it.findings),
+                        "iocs_count": sum(len(v) for v in it.iocs.values()),
+                        "leads_count": len(it.leads_discovered),
+                        "duration": it.duration
+                    }
+                    for it in result.iterations
+                ],
+                investigation_chain=[
+                    {
+                        "type": lead.lead_type.value,
+                        "description": lead.description,
+                        "priority": lead.priority.value,
+                        "confidence": lead.confidence
+                    }
+                    for lead in result.investigation_chain if lead
+                ],
+                all_findings=[f.model_dump() for f in result.all_findings],
+                all_iocs=result.all_iocs,
+                total_duration=result.total_duration,
+                stopping_reason=result.stopping_reason,
+                summary=result.investigation_summary
+            )
+
+        except Exception as e:
+            logger.error(f"Investigation resume failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     return app

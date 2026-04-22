@@ -157,6 +157,8 @@ Access the Web Interface at `http://localhost:17000` and the API at `http://loca
 
 ### Usage
 
+For a detailed walkthrough, including how to use the Human-in-the-Loop (HITL) system, see the [User Guide](docs/USER_GUIDE.md).
+
 #### CLI Commands
 
 ```bash

@@ -17,6 +17,74 @@ from find_evil_agent.agents.reporter import ReporterAgent
 from find_evil_agent.agents.report_schemas import ReportFormat
 from find_evil_agent.config.settings import get_settings
 
+async def resume_investigation(
+    session_id: str,
+    approved: bool,
+    format_dropdown: str,
+    progress=gr.Progress()
+) -> tuple:
+    if not session_id or session_id == "N/A":
+        return ("<p>No valid session</p>", "Error", None, gr.update(visible=False))
+        
+    progress(0.2, desc=f"Sending {'Approval' if approved else 'Rejection'} to Agent...")
+    
+    orchestrator = OrchestratorAgent()
+    config = {"configurable": {"thread_id": session_id}}
+    
+    # Get current state to avoid overwriting nested dict
+    current_state_info = orchestrator.iterative_workflow.get_state(config)
+    current_state_dict = current_state_info.values.get("state", {})
+    if hasattr(current_state_dict, "model_dump"):
+        current_state_dict = current_state_dict.model_dump()
+    elif hasattr(current_state_dict, "__dict__"):
+        current_state_dict = vars(current_state_dict)
+    
+    current_state_dict["human_approved"] = approved
+    
+    orchestrator.iterative_workflow.update_state(
+        config,
+        {"state": current_state_dict}
+    )
+    
+    progress(0.5, desc="Resuming execution...")
+    result = await orchestrator.process_iterative(
+        incident_description="",
+        analysis_goal="",
+        session_id=session_id
+    )
+    
+    # Render final report logic identical to main analyze
+    reporter = ReporterAgent()
+    from find_evil_agent.agents.report_schemas import ReportFormat
+    format_enum = ReportFormat.HTML if format_dropdown == "html" else ReportFormat.MARKDOWN
+    
+    from pathlib import Path
+    reports_dir = Path.cwd() / "reports"
+    reports_dir.mkdir(exist_ok=True)
+    report_path = reports_dir / f"find_evil_report_resumed.{format_dropdown}"
+    
+    report_content = await reporter.generate_report(
+        iterative_result=result,
+        format=format_enum,
+        incident_description="Resumed Investigation",
+        analysis_goal="",
+        output_path=report_path
+    )
+    
+    if format_dropdown == "html" or format_dropdown == "markdown":
+        report_path.write_text(report_content)
+        
+    if result.stopping_reason == "Waiting for Human Approval":
+        status = "Paused - Waiting for Approval again"
+        box_vis = gr.update(visible=True)
+    else:
+        status = "Completed!"
+        box_vis = gr.update(visible=False)
+        
+    final_html = report_content if format_dropdown == "html" else f"<pre>{report_content}</pre>"
+    return (final_html, status, str(report_path), box_vis)
+
+
 
 async def analyze_incident(
     incident_description: str,
@@ -24,7 +92,7 @@ async def analyze_incident(
     max_iterations: int = 1,
     output_format: str = "html",
     progress=gr.Progress()
-) -> Tuple[str, str, str]:
+) -> tuple:
     """Run analysis and return report + status.
 
     Args:
@@ -171,8 +239,21 @@ The report includes:
         return (
             f"<p style='color: red;'>Error: {str(e)}</p>",
             error_msg,
-            None  # Return None instead of empty string for gr.File
+            None
         )
+
+async def investigate_incident(
+    incident_description: str,
+    analysis_goal: str,
+    max_iterations: int = 1,
+    output_format: str = "html",
+    progress=gr.Progress()
+) -> tuple:
+    report_content, status, report_path = await analyze_incident(
+        incident_description, analysis_goal, max_iterations, output_format, progress
+    )
+    box_vis = gr.update(visible=True) if "Waiting for Human Approval" in status else gr.update(visible=False)
+    return report_content, status, report_path, box_vis
 
 
 def create_app() -> gr.Blocks:
@@ -285,19 +366,44 @@ def create_app() -> gr.Blocks:
                 with gr.Column(scale=1):
                     status_output_inv = gr.Textbox(
                         label="Status",
-                        lines=14,
+                        lines=10,
                         elem_classes=["status-box"],
                         interactive=False
                     )
                     download_file_inv = gr.File(label="Download Report")
+                    
+                    session_id_state = gr.State("N/A")
+                    
+                    with gr.Group(visible=False) as hitl_box:
+                        gr.Markdown("🛑 **Analyst Approval Required**")
+                        gr.Markdown("The agent successfully discovered autonomous leads and is waiting for cryptographic signing to proceed.")
+                        with gr.Row():
+                            approve_btn = gr.Button("✅ Sign & Approve", variant="primary")
+                            reject_btn = gr.Button("❌ Reject & Halt", variant="stop")
 
             report_output_inv = gr.HTML(label="Investigation Report")
 
             # Wire up the investigate button
             investigate_btn.click(
-                fn=analyze_incident,
+                fn=investigate_incident,
                 inputs=[incident_input_inv, goal_input_inv, iterations_slider, format_dropdown_inv],
-                outputs=[report_output_inv, status_output_inv, download_file_inv]
+                outputs=[report_output_inv, status_output_inv, download_file_inv, hitl_box]
+            ).then(
+                fn=lambda s: s.split("**Session ID:** ")[1].split("\\n")[0] if "**Session ID:** " in s else "N/A",
+                inputs=[status_output_inv],
+                outputs=[session_id_state]
+            )
+            
+            approve_btn.click(
+                fn=resume_investigation,
+                inputs=[session_id_state, gr.State(True), format_dropdown_inv],
+                outputs=[report_output_inv, status_output_inv, download_file_inv, hitl_box]
+            )
+            
+            reject_btn.click(
+                fn=resume_investigation,
+                inputs=[session_id_state, gr.State(False), format_dropdown_inv],
+                outputs=[report_output_inv, status_output_inv, download_file_inv, hitl_box]
             )
 
         # Tab 3: About

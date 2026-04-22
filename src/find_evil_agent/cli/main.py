@@ -378,14 +378,59 @@ async def _run_investigation(
     try:
         # Create orchestrator
         orchestrator = OrchestratorAgent()
+        
+        from rich.prompt import Confirm
+        from rich.console import Console
+        console = Console()
+        session_id = None
 
-        # Run iterative workflow
-        result = await orchestrator.process_iterative(
-            incident_description=incident_description,
-            analysis_goal=analysis_goal,
-            max_iterations=max_iterations,
-            auto_follow=True
-        )
+        # Run iterative workflow, handling HITL interrupts
+        while True:
+            result = await orchestrator.process_iterative(
+                incident_description=incident_description,
+                analysis_goal=analysis_goal,
+                max_iterations=max_iterations,
+                auto_follow=True,
+                session_id=session_id
+            )
+            
+            session_id = result.session_id
+            
+            if result.stopping_reason == "Waiting for Human Approval":
+                console.print("\n[bold red]🛑 Human-In-The-Loop (HITL) Approval Required[/bold red]")
+                
+                last_iteration = result.iterations[-1] if result.iterations else None
+                if last_iteration and last_iteration.leads_discovered:
+                    # The orchestrator sorts leads; the top one is selected
+                    proposed_lead = last_iteration.leads_discovered[0]
+                    console.print(f"[yellow]Analyst Override Needed:[/yellow] The agent wants to natively follow a lead.")
+                    console.print(f"[cyan]Target ({proposed_lead.lead_type.value}):[/cyan] {proposed_lead.description}")
+                    
+                    approved = Confirm.ask("Cryptographically sign and approve this execution path?")
+                    
+                    config = {"configurable": {"thread_id": session_id}}
+                    
+                    # Get current state to avoid overwriting nested dict
+                    current_state_info = orchestrator.iterative_workflow.get_state(config)
+                    current_state_dict = current_state_info.values.get("state", {})
+                    if hasattr(current_state_dict, "model_dump"):
+                        current_state_dict = current_state_dict.model_dump()
+                    elif hasattr(current_state_dict, "__dict__"):
+                        current_state_dict = vars(current_state_dict)
+                    
+                    if hasattr(request, "approved") if 'request' in locals() else False:
+                        current_state_dict["human_approved"] = request.approved
+                    else:
+                        current_state_dict["human_approved"] = approved
+                    
+                    orchestrator.iterative_workflow.update_state(
+                        config,
+                        {"state": current_state_dict}
+                    )
+                else:
+                    break
+            else:
+                break
 
         # Format results
         return {
