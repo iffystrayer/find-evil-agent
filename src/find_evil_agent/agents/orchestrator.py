@@ -41,6 +41,7 @@ from .schemas import (
 from .tool_selector import ToolSelectorAgent
 from .tool_executor import ToolExecutorAgent
 from .analyzer import AnalyzerAgent
+from .command_builder import DynamicCommandBuilder
 from find_evil_agent.telemetry import log_agent_error
 import time
 from datetime import datetime
@@ -88,6 +89,12 @@ class OrchestratorAgent(BaseAgent):
         self.tool_selector = ToolSelectorAgent(llm_provider=self._llm_provider)
         self.tool_executor = ToolExecutorAgent(llm_provider=self._llm_provider)
         self.analyzer = AnalyzerAgent(llm_provider=self._llm_provider)
+
+        # Initialize command builder
+        self.command_builder = DynamicCommandBuilder(
+            llm_router=self._llm_provider,
+            metadata_path="tools/metadata.yaml"
+        )
 
         # Build workflow
         self.workflow = self._build_workflow()
@@ -472,9 +479,13 @@ class OrchestratorAgent(BaseAgent):
             # Execute the selected tool
             tool_selection = state.selected_tools[0]  # Use first selected tool
 
-            # Build command from tool selection
-            # For now, use a simple command - this would be enhanced based on tool_selection.inputs
-            command = self._build_tool_command(tool_selection)
+            # Build command dynamically using LLM and metadata
+            context = {
+                "incident": state.incident_description,
+                "goal": state.analysis_goal,
+                "evidence_paths": getattr(state, "evidence_paths", [])
+            }
+            command = await self.command_builder.build_command(tool_selection, context)
 
             result = await self.tool_executor.process({
                 "tool_name": tool_selection.tool_name,
@@ -587,24 +598,34 @@ class OrchestratorAgent(BaseAgent):
         return state_dict
 
     def _build_tool_command(self, tool_selection: ToolSelection) -> str:
-        """Build command from tool selection.
+        """DEPRECATED: Build command from tool selection.
+
+        This method has been replaced by DynamicCommandBuilder which uses
+        LLM and tool metadata to construct proper commands.
 
         Args:
             tool_selection: Selected tool
 
         Returns:
             Command string
-        """
-        # Simple command building - would be enhanced based on tool type
-        tool_name = tool_selection.tool_name
 
-        # For demonstration, use basic commands
+        Note:
+            This method is kept for backward compatibility only.
+            Use self.command_builder.build_command() instead.
+        """
+        # DEPRECATED: Replaced by DynamicCommandBuilder
+        agent_logger.warning(
+            "deprecated_method",
+            method="_build_tool_command",
+            replacement="DynamicCommandBuilder.build_command"
+        )
+
+        tool_name = tool_selection.tool_name
+        # Fallback hardcoded commands (should not be used)
         if tool_name == "strings":
             return "strings /etc/hostname"
         elif tool_name == "grep":
             return "grep -i error /var/log/syslog 2>/dev/null || echo 'No errors found'"
-        elif tool_name in ["volatility", "rekall"]:
-            return f"which {tool_name} || echo '{tool_name} not installed'"
         else:
             return f"which {tool_name} || echo '{tool_name} not found'"
 

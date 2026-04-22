@@ -89,6 +89,7 @@ class AgentState(BaseModel):
     session_id: str | None = None
     incident_description: str | None = None
     analysis_goal: str | None = None
+    evidence_paths: list[str] = Field(default_factory=list)
     max_iterations: int = 1
     selected_tools: list[ToolSelection] = Field(default_factory=list)
     execution_results: list[ExecutionResult] = Field(default_factory=list)
