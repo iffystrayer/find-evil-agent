@@ -27,7 +27,11 @@ dependencies = [
     # Core Framework
     "langgraph>=0.2.0",
     "langchain-core>=0.3.0",
-    
+
+    # LLM Providers
+    "openai>=1.0.0",
+    "anthropic>=0.40.0",
+
     # MCP Protocol (Model Context Protocol)
     "mcp>=1.0.0",
     
