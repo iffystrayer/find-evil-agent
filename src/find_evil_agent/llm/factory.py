@@ -1,10 +1,15 @@
 """Factory for creating LLM providers based on configuration."""
 
+from typing import Optional
 from find_evil_agent.config.settings import Settings, LLMProviderEnum
 from find_evil_agent.llm.protocol import LLMProvider
 
 
-def create_llm_provider(settings: Settings) -> LLMProvider:
+def create_llm_provider(
+    settings: Settings,
+    provider_override: Optional[str] = None,
+    model_override: Optional[str] = None
+) -> LLMProvider:
     """Create LLM provider instance based on settings.
 
     This is the central factory for all LLM provider creation.
@@ -13,6 +18,8 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
 
     Args:
         settings: Application settings with LLM configuration
+        provider_override: Optional provider override (e.g., "openai", "anthropic")
+        model_override: Optional model name override (e.g., "gpt-4-turbo")
 
     Returns:
         LLMProvider instance ready for use
@@ -29,18 +36,26 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
         ...     {"role": "user", "content": "Hello"}
         ... ])
 
+        >>> # With CLI overrides
+        >>> provider = create_llm_provider(settings, provider_override="openai", model_override="gpt-4-turbo")
+
     Design Notes:
         - Uses match/case for clean provider selection
         - Validates API keys before instantiation
         - Provider implementations are imported lazily (only when needed)
         - Settings validator already checked API keys, but we double-check here
+        - CLI overrides take precedence over settings for runtime flexibility
     """
-    match settings.llm_provider:
+    # Apply overrides if provided
+    provider = LLMProviderEnum(provider_override) if provider_override else settings.llm_provider
+    model_name = model_override if model_override else settings.llm_model_name
+
+    match provider:
         case LLMProviderEnum.OLLAMA:
             from find_evil_agent.llm.providers.ollama import OllamaProvider
             return OllamaProvider(
                 base_url=settings.ollama_base_url,
-                model_name=settings.llm_model_name,
+                model_name=model_name,
                 temperature=settings.llm_temperature
             )
 
@@ -53,7 +68,7 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
             from find_evil_agent.llm.providers.openai import OpenAIProvider
             return OpenAIProvider(
                 api_key=settings.openai_api_key,
-                model_name=settings.llm_model_name,
+                model_name=model_name,
                 temperature=settings.llm_temperature
             )
 
@@ -66,7 +81,7 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
             from find_evil_agent.llm.providers.anthropic import AnthropicProvider
             return AnthropicProvider(
                 api_key=settings.anthropic_api_key,
-                model_name=settings.llm_model_name,
+                model_name=model_name,
                 temperature=settings.llm_temperature
             )
 

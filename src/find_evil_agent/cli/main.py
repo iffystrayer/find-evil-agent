@@ -52,6 +52,18 @@ def analyze(
         "-o",
         help="Output file for results (markdown format)"
     ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        "-p",
+        help="LLM provider (ollama, openai, anthropic)"
+    ),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Model name (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)"
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -64,6 +76,8 @@ def analyze(
     Examples:
         find-evil analyze "Ransomware detected on Windows 10" "Find malicious processes in memory"
         find-evil analyze "Suspicious network traffic" "Identify C2 communication" -o report.md
+        find-evil analyze "Data breach" "Identify exfiltration" --provider openai --model gpt-4-turbo
+        find-evil analyze "APT activity" "Find persistence" -p anthropic -m claude-sonnet-4
     """
     console.print()
     console.print(Panel.fit(
@@ -76,6 +90,10 @@ def analyze(
     # Display input
     console.print(f"[yellow]Incident:[/yellow] {incident_description}")
     console.print(f"[yellow]Goal:[/yellow] {analysis_goal}")
+    if provider:
+        console.print(f"[yellow]Provider:[/yellow] {provider}")
+    if model:
+        console.print(f"[yellow]Model:[/yellow] {model}")
     console.print()
 
     # Run analysis
@@ -88,7 +106,7 @@ def analyze(
 
         try:
             # Run workflow
-            result = asyncio.run(_run_analysis(incident_description, analysis_goal, verbose))
+            result = asyncio.run(_run_analysis(incident_description, analysis_goal, verbose, provider, model))
 
             progress.update(task, completed=True)
 
@@ -133,6 +151,18 @@ def investigate(
         "-o",
         help="Output file for investigation report (markdown format)"
     ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        "-p",
+        help="LLM provider (ollama, openai, anthropic)"
+    ),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Model name (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)"
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -154,6 +184,8 @@ def investigate(
     Examples:
         find-evil investigate "Ransomware detected" "Reconstruct complete attack chain" -n 5 -o investigation.md
         find-evil investigate "Data exfiltration" "Trace from network to file access" -v
+        find-evil investigate "APT" "Full attack timeline" --provider openai --model gpt-4-turbo
+        find-evil investigate "Breach" "Complete IR" -p anthropic -m claude-opus-4 -n 10
     """
     console.print()
     console.print(Panel.fit(
@@ -167,6 +199,10 @@ def investigate(
     console.print(f"[yellow]Incident:[/yellow] {incident_description}")
     console.print(f"[yellow]Goal:[/yellow] {analysis_goal}")
     console.print(f"[yellow]Max Iterations:[/yellow] {max_iterations}")
+    if provider:
+        console.print(f"[yellow]Provider:[/yellow] {provider}")
+    if model:
+        console.print(f"[yellow]Model:[/yellow] {model}")
     console.print()
 
     # Run investigation
@@ -183,7 +219,9 @@ def investigate(
                 incident_description,
                 analysis_goal,
                 max_iterations,
-                verbose
+                verbose,
+                provider,
+                model
             ))
 
             progress.update(task, completed=True)
@@ -306,7 +344,9 @@ def web(
 async def _run_analysis(
     incident_description: str,
     analysis_goal: str,
-    verbose: bool = False
+    verbose: bool = False,
+    provider: Optional[str] = None,
+    model: Optional[str] = None
 ) -> dict:
     """Run the analysis workflow.
 
@@ -314,13 +354,22 @@ async def _run_analysis(
         incident_description: Description of incident
         analysis_goal: Analysis goal
         verbose: Enable verbose logging
+        provider: Optional LLM provider override
+        model: Optional model name override
 
     Returns:
         Result dictionary
     """
     try:
+        # Create LLM provider with optional overrides
+        llm_provider = None
+        if provider or model:
+            from find_evil_agent.llm.factory import create_llm_provider
+            settings = get_settings()
+            llm_provider = create_llm_provider(settings, provider, model)
+
         # Create orchestrator
-        orchestrator = OrchestratorAgent()
+        orchestrator = OrchestratorAgent(llm_provider=llm_provider)
 
         # Run workflow
         result = await orchestrator.process({
@@ -362,7 +411,9 @@ async def _run_investigation(
     incident_description: str,
     analysis_goal: str,
     max_iterations: int = 5,
-    verbose: bool = False
+    verbose: bool = False,
+    provider: Optional[str] = None,
+    model: Optional[str] = None
 ) -> dict:
     """Run the iterative investigation workflow.
 
@@ -371,13 +422,22 @@ async def _run_investigation(
         analysis_goal: Investigation goal
         max_iterations: Maximum iterations
         verbose: Enable verbose logging
+        provider: Optional LLM provider override
+        model: Optional model name override
 
     Returns:
         Result dictionary
     """
     try:
+        # Create LLM provider with optional overrides
+        llm_provider = None
+        if provider or model:
+            from find_evil_agent.llm.factory import create_llm_provider
+            settings = get_settings()
+            llm_provider = create_llm_provider(settings, provider, model)
+
         # Create orchestrator
-        orchestrator = OrchestratorAgent()
+        orchestrator = OrchestratorAgent(llm_provider=llm_provider)
         
         from rich.prompt import Confirm
         from rich.console import Console
