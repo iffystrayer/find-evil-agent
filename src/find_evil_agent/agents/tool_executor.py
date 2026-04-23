@@ -30,6 +30,7 @@ from .base import BaseAgent, AgentResult, AgentStatus
 from .schemas import ExecutionResult, ExecutionStatus
 from find_evil_agent.config.settings import get_settings
 from find_evil_agent.telemetry import log_agent_error
+from find_evil_agent.parsers.factory import get_parser_factory
 
 agent_logger = structlog.get_logger()
 
@@ -197,6 +198,10 @@ class ToolExecutorAgent(BaseAgent):
                 status = AgentStatus.FAILED
                 success = False
 
+            # Parse output if parser available
+            if exec_result.stdout and exec_result.status == ExecutionStatus.SUCCESS:
+                exec_result = self._parse_output(exec_result, input_data)
+
             agent_logger.info(
                 "tool_execution_completed",
                 tool=tool_name,
@@ -204,7 +209,8 @@ class ToolExecutorAgent(BaseAgent):
                 return_code=exec_result.return_code,
                 execution_time=exec_result.execution_time,
                 stdout_length=len(exec_result.stdout or ""),
-                stderr_length=len(exec_result.stderr or "")
+                stderr_length=len(exec_result.stderr or ""),
+                parsed=exec_result.parsed_output is not None
             )
 
             return AgentResult(
@@ -434,3 +440,81 @@ class ToolExecutorAgent(BaseAgent):
                 conn.close()
                 await conn.wait_closed()
                 agent_logger.debug("ssh_connection_closed")
+
+    def _parse_output(self, exec_result: ExecutionResult, input_data: dict) -> ExecutionResult:
+        """Parse tool output using appropriate parser.
+
+        Args:
+            exec_result: Execution result with raw stdout
+            input_data: Original input data (may contain parser hints)
+
+        Returns:
+            ExecutionResult with parsed_output populated
+        """
+        try:
+            factory = get_parser_factory()
+            tool_name = exec_result.tool_name
+
+            # Determine parser kwargs from input data
+            parser_kwargs = {}
+
+            # Volatility: extract plugin name
+            if "volatility" in tool_name.lower():
+                command = exec_result.command or ""
+                if "pslist" in command:
+                    parser_kwargs["plugin"] = "pslist"
+                elif "netscan" in command:
+                    parser_kwargs["plugin"] = "netscan"
+                elif "malfind" in command:
+                    parser_kwargs["plugin"] = "malfind"
+
+            # Timeline: assume CSV format
+            elif tool_name.lower() in ["psort", "log2timeline"]:
+                parser_kwargs["format"] = "csv"
+
+            # TSK tools: set tool name
+            elif tool_name.lower() in ["fls", "mmls", "fsstat"]:
+                parser_kwargs["tool"] = tool_name.lower()
+
+            # Strings: enable IOC detection
+            elif tool_name.lower() == "strings":
+                parser_kwargs["min_length"] = 10
+                parser_kwargs["detect_obfuscation"] = True
+                parser_kwargs["extract_iocs"] = True
+
+            # Grep: enable IOC extraction
+            elif tool_name.lower() in ["grep", "egrep"]:
+                parser_kwargs["extract_iocs"] = True
+
+            # Attempt parsing
+            parse_result = factory.parse(tool_name, exec_result.stdout, **parser_kwargs)
+
+            if parse_result and parse_result.success:
+                # Convert parsed data to dict for ExecutionResult
+                if hasattr(parse_result.data, '__dict__'):
+                    exec_result.parsed_output = parse_result.data.__dict__
+                else:
+                    exec_result.parsed_output = {"data": parse_result.data}
+
+                agent_logger.debug(
+                    "output_parsed",
+                    tool=tool_name,
+                    parser_kwargs=parser_kwargs
+                )
+            else:
+                agent_logger.debug(
+                    "parsing_failed_or_unavailable",
+                    tool=tool_name,
+                    has_parser=factory.supports_tool(tool_name)
+                )
+
+        except Exception as e:
+            agent_logger.warning(
+                "parse_error",
+                tool=exec_result.tool_name,
+                error=str(e)
+            )
+            # Don't fail execution if parsing fails
+            pass
+
+        return exec_result
