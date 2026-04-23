@@ -17,12 +17,13 @@ Example:
 
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 import logging
 
 from find_evil_agent.agents.orchestrator import OrchestratorAgent
 from find_evil_agent.config.settings import get_settings
+from find_evil_agent.llm.factory import create_llm_provider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -163,16 +164,32 @@ def create_app() -> FastAPI:
 
     # Single-shot analysis
     @app.post("/api/v1/analyze", response_model=AnalyzeResponse, tags=["Analysis"])
-    async def analyze(request: AnalyzeRequest):
+    async def analyze(
+        request: AnalyzeRequest,
+        provider: Optional[str] = Query(None, description="LLM provider override (ollama, openai, anthropic)"),
+        model: Optional[str] = Query(None, description="Model name override (e.g., gpt-4-turbo, claude-sonnet-4)")
+    ):
         """Perform single-shot forensic analysis.
 
         Runs one iteration of tool selection → execution → analysis.
         Use this for quick, focused analysis.
+
+        Query Parameters:
+            provider: Optional LLM provider override (ollama, openai, anthropic)
+            model: Optional model name override (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)
         """
         try:
             logger.info(f"Analyze request: {request.incident_description[:100]}")
+            if provider:
+                logger.info(f"Using LLM provider override: {provider}, model: {model}")
 
-            orchestrator = OrchestratorAgent()
+            # Create LLM provider with optional overrides (Task #8: API Model Selector)
+            llm_provider = None
+            if provider or model:
+                settings = get_settings()
+                llm_provider = create_llm_provider(settings, provider, model)
+
+            orchestrator = OrchestratorAgent(llm_provider=llm_provider)
             result = await orchestrator.process({
                 "incident_description": request.incident_description,
                 "analysis_goal": request.analysis_goal
@@ -199,7 +216,11 @@ def create_app() -> FastAPI:
 
     # Autonomous iterative investigation
     @app.post("/api/v1/investigate", response_model=InvestigateResponse, tags=["Investigation"])
-    async def investigate(request: InvestigateRequest):
+    async def investigate(
+        request: InvestigateRequest,
+        provider: Optional[str] = Query(None, description="LLM provider override (ollama, openai, anthropic)"),
+        model: Optional[str] = Query(None, description="Model name override (e.g., gpt-4-turbo, claude-sonnet-4)")
+    ):
         """Perform autonomous iterative investigation.
 
         Automatically follows investigative leads to build complete attack chain.
@@ -211,11 +232,23 @@ def create_app() -> FastAPI:
         5. Synthesize complete investigation
 
         This is the differentiating feature of Find Evil Agent.
+
+        Query Parameters:
+            provider: Optional LLM provider override (ollama, openai, anthropic)
+            model: Optional model name override (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)
         """
         try:
             logger.info(f"Investigation request: {request.incident_description[:100]}")
+            if provider:
+                logger.info(f"Using LLM provider override: {provider}, model: {model}")
 
-            orchestrator = OrchestratorAgent()
+            # Create LLM provider with optional overrides (Task #8: API Model Selector)
+            llm_provider = None
+            if provider or model:
+                settings = get_settings()
+                llm_provider = create_llm_provider(settings, provider, model)
+
+            orchestrator = OrchestratorAgent(llm_provider=llm_provider)
             result = await orchestrator.process_iterative(
                 incident_description=request.incident_description,
                 analysis_goal=request.analysis_goal,
