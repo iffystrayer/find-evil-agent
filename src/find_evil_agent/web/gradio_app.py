@@ -91,6 +91,8 @@ async def analyze_incident(
     analysis_goal: str,
     max_iterations: int = 1,
     output_format: str = "html",
+    provider: str | None = None,
+    model: str | None = None,
     progress=gr.Progress()
 ) -> tuple:
     """Run analysis and return report + status.
@@ -100,6 +102,8 @@ async def analyze_incident(
         analysis_goal: What to investigate/find
         max_iterations: Number of investigation iterations (1 = single analysis)
         output_format: Report format (html/markdown)
+        provider: Optional LLM provider override (ollama, openai, anthropic)
+        model: Optional model name override
         progress: Gradio progress tracker
 
     Returns:
@@ -115,8 +119,15 @@ async def analyze_incident(
     try:
         progress(0.1, desc="Initializing orchestrator...")
 
+        # Create LLM provider with optional overrides (Task #7: Model Selector)
+        llm_provider = None
+        if provider or model:
+            from find_evil_agent.llm.factory import create_llm_provider
+            settings = get_settings()
+            llm_provider = create_llm_provider(settings, provider, model)
+
         # Initialize orchestrator
-        orchestrator = OrchestratorAgent()
+        orchestrator = OrchestratorAgent(llm_provider=llm_provider)
 
         # Run analysis based on mode
         if max_iterations == 1:
@@ -247,10 +258,12 @@ async def investigate_incident(
     analysis_goal: str,
     max_iterations: int = 1,
     output_format: str = "html",
+    provider: str | None = None,
+    model: str | None = None,
     progress=gr.Progress()
 ) -> tuple:
     report_content, status, report_path = await analyze_incident(
-        incident_description, analysis_goal, max_iterations, output_format, progress
+        incident_description, analysis_goal, max_iterations, output_format, provider, model, progress
     )
     box_vis = gr.update(visible=True) if "Waiting for Human Approval" in status else gr.update(visible=False)
     return report_content, status, report_path, box_vis
@@ -298,6 +311,20 @@ def create_app() -> gr.Blocks:
                     )
 
                     with gr.Row():
+                        provider_dropdown = gr.Dropdown(
+                            choices=["ollama", "openai", "anthropic"],
+                            value="ollama",
+                            label="LLM Provider",
+                            info="Select LLM provider (defaults to .env settings)"
+                        )
+                        model_dropdown = gr.Dropdown(
+                            choices=["gemma4:31b-cloud", "qwen3.5:397b-cloud", "deepseek-v3.2:cloud"],
+                            value="gemma4:31b-cloud",
+                            label="Model",
+                            info="Select model (updates based on provider)"
+                        )
+
+                    with gr.Row():
                         format_dropdown = gr.Dropdown(
                             choices=["html", "markdown"],
                             value="html",
@@ -317,10 +344,27 @@ def create_app() -> gr.Blocks:
 
             report_output = gr.HTML(label="Report Preview")
 
+            # Dynamic model dropdown update based on provider
+            def update_models(provider: str):
+                """Update model choices based on selected provider."""
+                models = {
+                    "ollama": ["gemma4:31b-cloud", "qwen3.5:397b-cloud", "deepseek-v3.2:cloud"],
+                    "openai": ["gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
+                    "anthropic": ["claude-sonnet-4", "claude-opus-4", "claude-haiku-4"]
+                }
+                choices = models.get(provider, models["ollama"])
+                return gr.update(choices=choices, value=choices[0])
+
+            provider_dropdown.change(
+                fn=update_models,
+                inputs=[provider_dropdown],
+                outputs=[model_dropdown]
+            )
+
             # Wire up the analyze button
             analyze_btn.click(
                 fn=analyze_incident,
-                inputs=[incident_input, goal_input, gr.Number(value=1, visible=False), format_dropdown],
+                inputs=[incident_input, goal_input, gr.Number(value=1, visible=False), format_dropdown, provider_dropdown, model_dropdown],
                 outputs=[report_output, status_output, download_file]
             )
 
@@ -356,6 +400,21 @@ def create_app() -> gr.Blocks:
                         label="Max Iterations",
                         info="How many investigation rounds to run"
                     )
+
+                    with gr.Row():
+                        provider_dropdown_inv = gr.Dropdown(
+                            choices=["ollama", "openai", "anthropic"],
+                            value="ollama",
+                            label="LLM Provider",
+                            info="Select LLM provider (defaults to .env settings)"
+                        )
+                        model_dropdown_inv = gr.Dropdown(
+                            choices=["gemma4:31b-cloud", "qwen3.5:397b-cloud", "deepseek-v3.2:cloud"],
+                            value="gemma4:31b-cloud",
+                            label="Model",
+                            info="Select model (updates based on provider)"
+                        )
+
                     format_dropdown_inv = gr.Dropdown(
                         choices=["html", "markdown"],
                         value="html",
@@ -383,10 +442,17 @@ def create_app() -> gr.Blocks:
 
             report_output_inv = gr.HTML(label="Investigation Report")
 
+            # Dynamic model dropdown update for investigative mode
+            provider_dropdown_inv.change(
+                fn=update_models,
+                inputs=[provider_dropdown_inv],
+                outputs=[model_dropdown_inv]
+            )
+
             # Wire up the investigate button
             investigate_btn.click(
                 fn=investigate_incident,
-                inputs=[incident_input_inv, goal_input_inv, iterations_slider, format_dropdown_inv],
+                inputs=[incident_input_inv, goal_input_inv, iterations_slider, format_dropdown_inv, provider_dropdown_inv, model_dropdown_inv],
                 outputs=[report_output_inv, status_output_inv, download_file_inv, hitl_box]
             ).then(
                 fn=lambda s: s.split("**Session ID:** ")[1].split("\\n")[0] if "**Session ID:** " in s else "N/A",
