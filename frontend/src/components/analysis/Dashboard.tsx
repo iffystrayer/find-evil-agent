@@ -3,11 +3,40 @@ import { DefaultAuditTrail } from './AuditTrail';
 import { ObfuscationAlert } from './ObfuscationAlert';
 import { AnalysisForm } from './AnalysisForm';
 import { BarChart3, Activity, Clock, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { api } from '../../api/client';
 
 export const Dashboard = () => {
-  const handleAnalysisSubmit = (data: { incident: string; goal: string; format: string }) => {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAnalysisSubmit = async (data: { incident: string; goal: string; format: string }) => {
     console.log('Analysis submitted:', data);
-    // TODO: Connect to backend API
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.analyze({
+        incident: data.incident,
+        goal: data.goal,
+        format: data.format as 'html' | 'markdown'
+      });
+
+      console.log('Analysis response:', response);
+      setResult(response);
+
+      if (response.success) {
+        alert(`Analysis complete!\nSession: ${response.session_id}\nFindings: ${response.findings?.length || 0}`);
+      } else {
+        setError(response.error || 'Analysis failed');
+      }
+    } catch (err: any) {
+      console.error('Analysis error:', err);
+      setError(err.message || 'Network error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,7 +75,13 @@ export const Dashboard = () => {
       {/* Analysis Form */}
       <BentoTile span={2} tall>
         <h3 className="text-xl font-semibold mb-4">New Analysis</h3>
-        <AnalysisForm onSubmit={handleAnalysisSubmit} />
+        <AnalysisForm onSubmit={handleAnalysisSubmit} loading={loading} />
+        {error && (
+          <div className="mt-4 p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-200">
+            <p className="text-sm font-semibold">Error:</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
       </BentoTile>
 
       {/* Audit Trail */}

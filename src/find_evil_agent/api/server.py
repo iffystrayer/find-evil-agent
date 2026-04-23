@@ -18,6 +18,7 @@ Example:
 from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import logging
 
@@ -135,6 +136,15 @@ def create_app() -> FastAPI:
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json"
+    )
+
+    # CORS middleware for React frontend
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:15173", "http://127.0.0.1:15173"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # Health check

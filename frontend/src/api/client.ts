@@ -21,7 +21,7 @@ export interface AnalysisResponse {
 export const api = {
   // Single analysis
   analyze: async (data: AnalysisRequest): Promise<AnalysisResponse> => {
-    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -31,7 +31,7 @@ export const api = {
 
   // Investigative mode
   investigate: async (data: InvestigationRequest): Promise<AnalysisResponse> => {
-    const response = await fetch(`${API_BASE_URL}/api/investigate`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/investigate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
