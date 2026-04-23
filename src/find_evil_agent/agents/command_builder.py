@@ -104,15 +104,11 @@ class DynamicCommandBuilder:
         prompt = self._build_command_prompt(tool_selection, tool_meta, context)
 
         # Generate command using LLM
-        response = await self.llm_router.route(
-            message=prompt,
-            category="command_generation"
-        )
+        response = await self.llm_router.chat([
+            {"role": "user", "content": prompt}
+        ])
 
-        if not response.success:
-            raise ValueError(f"LLM command generation failed: {response.error}")
-
-        command = response.content.strip()
+        command = response.strip()
 
         # Validate command security
         self._validate_command(command, context.get("evidence_paths", []))
