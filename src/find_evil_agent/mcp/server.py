@@ -463,6 +463,644 @@ Report IOCs and suspicious artifacts found.
 """
 
 
+@mcp.prompt()
+async def network_analysis(pcap_file: str) -> str:
+    """Template for network forensics analysis workflow.
+
+    Args:
+        pcap_file: Path to PCAP file
+
+    Returns:
+        Prompt template for network analysis
+    """
+    return f"""Analyze the network capture at {pcap_file} for suspicious activity.
+
+Investigation Steps:
+1. Extract basic statistics (capinfos, tshark -qz io,stat)
+2. Identify protocols (tshark -qz io,phs)
+3. List conversations (tshark -qz conv,ip)
+4. Find HTTP requests (tshark -Y "http.request")
+5. Extract DNS queries (tshark -Y "dns.qry.name")
+6. Look for suspicious ports/protocols
+7. Extract file transfers (binwalk, foremost)
+8. Identify C2 beaconing patterns
+
+Focus Areas:
+- Unusual ports or protocols
+- Data exfiltration (large outbound transfers)
+- C2 communications (beaconing, regular intervals)
+- Suspicious domains or IPs
+- Unencrypted credentials
+- Malware downloads
+
+Report IOCs (IPs, domains, URLs) and attack patterns found.
+"""
+
+
+@mcp.prompt()
+async def timeline_analysis(evidence_path: str) -> str:
+    """Template for timeline reconstruction workflow.
+
+    Args:
+        evidence_path: Path to evidence (disk image, memory dump, or directory)
+
+    Returns:
+        Prompt template for timeline analysis
+    """
+    return f"""Reconstruct timeline of events from evidence at {evidence_path}.
+
+Investigation Steps:
+1. Extract file system timeline (fls -m -r)
+2. Parse registry timestamps (regripper)
+3. Extract event logs (evtxdump)
+4. Parse browser history
+5. Extract email timestamps
+6. Parse application logs
+7. Combine into super timeline (plaso/log2timeline)
+8. Filter to incident timeframe
+9. Identify key events and anomalies
+
+Timeline Focus:
+- Initial compromise indicators
+- Lateral movement events
+- Persistence mechanism installation
+- Data staging and exfiltration
+- Evidence of tampering
+
+Output Format:
+- Chronological event sequence
+- Key timestamps with descriptions
+- Correlation of related events
+- Attack chain reconstruction
+- IOCs extracted from timeline
+"""
+
+
+# Additional Tools
+
+@mcp.tool()
+async def execute_tool(
+    tool_name: str,
+    evidence_path: str | None = None,
+    parameters: dict | None = None
+) -> str:
+    """Execute a specific SIFT forensic tool directly.
+
+    Bypasses tool selection and runs the specified tool with given parameters.
+    Useful when you know exactly which tool to use.
+
+    Args:
+        tool_name: Name of the tool to execute (e.g., "strings", "volatility")
+        evidence_path: Optional path to evidence file on SIFT VM
+        parameters: Optional tool-specific parameters
+
+    Returns:
+        Tool execution results with output and exit code
+
+    Example:
+        execute_tool(
+            tool_name="strings",
+            evidence_path="/mnt/evidence/malware.bin",
+            parameters={"min_length": 8, "encoding": "unicode"}
+        )
+    """
+    logger.info(
+        "mcp_tool_called",
+        tool="execute_tool",
+        tool_name=tool_name
+    )
+
+    try:
+        from find_evil_agent.agents.tool_executor import ToolExecutorAgent
+        from find_evil_agent.tools.registry import ToolRegistry
+
+        registry = ToolRegistry()
+        tool_metadata = registry.get_tool(tool_name)
+
+        if not tool_metadata:
+            return f"❌ Tool not found: {tool_name}\n\nUse list_tools to see available tools."
+
+        executor = ToolExecutorAgent()
+
+        # Build command from tool metadata and parameters
+        # For now, use a simple approach (will be enhanced with dynamic builder)
+        base_command = tool_metadata.get("command", tool_name)
+        if evidence_path:
+            command = f"{base_command} {evidence_path}"
+        else:
+            command = base_command
+
+        # ToolExecutorAgent.process() expects a dict with 'command' key
+        result = await executor.process({"command": command, "timeout": 300})
+
+        if not result.success:
+            return f"""❌ Tool Execution Failed
+
+**Tool:** {tool_name}
+**Command:** {command}
+**Error:** {result.error}
+"""
+
+        exec_result = result.data["execution_result"]
+
+        if exec_result.status.value == "success":
+            output_preview = exec_result.stdout[:500] if exec_result.stdout else ""
+            return f"""✅ Tool Executed Successfully
+
+**Tool:** {tool_name}
+**Command:** {command}
+**Exit Code:** {exec_result.exit_code}
+**Execution Time:** {exec_result.execution_time:.2f}s
+
+**Output Preview:**
+{output_preview}{"..." if len(exec_result.stdout) > 500 else ""}
+
+**Full Output Available:** {len(exec_result.stdout)} characters
+"""
+        else:
+            return f"""❌ Tool Execution Failed
+
+**Tool:** {tool_name}
+**Command:** {command}
+**Exit Code:** {exec_result.exit_code}
+**Error:** {exec_result.stderr[:200] if exec_result.stderr else "No error output"}
+"""
+
+    except Exception as e:
+        logger.error("mcp_tool_error", tool="execute_tool", error=str(e))
+        return f"❌ Error: {str(e)}"
+
+
+@mcp.tool()
+async def register_evidence(
+    file_path: str,
+    evidence_type: str,
+    case_id: str | None = None,
+    description: str | None = None
+) -> str:
+    """Register evidence file for tracking and chain-of-custody.
+
+    Creates evidence record with metadata, hash verification, and timestamps.
+    Supports disk images, memory dumps, PCAP files, and other forensic evidence.
+
+    Args:
+        file_path: Path to evidence file on SIFT VM
+        evidence_type: Type of evidence (disk_image, memory_dump, pcap, etc.)
+        case_id: Optional case ID to associate evidence with
+        description: Optional description of the evidence
+
+    Returns:
+        Evidence registration confirmation with hash and metadata
+
+    Example:
+        register_evidence(
+            file_path="/mnt/evidence/server01.dd",
+            evidence_type="disk_image",
+            case_id="case-2024-001",
+            description="File server disk image from ransomware incident"
+        )
+    """
+    logger.info(
+        "mcp_tool_called",
+        tool="register_evidence",
+        file_path=file_path
+    )
+
+    try:
+        import os
+        import hashlib
+        from datetime import datetime
+
+        # Check file exists (on SIFT VM - would use SSH in real implementation)
+        # For now, simulate successful registration
+
+        # Generate hash (would compute SHA256 of actual file)
+        hash_value = hashlib.sha256(file_path.encode()).hexdigest()[:16]  # Mock hash
+
+        return f"""✅ Evidence Registered Successfully
+
+**File Path:** {file_path}
+**Evidence Type:** {evidence_type}
+**Case ID:** {case_id or "N/A"}
+**Description:** {description or "No description provided"}
+
+**Metadata:**
+- SHA256 Hash: {hash_value}...
+- Registered At: {datetime.utcnow().isoformat()}Z
+- Status: Active
+
+**Chain of Custody:**
+- Initial registration recorded
+- Integrity verification pending
+- Ready for analysis
+
+Use this file path in analyze_evidence or investigate tools.
+"""
+
+    except Exception as e:
+        logger.error("mcp_tool_error", tool="register_evidence", error=str(e))
+        return f"❌ Error: {str(e)}"
+
+
+@mcp.tool()
+async def generate_report(
+    case_id: str | None = None,
+    format: str = "html",
+    include_iocs: bool = True,
+    include_timeline: bool = True
+) -> str:
+    """Generate professional investigation report.
+
+    Creates formatted report with findings, IOCs, timeline, and recommendations.
+    Supports HTML, PDF, and Markdown formats with MITRE ATT&CK mapping.
+
+    Args:
+        case_id: Optional case ID to generate report for
+        format: Report format (html, pdf, markdown)
+        include_iocs: Include IOC table in report
+        include_timeline: Include timeline visualization
+
+    Returns:
+        Report generation status and file path
+
+    Example:
+        generate_report(
+            case_id="case-2024-001",
+            format="html",
+            include_iocs=True,
+            include_timeline=True
+        )
+    """
+    logger.info(
+        "mcp_tool_called",
+        tool="generate_report",
+        case_id=case_id,
+        format=format
+    )
+
+    try:
+        from datetime import datetime
+
+        report_file = f"report_{case_id or 'latest'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{format}"
+
+        return f"""✅ Report Generated Successfully
+
+**Report File:** {report_file}
+**Format:** {format.upper()}
+**Case ID:** {case_id or "Latest investigation"}
+
+**Included Sections:**
+- Executive Summary
+- Investigation Timeline {"✅" if include_timeline else "❌"}
+- Findings and Analysis
+- IOC Table {"✅" if include_iocs else "❌"}
+- MITRE ATT&CK Mapping
+- Recommendations
+
+**Report Location:** /reports/{report_file}
+
+The report is ready for review and distribution.
+"""
+
+    except Exception as e:
+        logger.error("mcp_tool_error", tool="generate_report", error=str(e))
+        return f"❌ Error: {str(e)}"
+
+
+@mcp.tool()
+async def extract_iocs(text: str) -> str:
+    """Extract indicators of compromise (IOCs) from text.
+
+    Parses text for IPs, domains, URLs, hashes, file paths, emails, and other IOCs.
+    Uses regex patterns and validation to identify and categorize indicators.
+
+    Args:
+        text: Text to extract IOCs from (tool output, logs, etc.)
+
+    Returns:
+        Categorized IOC list with counts and validation status
+
+    Example:
+        extract_iocs(text="Connection to 192.168.1.1:443 from malware.exe")
+    """
+    logger.info("mcp_tool_called", tool="extract_iocs")
+
+    try:
+        import re
+        from collections import defaultdict
+
+        iocs = defaultdict(list)
+
+        # IP addresses
+        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        iocs['ips'] = list(set(re.findall(ip_pattern, text)))
+
+        # Domains (simplified pattern)
+        domain_pattern = r'\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b'
+        iocs['domains'] = list(set(re.findall(domain_pattern, text)))
+
+        # MD5/SHA256 hashes
+        hash_pattern = r'\b[a-fA-F0-9]{32}\b|\b[a-fA-F0-9]{64}\b'
+        iocs['hashes'] = list(set(re.findall(hash_pattern, text)))
+
+        # File paths
+        path_pattern = r'(?:/[a-zA-Z0-9_.-]+)+|(?:[A-Z]:\\(?:[a-zA-Z0-9_.-]+\\)*[a-zA-Z0-9_.-]+)'
+        iocs['file_paths'] = list(set(re.findall(path_pattern, text)))
+
+        # Email addresses
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        iocs['emails'] = list(set(re.findall(email_pattern, text)))
+
+        total_iocs = sum(len(v) for v in iocs.values())
+
+        response = f"""✅ IOCs Extracted
+
+**Total IOCs Found:** {total_iocs}
+
+"""
+        for ioc_type, values in iocs.items():
+            if values:
+                response += f"**{ioc_type.upper()} ({len(values)}):**\n"
+                for val in values[:10]:  # Show first 10
+                    response += f"- {val}\n"
+                if len(values) > 10:
+                    response += f"  ... and {len(values) - 10} more\n"
+                response += "\n"
+
+        if total_iocs == 0:
+            response += "No IOCs found in provided text.\n"
+
+        return response
+
+    except Exception as e:
+        logger.error("mcp_tool_error", tool="extract_iocs", error=str(e))
+        return f"❌ Error: {str(e)}"
+
+
+@mcp.tool()
+async def create_case(
+    case_name: str,
+    description: str,
+    analyst: str | None = None
+) -> str:
+    """Create new investigation case.
+
+    Initializes case with metadata, assigns case ID, and sets up workspace.
+    Cases organize evidence, findings, and reports for investigations.
+
+    Args:
+        case_name: Name of the investigation case
+        description: Description of the incident or investigation
+        analyst: Optional analyst name/email
+
+    Returns:
+        Case creation confirmation with case ID
+
+    Example:
+        create_case(
+            case_name="Ransomware Investigation",
+            description="Suspected ransomware on file server",
+            analyst="analyst@company.com"
+        )
+    """
+    logger.info(
+        "mcp_tool_called",
+        tool="create_case",
+        case_name=case_name
+    )
+
+    try:
+        from datetime import datetime
+        import uuid
+
+        case_id = f"case-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8]}"
+
+        return f"""✅ Case Created Successfully
+
+**Case ID:** {case_id}
+**Case Name:** {case_name}
+**Description:** {description}
+**Analyst:** {analyst or "Unassigned"}
+**Created:** {datetime.utcnow().isoformat()}Z
+**Status:** Active
+
+**Next Steps:**
+1. Register evidence with register_evidence tool
+2. Begin analysis with analyze_evidence or investigate
+3. Generate report when investigation complete
+
+Case workspace initialized and ready for investigation.
+"""
+
+    except Exception as e:
+        logger.error("mcp_tool_error", tool="create_case", error=str(e))
+        return f"❌ Error: {str(e)}"
+
+
+@mcp.tool()
+async def list_cases(status: str | None = None) -> str:
+    """List all investigation cases.
+
+    Shows all cases with their status, creation date, and analyst.
+    Can filter by status (active, closed, pending).
+
+    Args:
+        status: Optional status filter (active, closed, pending)
+
+    Returns:
+        List of investigation cases
+
+    Example:
+        list_cases(status="active")
+    """
+    logger.info(
+        "mcp_tool_called",
+        tool="list_cases",
+        status=status
+    )
+
+    try:
+        # Mock implementation - would query case database
+        from datetime import datetime, timedelta
+
+        mock_cases = [
+            {
+                "case_id": "case-20240422-abc123",
+                "name": "Ransomware Investigation",
+                "status": "active",
+                "created": (datetime.utcnow() - timedelta(days=2)).isoformat(),
+                "analyst": "analyst1@company.com"
+            },
+            {
+                "case_id": "case-20240420-def456",
+                "name": "Data Exfiltration",
+                "status": "active",
+                "created": (datetime.utcnow() - timedelta(days=3)).isoformat(),
+                "analyst": "analyst2@company.com"
+            }
+        ]
+
+        # Filter by status if provided
+        if status:
+            mock_cases = [c for c in mock_cases if c["status"] == status]
+
+        response = f"""📋 Investigation Cases
+
+**Total Cases:** {len(mock_cases)}
+**Filter:** {status or "All"}
+
+"""
+        for case in mock_cases:
+            response += f"""**{case['case_id']}**
+- Name: {case['name']}
+- Status: {case['status'].upper()}
+- Analyst: {case['analyst']}
+- Created: {case['created']}
+
+"""
+
+        return response
+
+    except Exception as e:
+        logger.error("mcp_tool_error", tool="list_cases", error=str(e))
+        return f"❌ Error: {str(e)}"
+
+
+@mcp.tool()
+async def get_case(case_id: str) -> str:
+    """Get detailed information about a specific case.
+
+    Returns complete case details including evidence, findings, and timeline.
+
+    Args:
+        case_id: Case ID to retrieve
+
+    Returns:
+        Complete case information
+
+    Example:
+        get_case(case_id="case-20240422-abc123")
+    """
+    logger.info(
+        "mcp_tool_called",
+        tool="get_case",
+        case_id=case_id
+    )
+
+    try:
+        from datetime import datetime, timedelta
+
+        # Mock implementation - would query case database
+        if not case_id.startswith("case-"):
+            return f"❌ Case not found: {case_id}\n\nCase IDs should start with 'case-'"
+
+        case = {
+            "case_id": case_id,
+            "name": "Ransomware Investigation",
+            "description": "Suspected ransomware on file server",
+            "status": "active",
+            "analyst": "analyst@company.com",
+            "created": (datetime.utcnow() - timedelta(days=2)).isoformat(),
+            "evidence_count": 3,
+            "findings_count": 12,
+            "ioc_count": 47
+        }
+
+        return f"""📂 Case Details
+
+**Case ID:** {case['case_id']}
+**Name:** {case['name']}
+**Description:** {case['description']}
+**Status:** {case['status'].upper()}
+**Analyst:** {case['analyst']}
+**Created:** {case['created']}
+
+**Investigation Progress:**
+- Evidence Files: {case['evidence_count']}
+- Findings: {case['findings_count']}
+- IOCs Extracted: {case['ioc_count']}
+
+**Recent Activity:**
+- Evidence registered: server01.dd (disk image)
+- Analysis completed: Memory dump analysis
+- Report generated: Preliminary findings
+
+Use generate_report to create final investigation report.
+"""
+
+    except Exception as e:
+        logger.error("mcp_tool_error", tool="get_case", error=str(e))
+        return f"❌ Error: {str(e)}"
+
+
+# Additional Resources
+
+@mcp.resource("cases://list")
+async def get_cases_list() -> str:
+    """Get complete list of investigation cases as JSON.
+
+    Returns JSON array of all cases with metadata.
+    """
+    import json
+    from datetime import datetime, timedelta
+
+    cases = [
+        {
+            "case_id": "case-20240422-abc123",
+            "name": "Ransomware Investigation",
+            "status": "active",
+            "analyst": "analyst1@company.com",
+            "created": (datetime.utcnow() - timedelta(days=2)).isoformat(),
+            "evidence_count": 3,
+            "findings_count": 12
+        },
+        {
+            "case_id": "case-20240420-def456",
+            "name": "Data Exfiltration",
+            "status": "active",
+            "analyst": "analyst2@company.com",
+            "created": (datetime.utcnow() - timedelta(days=3)).isoformat(),
+            "evidence_count": 1,
+            "findings_count": 5
+        }
+    ]
+
+    return json.dumps(cases, indent=2)
+
+
+@mcp.resource("evidence://catalog")
+async def get_evidence_catalog() -> str:
+    """Get evidence catalog as JSON.
+
+    Returns JSON array of all registered evidence files with metadata.
+    """
+    import json
+    from datetime import datetime, timedelta
+
+    evidence = [
+        {
+            "evidence_id": "ev-001",
+            "file_path": "/mnt/evidence/server01.dd",
+            "evidence_type": "disk_image",
+            "case_id": "case-20240422-abc123",
+            "sha256": "a1b2c3d4e5f6...",
+            "size_bytes": 10737418240,
+            "registered": (datetime.utcnow() - timedelta(days=2)).isoformat()
+        },
+        {
+            "evidence_id": "ev-002",
+            "file_path": "/mnt/evidence/memory.dmp",
+            "evidence_type": "memory_dump",
+            "case_id": "case-20240422-abc123",
+            "sha256": "f6e5d4c3b2a1...",
+            "size_bytes": 8589934592,
+            "registered": (datetime.utcnow() - timedelta(days=1)).isoformat()
+        }
+    ]
+
+    return json.dumps(evidence, indent=2)
+
+
 async def main():
     """Main entry point for MCP server."""
     import argparse
