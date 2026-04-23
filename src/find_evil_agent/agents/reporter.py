@@ -200,18 +200,40 @@ class ReporterAgent(BaseAgent):
         )
 
         # Generate output in requested format
+        content = None
         if format == ReportFormat.MARKDOWN:
-            return await self.format_markdown(report_schema, iterative_result=iterative_result)
+            content = await self.format_markdown(report_schema, iterative_result=iterative_result)
         elif format == ReportFormat.HTML:
-            return await self.format_html(report_schema)
+            content = await self.format_html(report_schema)
         elif format == ReportFormat.PDF:
             try:
                 return await self.format_pdf(report_schema, output_path)
+            except ValueError as e:
+                # Re-raise validation errors about invalid paths (parent doesn't exist)
+                if "Invalid output path" in str(e):
+                    raise
+                # For missing output_path, use fallback if enabled
+                logger.warning("pdf_generation_failed", error=str(e), fallback=fallback_to_html)
+                if fallback_to_html:
+                    return await self.format_html(report_schema)
+                raise
             except Exception as e:
                 logger.warning("pdf_generation_failed", error=str(e), fallback=fallback_to_html)
                 if fallback_to_html:
                     return await self.format_html(report_schema)
                 raise
+
+        # Write to output_path if provided for non-PDF formats
+        if output_path and content:
+            output_path = Path(output_path)
+            if not output_path.parent.exists():
+                raise ValueError(f"Invalid output path: {output_path.parent} does not exist")
+            with open(output_path, "w") as f:
+                f.write(content)
+            logger.info("report_written", path=str(output_path), format=format.value)
+            return str(output_path)
+
+        return content
 
     async def _build_report_schema(
         self,

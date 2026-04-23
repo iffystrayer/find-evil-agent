@@ -74,6 +74,9 @@ dependencies = [
     "tenacity>=8.2.0",
     "orjson>=3.9.0",
 
+    # Report Generation
+    "weasyprint>=68.0",
+
     # Observability
     "langfuse>=2.0.0",
 ]

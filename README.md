@@ -138,6 +138,10 @@ source .venv/bin/activate
 # Install dependencies
 uv pip install -e ".[dev]"
 
+# macOS only: Install system libraries for PDF generation
+# (Required for weasyprint - professional report generation)
+brew install pango gdk-pixbuf libffi gobject-introspection cairo
+
 # Configure environment
 cp .env.example .env
 # Edit .env with your configuration:
