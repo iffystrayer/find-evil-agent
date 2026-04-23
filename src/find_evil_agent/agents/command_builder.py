@@ -4,12 +4,16 @@ Constructs tool commands dynamically using LLM and tool metadata,
 replacing hardcoded command strings with context-aware generation.
 """
 
-import re
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 from find_evil_agent.agents.schemas import ToolSelection
+from find_evil_agent.security import (
+    PathValidator,
+    CommandValidator,
+    SecurityValidationError,
+)
 
 
 class DynamicCommandBuilder:
@@ -17,35 +21,19 @@ class DynamicCommandBuilder:
 
     Replaces hardcoded command strings with intelligent command construction
     based on tool metadata, investigation context, and evidence paths.
+
+    Security features:
+    - Prevents command injection (;, |, &, $(), ``)
+    - Prevents path traversal (../, ~/, /etc/)
+    - Validates evidence paths against whitelist
     """
-
-    # Security: Dangerous patterns that indicate command injection
-    INJECTION_PATTERNS = [
-        r';',           # Command separator
-        r'\|',          # Pipe
-        r'&',           # Background/AND
-        r'\$\(',        # Command substitution
-        r'`',           # Backticks
-        r'>',           # Redirect
-        r'<',           # Redirect
-        r'\n',          # Newline
-        r'\r',          # Carriage return
-    ]
-
-    # Security: Path traversal patterns
-    TRAVERSAL_PATTERNS = [
-        r'\.\.',        # Parent directory
-        r'~/',          # Home directory
-        r'/etc/',       # System files
-        r'/root/',      # Root home
-        r'/var/',       # Variable data (except /var/log)
-    ]
 
     def __init__(
         self,
         llm_router,
         metadata_path: str = "tools/metadata.yaml",
-        validate_paths: bool = False
+        validate_paths: bool = False,
+        evidence_whitelist: Optional[List[str]] = None
     ):
         """Initialize command builder.
 
@@ -53,10 +41,15 @@ class DynamicCommandBuilder:
             llm_router: LLM router instance for command generation
             metadata_path: Path to tool metadata YAML file
             validate_paths: Whether to validate evidence paths exist (False for SSH)
+            evidence_whitelist: Optional list of allowed evidence path prefixes
         """
         self.llm_router = llm_router
         self.metadata_path = Path(metadata_path)
         self.validate_paths = validate_paths
+
+        # Initialize security validators
+        self.path_validator = PathValidator(whitelist=evidence_whitelist)
+        self.command_validator = CommandValidator()
 
         # Load tool metadata
         self.metadata = self._load_metadata()
@@ -195,29 +188,35 @@ class DynamicCommandBuilder:
         return prompt
 
     def _validate_command(self, command: str, evidence_paths: List[str]) -> None:
-        """Validate command for security issues.
+        """Validate command for security issues using dedicated validators.
 
         Args:
             command: Generated command string
-            evidence_paths: List of allowed evidence paths
+            evidence_paths: List of evidence paths referenced in command
 
         Raises:
-            ValueError: If command contains injection or traversal attempts
+            SecurityValidationError: If command or paths fail validation
             FileNotFoundError: If validate_paths=True and paths don't exist
         """
-        # Check for command injection patterns
-        for pattern in self.INJECTION_PATTERNS:
-            if re.search(pattern, command):
-                raise ValueError(f"Command injection detected: {pattern}")
+        # Validate command for injection attempts
+        self.command_validator.validate_command(command)
 
-        # Check for path traversal (except /var/log which is allowed)
-        for pattern in self.TRAVERSAL_PATTERNS:
-            if pattern == r'/var/' and '/var/log' in command:
-                continue  # Allow /var/log
-            if re.search(pattern, command):
-                raise ValueError(f"Path traversal detected: {pattern}")
+        # Extract and validate paths from command
+        # Simple extraction - split on spaces and find path-like strings
+        tokens = command.split()
+        for token in tokens:
+            # Check if token looks like a path (starts with / or contains /)
+            if '/' in token:
+                # Clean token (remove quotes, etc.)
+                clean_token = token.strip('"').strip("'")
+                try:
+                    self.path_validator.validate_path(clean_token)
+                except SecurityValidationError as e:
+                    raise SecurityValidationError(
+                        f"Invalid path in command: {clean_token}. {str(e)}"
+                    )
 
-        # Optionally validate evidence paths exist
+        # Optionally validate evidence paths exist on filesystem
         if self.validate_paths:
             for path_str in evidence_paths:
                 path = Path(path_str)

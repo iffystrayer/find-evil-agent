@@ -14,11 +14,15 @@ from find_evil_agent.agents.schemas import ToolSelection
 # Conditional import for TDD
 try:
     from find_evil_agent.agents.command_builder import DynamicCommandBuilder
+    from find_evil_agent.security import SecurityValidationError
     BUILDER_AVAILABLE = True
 except ImportError:
     BUILDER_AVAILABLE = False
 
     class DynamicCommandBuilder:
+        pass
+
+    class SecurityValidationError(Exception):
         pass
 
 
@@ -252,7 +256,7 @@ class TestCommandBuilderValidation:
             "evidence_paths": ["/mnt/evidence/file.txt"]
         }
 
-        with pytest.raises(ValueError, match="Path traversal detected"):
+        with pytest.raises(SecurityValidationError, match="path traversal"):
             await builder.build_command(tool_selection, context)
 
     @pytest.mark.skipif(not BUILDER_AVAILABLE, reason="DynamicCommandBuilder not implemented")
@@ -280,7 +284,7 @@ class TestCommandBuilderValidation:
             "evidence_paths": ["/mnt/evidence/file.txt"]
         }
 
-        with pytest.raises(ValueError, match="Command injection detected"):
+        with pytest.raises(SecurityValidationError, match="injection"):
             await builder.build_command(tool_selection, context)
 
     @pytest.mark.skipif(not BUILDER_AVAILABLE, reason="DynamicCommandBuilder not implemented")
