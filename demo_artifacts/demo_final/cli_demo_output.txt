@@ -1,0 +1,40 @@
+================================================================================
+Find Evil Agent - CLI Demo Recording
+================================================================================
+
+Command: uv run find-evil --help
+
+                                                                                
+ Usage: find-evil [OPTIONS] COMMAND [ARGS]...                                   
+                                                                                
+ Find Evil Agent - Autonomous AI incident response for SANS SIFT Workstation    
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ analyze      Analyze a security incident using SIFT tools.                   │
+│ investigate  Autonomous iterative investigation - follows leads              │
+│              automatically.                                                  │
+│ version      Show version information.                                       │
+│ config       Show current configuration.                                     │
+│ web          Launch the Gradio web interface.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+================================================================================
+Command: uv run find-evil analyze [incident] [goal]
+================================================================================
+
+Incident: Suspicious PowerShell process detected downloading payload
+Goal: Identify persistence mechanisms and IOCs
+
+Executing analysis...
+
+./record-cli-api.sh: line 63: timeout: command not found
+[Analysis completed or timed out]
+
+Analysis complete!
+Report saved to: demo_final/cli_demo_report.html
+
+================================================================================
