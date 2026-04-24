@@ -4,7 +4,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-462%20collected-brightgreen.svg)]()
 [![Hackathon](https://img.shields.io/badge/FIND%20EVIL!-Hackathon-red.svg)](https://findevil.devpost.com)
 
 > **Mission**: Minimize LLM hallucination in DFIR workflows through two-stage tool selection with confidence thresholds.
@@ -15,10 +15,11 @@
 - ✅ **262 tests passing** (214 unit + 48 integration)
 - ✅ **Live SIFT VM integration** (tested end-to-end at 192.168.12.101)
 - ✅ **LangGraph orchestration** (3-step workflow + iterative investigation)
-- ✅ **Three Interfaces**: CLI (Rich UI), Web UI (Gradio), REST API (OpenAPI)
-- ✅ **CLI interface** with Rich UI (analyze + investigate + web commands)
-- ✅ **Web UI** with Gradio (interactive browser interface)
+- ✅ **Four Interfaces**: CLI (Rich UI), Web UI (React), REST API (OpenAPI), MCP Server
+- ✅ **CLI interface** with Rich UI (analyze + investigate commands)
+- ✅ **Web UI** with React (modern glassmorphism interface)
 - ✅ **REST API** with OpenAPI documentation
+- ✅ **MCP Server** with 12+ tools for Claude integration
 - ✅ **IOC extraction** (IPs, domains, hashes, paths)
 - ✅ **Demo scripts** ready for presentation
 
@@ -73,8 +74,9 @@
 
 **Three User Interfaces:**
 - ✅ CLI Interface (Typer + Rich) - For power users and automation
-- ✅ Web UI (Gradio) - For everyone else, mouse-friendly
+- ✅ Web UI (React + Vite) - Modern glassmorphism interface
 - ✅ REST API (FastAPI + OpenAPI) - For developers and integrations
+- ✅ MCP Server (FastMCP) - Model Context Protocol integration
 
 **Supporting Systems:**
 - ✅ ToolRegistry (18 SIFT tools, FAISS embeddings)
