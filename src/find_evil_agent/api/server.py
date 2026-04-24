@@ -139,9 +139,11 @@ def create_app() -> FastAPI:
     )
 
     # CORS middleware for React frontend
+    # Configure origins via API_CORS_ORIGINS env var (comma-separated)
+    settings = get_settings()
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:15173", "http://127.0.0.1:15173"],
+        allow_origins=settings.api_cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

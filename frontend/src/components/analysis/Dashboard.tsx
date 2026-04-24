@@ -2,38 +2,129 @@ import { BentoGrid, BentoTile } from '../layout/BentoGrid';
 import { DefaultAuditTrail } from './AuditTrail';
 import { ObfuscationAlert } from './ObfuscationAlert';
 import { AnalysisForm } from './AnalysisForm';
+import { HITLApprovalDialog } from './HITLApprovalDialog';
 import { BarChart3, Activity, Clock, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import type { InvestigationResponse, Lead } from '../../api/client';
 
 export const Dashboard = () => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [_result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
+  const [currentLead, setCurrentLead] = useState<Lead | null>(null);
 
-  const handleAnalysisSubmit = async (data: { incident: string; goal: string; format: string }) => {
+  const handleAnalysisSubmit = async (data: {
+    incident: string;
+    goal: string;
+    format: string;
+    mode: string;
+    maxIterations?: number
+  }) => {
     console.log('Analysis submitted:', data);
     setLoading(true);
     setError(null);
+    setAwaitingApproval(false);
+    setCurrentLead(null);
 
     try {
-      const response = await api.analyze({
-        incident: data.incident,
-        goal: data.goal,
-        format: data.format as 'html' | 'markdown'
-      });
+      if (data.mode === 'investigative') {
+        // Investigative mode with HITL support
+        const response: InvestigationResponse = await api.investigate({
+          incident: data.incident,
+          goal: data.goal,
+          format: data.format as 'html' | 'markdown',
+          max_iterations: data.maxIterations || 5
+        });
 
-      console.log('Analysis response:', response);
-      setResult(response);
+        console.log('Investigation response:', response);
+        setResult(response);
+        setSessionId(response.session_id || null);
 
-      if (response.success) {
-        alert(`Analysis complete!\nSession: ${response.session_id}\nFindings: ${response.findings?.length || 0}`);
+        // Check if HITL approval is needed
+        if (response.stopping_reason === 'Waiting for Human Approval') {
+          setAwaitingApproval(true);
+          // Get the last lead from investigation chain as the pending lead
+          const pendingLead = response.investigation_chain?.[response.investigation_chain.length - 1];
+          setCurrentLead(pendingLead || null);
+        } else if (response.success) {
+          alert(`Investigation complete!\nSession: ${response.session_id}\nIterations: ${response.iterations?.length || 0}\nFindings: ${response.all_findings?.length || 0}`);
+        } else {
+          setError(response.error || 'Investigation failed');
+        }
       } else {
-        setError(response.error || 'Analysis failed');
+        // Single analysis mode
+        const response = await api.analyze({
+          incident: data.incident,
+          goal: data.goal,
+          format: data.format as 'html' | 'markdown'
+        });
+
+        console.log('Analysis response:', response);
+        setResult(response);
+
+        if (response.success) {
+          alert(`Analysis complete!\nSession: ${response.session_id}\nFindings: ${response.findings?.length || 0}`);
+        } else {
+          setError(response.error || 'Analysis failed');
+        }
       }
     } catch (err: any) {
       console.error('Analysis error:', err);
       setError(err.message || 'Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!sessionId) return;
+
+    setLoading(true);
+    setAwaitingApproval(false);
+    setCurrentLead(null);
+
+    try {
+      const response: InvestigationResponse = await api.resume(sessionId, true);
+      console.log('Resume response (approved):', response);
+      setResult(response);
+
+      // Check if another HITL approval is needed
+      if (response.stopping_reason === 'Waiting for Human Approval') {
+        setAwaitingApproval(true);
+        const pendingLead = response.investigation_chain?.[response.investigation_chain.length - 1];
+        setCurrentLead(pendingLead || null);
+      } else if (response.success) {
+        alert(`Investigation complete!\nSession: ${response.session_id}\nIterations: ${response.iterations?.length || 0}\nFindings: ${response.all_findings?.length || 0}`);
+      } else {
+        setError(response.error || 'Investigation failed');
+      }
+    } catch (err: any) {
+      console.error('Resume error:', err);
+      setError(err.message || 'Failed to resume investigation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!sessionId) return;
+
+    setLoading(true);
+    setAwaitingApproval(false);
+    setCurrentLead(null);
+
+    try {
+      const response: InvestigationResponse = await api.resume(sessionId, false);
+      console.log('Resume response (rejected):', response);
+      setResult(response);
+
+      alert('Investigation stopped by analyst decision');
+    } catch (err: any) {
+      console.error('Resume error:', err);
+      setError(err.message || 'Failed to stop investigation');
     } finally {
       setLoading(false);
     }
@@ -108,6 +199,16 @@ export const Dashboard = () => {
           </div>
         </div>
       </BentoTile>
+
+      {/* HITL Approval Dialog */}
+      {awaitingApproval && currentLead && (
+        <HITLApprovalDialog
+          lead={currentLead}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          loading={loading}
+        />
+      )}
     </BentoGrid>
   );
 };

@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     # SIFT Workstation
-    sift_vm_host: str = "192.168.12.101"
+    sift_vm_host: str = "localhost"  # Override with SIFT_VM_HOST env var
     sift_vm_port: int = 16789
     sift_ssh_user: Optional[str] = "sansforensics"
     sift_ssh_key_path: Optional[str] = None
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.1  # Low temp for deterministic tool selection
 
     # Ollama Configuration
-    ollama_base_url: str = "http://192.168.12.124:11434"
+    ollama_base_url: str = "http://localhost:11434"  # Override with OLLAMA_BASE_URL env var
 
     # Provider API Keys (optional, based on selected provider)
     openai_api_key: Optional[str] = None
@@ -76,6 +76,11 @@ class Settings(BaseSettings):
     # Reporting
     default_report_format: str = "markdown"
     report_output_dir: str = "./reports"
+
+    # API Server
+    api_cors_origins: list[str] = Field(
+        default=["http://localhost:15173", "http://127.0.0.1:15173"]
+    )
 
     # Observability - Langfuse
     langfuse_secret_key: Optional[str] = None

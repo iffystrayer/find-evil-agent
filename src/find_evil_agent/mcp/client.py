@@ -19,12 +19,16 @@ class MCPClient:
     to execute forensic tools remotely.
     """
     
-    def __init__(self, server_url: str = "http://localhost:16790"):
+    def __init__(self, server_url: str | None = None):
         """Initialize client.
 
         Args:
-            server_url: MCP server endpoint
+            server_url: MCP server endpoint (uses settings if None)
         """
+        if server_url is None:
+            from find_evil_agent.config.settings import get_settings
+            settings = get_settings()
+            server_url = f"http://{settings.mcp_server_host}:{settings.mcp_server_port}"
         self.server_url = server_url
         self.connected = False
     
