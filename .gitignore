@@ -75,3 +75,6 @@ SIFT_VM_TEST_RESULTS.md
 .planning/
 findevil.zip
 findevil/
+.archive/
+
+.DS_Store
