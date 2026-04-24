@@ -36,3 +36,15 @@ services:
       - .env
     command: uvicorn find_evil_agent.api.server:app --host 0.0.0.0 --port 18000
     restart: unless-stopped
+
+  # React Frontend (served by nginx)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: find-evil-frontend
+    ports:
+      - "15173:15173"
+    depends_on:
+      - api
+    restart: unless-stopped

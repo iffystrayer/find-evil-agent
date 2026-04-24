@@ -17,7 +17,7 @@ RUN pip install uv
 # Copy project definition and source code
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
-COPY launch_web.py ./
+COPY tools/ ./tools/
 
 # Install project dependencies onto system Python via uv
 RUN uv pip install --system -e .
