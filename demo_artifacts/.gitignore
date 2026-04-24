@@ -1,0 +1,17 @@
+# Playwright
+node_modules/
+test-results/
+playwright-report/
+test-results.json
+playwright/.cache/
+
+# Videos (too large for git)
+*.webm
+*.mp4
+
+# Screenshots are kept for documentation
+# screenshots/*.png
+
+# Logs
+*.log
+npm-debug.log*

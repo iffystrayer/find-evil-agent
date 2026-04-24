@@ -87,8 +87,10 @@ nav:
     - Configuration: configuration.md
   - User Guide:
     - Basic Usage: usage.md
+    - Examples & Tutorials: examples.md
     - Understanding Results: results.md
     - Troubleshooting: troubleshooting.md
+    - FAQ: faq.md
   - Architecture:
     - Overview: architecture.md
     - Components: components.md

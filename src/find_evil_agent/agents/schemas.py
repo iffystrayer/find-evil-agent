@@ -88,6 +88,9 @@ class AgentState(BaseModel):
     
     session_id: str | None = None
     incident_description: str | None = None
+    analysis_goal: str | None = None
+    evidence_paths: list[str] = Field(default_factory=list)
+    max_iterations: int = 1
     selected_tools: list[ToolSelection] = Field(default_factory=list)
     execution_results: list[ExecutionResult] = Field(default_factory=list)
     findings: list[dict[str, Any]] = Field(default_factory=list)
@@ -95,6 +98,20 @@ class AgentState(BaseModel):
     iocs: list[dict[str, Any]] = Field(default_factory=list)
     current_agent: str | None = None
     step_count: int = Field(default=0, ge=0)
+    
+    # Iterative state
+    iterations: list[dict[str, Any]] = Field(default_factory=list)
+    investigation_chain: list[dict[str, Any]] = Field(default_factory=list)
+    current_goal: str | None = None
+    current_lead: dict[str, Any] | None = None
+    leads_discovered: list[dict[str, Any]] = Field(default_factory=list)
+    total_duration: float = 0.0
+    stopping_reason: str = ""
+    
+    # Flow control
+    awaiting_human_approval: bool = False
+    human_approved: bool | None = None
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     class Config:

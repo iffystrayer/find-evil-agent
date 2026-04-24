@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Gradio Web Interface
+  web:
+    build: .
+    container_name: find-evil-web
+    ports:
+      - "17000:17000"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME:-gemma4:31b-cloud}
+      - SIFT_VM_HOST=${SIFT_VM_HOST}
+      - SIFT_VM_PORT=${SIFT_VM_PORT:-22}
+      - SIFT_SSH_USER=${SIFT_SSH_USER:-sansforensics}
+    env_file:
+      - .env
+    command: python -m find_evil_agent.cli.main web --host 0.0.0.0 --port 17000
+    restart: unless-stopped
+
+  # FastAPI Server
+  api:
+    build: .
+    container_name: find-evil-api
+    ports:
+      - "18000:18000"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME:-gemma4:31b-cloud}
+      - SIFT_VM_HOST=${SIFT_VM_HOST}
+      - SIFT_VM_PORT=${SIFT_VM_PORT:-22}
+      - SIFT_SSH_USER=${SIFT_SSH_USER:-sansforensics}
+    env_file:
+      - .env
+    command: uvicorn find_evil_agent.api.server:app --host 0.0.0.0 --port 18000
+    restart: unless-stopped

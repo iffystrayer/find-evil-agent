@@ -130,6 +130,7 @@ class ReporterAgent(BaseAgent):
 
             return AgentResult(
                 status=AgentStatus.SUCCESS,
+                success=True,
                 data={"report": report},
                 metadata={"format": input_data.get("format", "markdown")}
             )
@@ -138,6 +139,7 @@ class ReporterAgent(BaseAgent):
             logger.error("report_generation_failed", error=str(e), session_id=input_data.get("session_id"))
             return AgentResult(
                 status=AgentStatus.FAILED,
+                success=False,
                 error=str(e),
                 data={}
             )
@@ -198,18 +200,40 @@ class ReporterAgent(BaseAgent):
         )
 
         # Generate output in requested format
+        content = None
         if format == ReportFormat.MARKDOWN:
-            return await self.format_markdown(report_schema)
+            content = await self.format_markdown(report_schema, iterative_result=iterative_result)
         elif format == ReportFormat.HTML:
-            return await self.format_html(report_schema)
+            content = await self.format_html(report_schema)
         elif format == ReportFormat.PDF:
             try:
                 return await self.format_pdf(report_schema, output_path)
+            except ValueError as e:
+                # Re-raise validation errors about invalid paths (parent doesn't exist)
+                if "Invalid output path" in str(e):
+                    raise
+                # For missing output_path, use fallback if enabled
+                logger.warning("pdf_generation_failed", error=str(e), fallback=fallback_to_html)
+                if fallback_to_html:
+                    return await self.format_html(report_schema)
+                raise
             except Exception as e:
                 logger.warning("pdf_generation_failed", error=str(e), fallback=fallback_to_html)
                 if fallback_to_html:
                     return await self.format_html(report_schema)
                 raise
+
+        # Write to output_path if provided for non-PDF formats
+        if output_path and content:
+            output_path = Path(output_path)
+            if not output_path.parent.exists():
+                raise ValueError(f"Invalid output path: {output_path.parent} does not exist")
+            with open(output_path, "w") as f:
+                f.write(content)
+            logger.info("report_written", path=str(output_path), format=format.value)
+            return str(output_path)
+
+        return content
 
     async def _build_report_schema(
         self,
@@ -400,14 +424,14 @@ Detailed recommendations are provided in the Recommendations section of this rep
 
         return sorted(mappings, key=lambda m: m.technique_id)
 
-    async def aggregate_iocs(self, iocs: dict[str, list[str]]) -> dict[str, list[IOCTableEntry]]:
+    async def aggregate_iocs(self, iocs: dict[str, list[str]]) -> dict[str, list[dict]]:
         """Aggregate and deduplicate IOCs into structured tables.
 
         Args:
             iocs: Dict of IOC type to list of IOC values
 
         Returns:
-            Dict of IOC type to list of IOCTableEntry objects
+            Dict of IOC type to list of IOC dicts (serialized IOCTableEntry objects)
         """
         ioc_tables = {}
 
@@ -420,13 +444,14 @@ Detailed recommendations are provided in the Recommendations section of this rep
             # Build table entries
             entries = []
             for ioc_value, count in sorted(ioc_counts.items()):
-                entries.append(IOCTableEntry(
+                entry = IOCTableEntry(
                     value=ioc_value,
                     ioc_type=ioc_type,
                     first_seen=datetime.now(timezone.utc),
                     occurrences=count,
                     context=f"Found {count} time(s) during analysis",
-                ))
+                )
+                entries.append(entry.model_dump())  # Convert Pydantic to dict
 
             if entries:
                 ioc_tables[ioc_type] = entries
@@ -510,14 +535,16 @@ Detailed recommendations are provided in the Recommendations section of this rep
             ))
             priority += 1
 
-        # General recommendations
+        # General recommendations (linked to critical/high findings that triggered them)
         if critical_findings or high_findings:
+            triggering_findings = [f.title for f in (critical_findings + high_findings)[:3]]
+
             recommendations.append(Recommendation(
                 priority=priority,
                 title="Credential Reset and Access Review",
                 description="Reset credentials for all accounts with access to affected systems. Review and revoke "
                            "unnecessary access privileges. Enable multi-factor authentication where not already deployed.",
-                related_findings=[],
+                related_findings=triggering_findings,
                 urgency="urgent",
             ))
             priority += 1
@@ -528,7 +555,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 description="Deploy enhanced monitoring for indicators identified in this report. Review SIEM rules "
                            "and detection logic to ensure similar activity would be detected in the future. "
                            "Consider threat hunting exercises for similar indicators across the environment.",
-                related_findings=[],
+                related_findings=triggering_findings,
                 urgency="short-term",
             ))
 
@@ -632,11 +659,12 @@ Detailed recommendations are provided in the Recommendations section of this rep
     </div>
 """
 
-    async def format_markdown(self, report: ReportSchema) -> str:
+    async def format_markdown(self, report: ReportSchema, iterative_result: Optional[IterativeAnalysisResult] = None) -> str:
         """Format report as Markdown.
 
         Args:
             report: Report schema
+            iterative_result: Optional iterative analysis result (for investigation chain section)
 
         Returns:
             Markdown-formatted report
@@ -662,6 +690,38 @@ Detailed recommendations are provided in the Recommendations section of this rep
         md.append("### Recommendations Summary\n\n")
         md.append(f"{report.executive_summary.recommendations_summary}\n\n")
         md.append("---\n\n")
+
+        # Investigation Chain (for iterative analysis)
+        if iterative_result:
+            md.append("## Autonomous Investigation Chain\n\n")
+
+            if iterative_result.iterations:
+                md.append(f"This investigation utilized autonomous reasoning across **{len(iterative_result.iterations)} iterations**, ")
+                md.append(f"following investigative leads and tool outputs to reconstruct the complete attack chain.\n\n")
+
+                for iteration in iterative_result.iterations:
+                    md.append(f"### Iteration {iteration.iteration_number}: {iteration.tool_used}\n\n")
+                    if iteration.tool_selection:
+                        md.append(f"**Reasoning:** {iteration.tool_selection.reason}\n\n")
+                        md.append(f"**Confidence:** {iteration.tool_selection.confidence:.2f}\n\n")
+                    if iteration.findings:
+                        md.append(f"**Findings:** {len(iteration.findings)} new findings discovered\n\n")
+                    if iteration.leads_discovered:
+                        md.append(f"**Leads Discovered:** {len(iteration.leads_discovered)}\n\n")
+                        for lead in iteration.leads_discovered[:3]:
+                            md.append(f"- {lead}\n")
+                        if len(iteration.leads_discovered) > 3:
+                            md.append(f"- *(+{len(iteration.leads_discovered) - 3} more leads)*\n")
+                        md.append("\n")
+                    md.append(f"**Duration:** {iteration.duration:.2f}s\n\n")
+            else:
+                # No iterations but still iterative result - show summary
+                md.append(f"Investigation completed using autonomous reasoning (Iteration count: 0).\n\n")
+                if hasattr(iterative_result, 'investigation_summary') and iterative_result.investigation_summary:
+                    md.append(f"**Summary:** {iterative_result.investigation_summary}\n\n")
+
+            md.append(f"**Investigation Outcome:** {iterative_result.stopping_reason}\n\n")
+            md.append("---\n\n")
 
         # MITRE ATT&CK Mapping
         md.append("## MITRE ATT&CK Mapping\n\n")
@@ -691,6 +751,24 @@ Detailed recommendations are provided in the Recommendations section of this rep
         else:
             md.append("*No IOCs extracted during analysis.*\n\n")
         md.append("---\n\n")
+        
+        # Attack Chain Graph 
+        if report.attack_graph and report.attack_graph.nodes:
+            md.append("## 🕸️ Attack Chain Graph\n\n")
+            md.append("```mermaid\n")
+            md.append("graph TD\n")
+            for node in report.attack_graph.nodes:
+                node_label = node.label.replace('"', '\\"').replace("'", "")
+                md.append(f'  {node.id}["{node_label}"]\n')
+                if node.severity == FindingSeverity.CRITICAL.value:
+                    md.append(f"  style {node.id} fill:#f8d7da,stroke:#dc3545\n")
+                elif node.severity == FindingSeverity.HIGH.value:
+                    md.append(f"  style {node.id} fill:#fff3cd,stroke:#ffc107\n")
+            for edge in report.attack_graph.edges:
+                edge_label = edge.label.replace('"', '')
+                md.append(f'  {edge.source} -->|"{edge_label}"| {edge.target}\n')
+            md.append("```\n\n")
+            md.append("---\n\n")
 
         # Timeline
         md.append("## Timeline\n\n")
@@ -706,22 +784,28 @@ Detailed recommendations are provided in the Recommendations section of this rep
         # Findings by Severity
         md.append("## Findings by Severity\n\n")
 
-        for severity in [FindingSeverity.CRITICAL, FindingSeverity.HIGH, FindingSeverity.MEDIUM, FindingSeverity.LOW, FindingSeverity.INFO]:
-            severity_findings = [f for f in report.findings if f.severity == severity]
-            if severity_findings:
+        if not report.findings:
+            md.append("*No suspicious findings detected during analysis.*\n\n")
+        else:
+            # Always show all severity levels (even if empty) for consistent structure
+            for severity in [FindingSeverity.CRITICAL, FindingSeverity.HIGH, FindingSeverity.MEDIUM, FindingSeverity.LOW, FindingSeverity.INFO]:
                 md.append(f"### {severity.value.upper()}\n\n")
-                for finding in severity_findings:
-                    md.append(f"#### {finding.title}\n\n")
-                    md.append(f"{finding.description}\n\n")
-                    md.append(f"**Confidence:** {finding.confidence:.2f}\n\n")
-                    if finding.evidence:
-                        md.append("**Evidence:**\n\n")
-                        for evidence in finding.evidence:
-                            md.append(f"- {evidence}\n")
-                        md.append("\n")
-                    if finding.tool_references:
-                        md.append(f"**Tools:** {', '.join(finding.tool_references)}\n\n")
-                    md.append("---\n\n")
+                severity_findings = [f for f in report.findings if f.severity == severity]
+                if severity_findings:
+                    for finding in severity_findings:
+                        md.append(f"#### {finding.title}\n\n")
+                        md.append(f"{finding.description}\n\n")
+                        md.append(f"**Confidence:** {finding.confidence:.2f}\n\n")
+                        if finding.evidence:
+                            md.append("**Evidence:**\n\n")
+                            for evidence in finding.evidence:
+                                md.append(f"- {evidence}\n")
+                            md.append("\n")
+                        if finding.tool_references:
+                            md.append(f"**Tools:** {', '.join(finding.tool_references)}\n\n")
+                        md.append("---\n\n")
+                else:
+                    md.append("*No findings at this severity level.*\n\n")
 
         # Recommendations
         md.append("## Recommendations\n\n")

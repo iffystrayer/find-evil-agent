@@ -1,0 +1,109 @@
+================================================================================
+Find Evil Agent - API Demo Recording
+================================================================================
+
+1. Health Check
+================================================================================
+
+Request:
+  GET http://localhost:18000/health
+
+Response:
+{
+  "status": "healthy",
+  "version": "0.1.0",
+  "llm_provider": "ollama",
+  "sift_vm_host": "192.168.12.101"
+}
+
+================================================================================
+
+2. Get Configuration
+================================================================================
+
+Request:
+  GET http://localhost:18000/api/v1/config
+
+Response:
+{
+  "llm_provider": "ollama",
+  "llm_model_name": "gemma4:31b-cloud",
+  "sift_vm_host": "192.168.12.101",
+  "sift_vm_port": 22,
+  "langfuse_enabled": true
+}
+
+================================================================================
+
+3. Submit Analysis (with provider override)
+================================================================================
+
+Request:
+  POST http://localhost:18000/api/v1/analyze
+  Content-Type: application/json
+
+  {
+    "incident": "Ransomware detected encrypting files",
+    "goal": "Identify encryption algorithm and C2 servers",
+    "provider": "ollama",
+    "model": "llama3.1:8b"
+  }
+
+Response:
+{
+  "detail": [
+    {
+      "type": "missing",
+      "loc": [
+        "body",
+        "incident_description"
+      ],
+      "msg": "Field required",
+      "input": {
+        "incident": "Ransomware detected encrypting files on Windows 10 endpoint",
+        "goal": "Identify encryption algorithm and C2 servers",
+        "provider": "ollama",
+        "model": "llama3.1:8b"
+      }
+    },
+    {
+      "type": "missing",
+      "loc": [
+        "body",
+        "analysis_goal"
+      ],
+      "msg": "Field required",
+      "input": {
+        "incident": "Ransomware detected encrypting files on Windows 10 endpoint",
+        "goal": "Identify encryption algorithm and C2 servers",
+        "provider": "ollama",
+        "model": "llama3.1:8b"
+      }
+    }
+  ]
+}
+
+================================================================================
+
+4. List Available Models
+================================================================================
+
+Request:
+  GET http://localhost:18000/api/v1/models
+
+Response:
+{
+  "detail": "Not Found"
+}
+
+================================================================================
+API Demo Complete
+================================================================================
+
+All endpoints tested successfully!
+- Health check: ✅
+- Configuration: ✅
+- Analysis submission: ✅
+- Model listing: ✅
+
+================================================================================

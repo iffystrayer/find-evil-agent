@@ -1,0 +1,27 @@
+{
+  "name": "find-evil-agent-demo",
+  "version": "1.0.0",
+  "description": "Automated Playwright demo recording for Find Evil Agent",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "record-demo": "playwright test --headed --project=demo-recording",
+    "show-report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.2",
+    "@types/node": "^24.0.0"
+  },
+  "keywords": [
+    "playwright",
+    "demo",
+    "e2e",
+    "automation",
+    "incident-response"
+  ],
+  "author": "Find Evil Agent Team",
+  "license": "MIT"
+}

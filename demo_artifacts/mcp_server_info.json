@@ -1,0 +1,34 @@
+{
+  "name": "find-evil-agent",
+  "version": "0.1.0",
+  "description": "Find Evil Agent MCP Server for Incident Response",
+  "tool_count": 12,
+  "tools": [
+    "analyze_evidence",
+    "execute_forensic_command",
+    "parse_tool_output",
+    "create_case",
+    "add_finding",
+    "generate_report",
+    "timeline_analysis",
+    "network_analysis",
+    "process_analysis",
+    "file_analysis",
+    "registry_analysis",
+    "memory_analysis"
+  ],
+  "resource_count": 4,
+  "resources": [
+    "tools_registry",
+    "config",
+    "cases",
+    "evidence_catalog"
+  ],
+  "prompt_count": 4,
+  "prompts": [
+    "network_investigation",
+    "timeline_analysis",
+    "malware_analysis",
+    "incident_response"
+  ]
+}

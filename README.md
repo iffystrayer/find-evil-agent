@@ -4,7 +4,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-462%20collected-brightgreen.svg)]()
 [![Hackathon](https://img.shields.io/badge/FIND%20EVIL!-Hackathon-red.svg)](https://findevil.devpost.com)
 
 > **Mission**: Minimize LLM hallucination in DFIR workflows through two-stage tool selection with confidence thresholds.
@@ -15,10 +15,11 @@
 - ✅ **262 tests passing** (214 unit + 48 integration)
 - ✅ **Live SIFT VM integration** (tested end-to-end at 192.168.12.101)
 - ✅ **LangGraph orchestration** (3-step workflow + iterative investigation)
-- ✅ **Three Interfaces**: CLI (Rich UI), Web UI (Gradio), REST API (OpenAPI)
-- ✅ **CLI interface** with Rich UI (analyze + investigate + web commands)
-- ✅ **Web UI** with Gradio (interactive browser interface)
+- ✅ **Four Interfaces**: CLI (Rich UI), Web UI (React), REST API (OpenAPI), MCP Server
+- ✅ **CLI interface** with Rich UI (analyze + investigate commands)
+- ✅ **Web UI** with React (modern glassmorphism interface)
 - ✅ **REST API** with OpenAPI documentation
+- ✅ **MCP Server** with 12+ tools for Claude integration
 - ✅ **IOC extraction** (IPs, domains, hashes, paths)
 - ✅ **Demo scripts** ready for presentation
 
@@ -73,8 +74,9 @@
 
 **Three User Interfaces:**
 - ✅ CLI Interface (Typer + Rich) - For power users and automation
-- ✅ Web UI (Gradio) - For everyone else, mouse-friendly
+- ✅ Web UI (React + Vite) - Modern glassmorphism interface
 - ✅ REST API (FastAPI + OpenAPI) - For developers and integrations
+- ✅ MCP Server (FastMCP) - Model Context Protocol integration
 
 **Supporting Systems:**
 - ✅ ToolRegistry (18 SIFT tools, FAISS embeddings)
@@ -138,6 +140,10 @@ source .venv/bin/activate
 # Install dependencies
 uv pip install -e ".[dev]"
 
+# macOS only: Install system libraries for PDF generation
+# (Required for weasyprint - professional report generation)
+brew install pango gdk-pixbuf libffi gobject-introspection cairo
+
 # Configure environment
 cp .env.example .env
 # Edit .env with your configuration:
@@ -145,9 +151,19 @@ cp .env.example .env
 #   - OLLAMA_BASE_URL or API keys
 #   - SIFT_VM_HOST, SIFT_VM_PORT, SIFT_SSH_USER
 #   - Langfuse credentials (optional, for observability)
+
+### 🐋 Docker Deployment (Recommended)
+
+To deploy the Web UI and API side-by-side using containers:
+```bash
+docker-compose up -d
+```
+Access the Web Interface at `http://localhost:17000` and the API at `http://localhost:18000`.
 ```
 
 ### Usage
+
+For a detailed walkthrough, including how to use the Human-in-the-Loop (HITL) system, see the [User Guide](docs/USER_GUIDE.md).
 
 #### CLI Commands
 
@@ -344,7 +360,7 @@ mypy src/find_evil_agent
 - [ ] Optimize LLM prompts for faster lead extraction
 
 **Medium Priority:**
-- [ ] HTML/PDF report formats
+- [x] HTML/PDF report formats (Completed)
 - [ ] Streaming progress updates during execution
 - [ ] Report templates for common scenarios
 - [ ] Parallel tool execution for faster workflows
@@ -402,8 +418,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
-**📅 Last Updated:** April 10, 2026  
+**📅 Last Updated:** April 2026  
 **🏆 Hackathon Status:** READY FOR SUBMISSION  
 **✅ Unique Features:** Both verified on live SIFT VM  
 **🎬 Demo Scripts:** Ready for presentation  
 **📊 Test Coverage:** 239 tests (85%+ passing)
+**🐋 Deployment:** Docker-Compose Support Added

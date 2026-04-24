@@ -1,0 +1,16 @@
+
+╭─────────────────────────────────╮
+│ Find Evil Agent                 │
+│ Autonomous AI Incident Response │
+╰─────────────────────────────────╯
+
+Incident: Ransomware detected encrypting files on Windows 10 endpoint
+Goal: Identify malicious process and extract IOCs
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9529.99it/s]
+
+✗ Analysis failed: [Errno 2] No such file or directory: 'tools/metadata.yaml'
+⠧ Analyzing incident...
+
+✗ Error: 
+
