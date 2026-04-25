@@ -16,6 +16,8 @@ services:
       - SIFT_SSH_USER=${SIFT_SSH_USER:-sansforensics}
     env_file:
       - .env
+    volumes:
+      - ${HOME}/.ssh/sift_vm_key:/root/.ssh/sift_vm_key:ro
     command: python -m find_evil_agent.cli.main web --host 0.0.0.0 --port 17000
     restart: unless-stopped
 
@@ -34,6 +36,8 @@ services:
       - SIFT_SSH_USER=${SIFT_SSH_USER:-sansforensics}
     env_file:
       - .env
+    volumes:
+      - ${HOME}/.ssh/sift_vm_key:/root/.ssh/sift_vm_key:ro
     command: uvicorn find_evil_agent.api.server:app --host 0.0.0.0 --port 18000
     restart: unless-stopped
 

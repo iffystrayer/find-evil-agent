@@ -85,14 +85,17 @@ class OrchestratorAgent(BaseAgent):
         """
         super().__init__(name="orchestrator", **kwargs)
 
-        # Initialize sub-agents
-        self.tool_selector = ToolSelectorAgent(llm_provider=self._llm_provider)
-        self.tool_executor = ToolExecutorAgent(llm_provider=self._llm_provider)
-        self.analyzer = AnalyzerAgent(llm_provider=self._llm_provider)
+        # Initialize LLM provider before creating sub-agents
+        llm = self.llm  # Trigger lazy initialization
 
-        # Initialize command builder
+        # Initialize sub-agents with LLM provider
+        self.tool_selector = ToolSelectorAgent(llm_provider=llm)
+        self.tool_executor = ToolExecutorAgent(llm_provider=llm)
+        self.analyzer = AnalyzerAgent(llm_provider=llm)
+
+        # Initialize command builder with LLM provider
         self.command_builder = DynamicCommandBuilder(
-            llm_router=self._llm_provider,
+            llm_router=llm,
             metadata_path="tools/metadata.yaml"
         )
 
