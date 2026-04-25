@@ -47,7 +47,10 @@ export const api = {
     const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        incident_description: data.incident,
+        analysis_goal: data.goal,
+      }),
     });
     return response.json();
   },
@@ -57,7 +60,11 @@ export const api = {
     const response = await fetch(`${API_BASE_URL}/api/v1/investigate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        incident_description: data.incident,
+        analysis_goal: data.goal,
+        max_iterations: data.max_iterations,
+      }),
     });
     return response.json();
   },
