@@ -259,8 +259,20 @@ test.describe('TestExecution - React UI', () => {
     // Wait a bit more to ensure completion
     await page.waitForTimeout(5000);
 
-    // Screenshot 5: Results displayed
+    // Scroll down to show the full analysis results pane
+    await page.evaluate(() => {
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    });
+    await page.waitForTimeout(2000); // Pause for visibility
+
+    // Screenshot 5: Results displayed (after scrolling)
     await takeScreenshot(page, '05_react_results', 'Analysis results displayed');
+
+    // Scroll back up to show full page
+    await page.evaluate(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    await page.waitForTimeout(1500);
 
     console.log('✅ React UI demo completed successfully\n');
   });
