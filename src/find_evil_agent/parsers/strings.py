@@ -7,16 +7,17 @@ Features:
 - Character set detection (ASCII/Unicode)
 """
 
-import re
 import math
+import re
 from dataclasses import dataclass
-from typing import List
+
 from .base import BaseParser, ParserResult
 
 
 @dataclass
 class StringEntry:
     """String entry with metadata."""
+
     value: str
     length: int
     type: str  # 'url', 'ip', 'email', 'path', 'other'
@@ -27,7 +28,8 @@ class StringEntry:
 @dataclass
 class StringsData:
     """Structured strings data."""
-    strings: List[StringEntry]
+
+    strings: list[StringEntry]
     total_count: int
     high_entropy_count: int
     ioc_count: int
@@ -50,11 +52,11 @@ class StringsParser(BaseParser):
 
     # IOC patterns
     URL_PATTERN = re.compile(
-        r'https?://[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)+(?:/[^\s]*)?',
-        re.IGNORECASE
+        r"https?://[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)+(?:/[^\s]*)?",
+        re.IGNORECASE,
     )
-    IP_PATTERN = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
-    EMAIL_PATTERN = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
+    IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+    EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
     PATH_PATTERN = re.compile(r'(?:[A-Z]:\\|/)[^\s<>"|?*]+', re.IGNORECASE)
 
     def __init__(self):
@@ -90,14 +92,11 @@ class StringsParser(BaseParser):
         extract_iocs = kwargs.get("extract_iocs", True)
 
         if not raw_output or not raw_output.strip():
-            return self._create_error_result(
-                raw_output,
-                "Empty strings output"
-            )
+            return self._create_error_result(raw_output, "Empty strings output")
 
         try:
             strings = []
-            lines = raw_output.strip().split('\n')
+            lines = raw_output.strip().split("\n")
 
             for line in lines:
                 line = line.strip()
@@ -112,31 +111,27 @@ class StringsParser(BaseParser):
                 if detect_obfuscation:
                     entropy = self._calculate_entropy(line)
 
-                entry = StringEntry(
-                    value=line,
-                    length=len(line),
-                    type=string_type,
-                    entropy=entropy
-                )
+                entry = StringEntry(value=line, length=len(line), type=string_type, entropy=entropy)
                 strings.append(entry)
 
             # Calculate statistics
             high_entropy_threshold = 4.0
-            high_entropy_count = sum(1 for s in strings
-                                    if s.entropy and s.entropy > high_entropy_threshold)
+            high_entropy_count = sum(
+                1 for s in strings if s.entropy and s.entropy > high_entropy_threshold
+            )
             ioc_count = sum(1 for s in strings if s.type != "other")
 
             data = StringsData(
                 strings=strings,
                 total_count=len(strings),
                 high_entropy_count=high_entropy_count,
-                ioc_count=ioc_count
+                ioc_count=ioc_count,
             )
 
             metadata = {
                 "min_length": min_length,
                 "detect_obfuscation": detect_obfuscation,
-                "high_entropy_threshold": high_entropy_threshold
+                "high_entropy_threshold": high_entropy_threshold,
             }
 
             return ParserResult(
@@ -144,15 +139,12 @@ class StringsParser(BaseParser):
                 data=data,
                 raw_output=raw_output,
                 tool_name="strings",
-                metadata=metadata
+                metadata=metadata,
             )
 
         except Exception as e:
             self._log_parse_error(f"Failed to parse strings output: {e}")
-            return self._create_error_result(
-                raw_output,
-                f"Parse error: {e}"
-            )
+            return self._create_error_result(raw_output, f"Parse error: {e}")
 
     def _classify_string(self, s: str) -> str:
         """Classify string as URL, IP, email, path, or other.

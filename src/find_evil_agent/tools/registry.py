@@ -15,13 +15,14 @@ Example:
     rekall: 0.745
 """
 
-from typing import Any
 from pathlib import Path
-import yaml
-import numpy as np
-from sentence_transformers import SentenceTransformer
+from typing import Any
+
 import faiss
+import numpy as np
 import structlog
+import yaml
+from sentence_transformers import SentenceTransformer
 
 logger = structlog.get_logger()
 
@@ -46,7 +47,7 @@ class ToolRegistry:
         self,
         metadata_path: Path | None = None,
         cache_dir: Path | None = None,
-        embedding_model: str = "all-MiniLM-L6-v2"
+        embedding_model: str = "all-MiniLM-L6-v2",
     ):
         """Initialize tool registry.
 
@@ -80,9 +81,7 @@ class ToolRegistry:
         self.index, self.embeddings = self._load_or_create_embeddings()
 
         logger.info(
-            "tool_registry_initialized",
-            tool_count=len(self.tools),
-            cache_dir=str(self.cache_dir)
+            "tool_registry_initialized", tool_count=len(self.tools), cache_dir=str(self.cache_dir)
         )
 
     def _load_metadata(self) -> list[dict[str, Any]]:
@@ -101,13 +100,13 @@ class ToolRegistry:
                 f"Expected file at: {self.metadata_path.absolute()}"
             )
 
-        with open(self.metadata_path, 'r') as f:
+        with open(self.metadata_path) as f:
             data = yaml.safe_load(f)
 
-        if 'tools' not in data:
+        if "tools" not in data:
             raise ValueError("Metadata YAML must contain 'tools' key")
 
-        return data['tools']
+        return data["tools"]
 
     def _get_model(self) -> SentenceTransformer:
         """Lazy load embedding model.
@@ -144,7 +143,7 @@ class ToolRegistry:
                     logger.info(
                         "embeddings_loaded_from_cache",
                         count=len(embeddings),
-                        cache_dir=str(self.cache_dir)
+                        cache_dir=str(self.cache_dir),
                     )
                     return index, embeddings
                 else:
@@ -152,7 +151,7 @@ class ToolRegistry:
                         "cache_mismatch",
                         cached=len(embeddings),
                         current=len(self.tools),
-                        action="regenerating"
+                        action="regenerating",
                     )
             except Exception as e:
                 logger.warning("cache_read_failed", error=str(e), action="regenerating")
@@ -169,12 +168,8 @@ class ToolRegistry:
             tool_texts.append(combined)
 
         # Generate embeddings
-        embeddings = model.encode(
-            tool_texts,
-            show_progress_bar=False,
-            convert_to_numpy=True
-        )
-        embeddings = embeddings.astype('float32')
+        embeddings = model.encode(tool_texts, show_progress_bar=False, convert_to_numpy=True)
+        embeddings = embeddings.astype("float32")
 
         # Normalize for cosine similarity (L2 distance on normalized vectors = cosine)
         faiss.normalize_L2(embeddings)
@@ -219,7 +214,7 @@ class ToolRegistry:
         model = self._get_model()
 
         # Encode query
-        query_embedding = model.encode([query], convert_to_numpy=True).astype('float32')
+        query_embedding = model.encode([query], convert_to_numpy=True).astype("float32")
 
         # Normalize for cosine similarity
         faiss.normalize_L2(query_embedding)
@@ -237,19 +232,21 @@ class ToolRegistry:
             # Simpler: similarity ≈ 1 - distance (since normalized)
             similarity = max(0.0, 1.0 - float(distance))
 
-            results.append({
-                "tool": tool,
-                "similarity": float(similarity),
-                "distance": float(distance),
-                "rank": len(results) + 1
-            })
+            results.append(
+                {
+                    "tool": tool,
+                    "similarity": float(similarity),
+                    "distance": float(distance),
+                    "rank": len(results) + 1,
+                }
+            )
 
         logger.debug(
             "tool_search_completed",
             query=query,
             top_k=top_k,
             results_count=len(results),
-            top_match=results[0]["tool"]["name"] if results else None
+            top_match=results[0]["tool"]["name"] if results else None,
         )
 
         return results
@@ -269,7 +266,7 @@ class ToolRegistry:
             'memory'
         """
         for tool in self.tools:
-            if tool['name'] == name:
+            if tool["name"] == name:
                 return tool.copy()
         return None
 
@@ -289,11 +286,7 @@ class ToolRegistry:
             ['volatility', 'rekall']
         """
         if category:
-            return [
-                tool.copy()
-                for tool in self.tools
-                if tool.get('category') == category
-            ]
+            return [tool.copy() for tool in self.tools if tool.get("category") == category]
         return [tool.copy() for tool in self.tools]
 
     def get_categories(self) -> list[str]:
@@ -308,8 +301,8 @@ class ToolRegistry:
         """
         categories = set()
         for tool in self.tools:
-            if 'category' in tool:
-                categories.add(tool['category'])
+            if "category" in tool:
+                categories.add(tool["category"])
         return sorted(list(categories))
 
     def refresh_embeddings(self) -> None:

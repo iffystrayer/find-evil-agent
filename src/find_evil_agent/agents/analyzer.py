@@ -18,12 +18,14 @@ Example:
 
 import re
 from typing import Any
-from pydantic import BaseModel, Field
-import structlog
 
-from .base import BaseAgent, AgentResult, AgentStatus
-from .schemas import ExecutionResult, ExecutionStatus, Finding, FindingSeverity, AnalysisResult
+import structlog
+from pydantic import BaseModel, Field
+
 from find_evil_agent.telemetry import log_agent_error
+
+from .base import AgentResult, AgentStatus, BaseAgent
+from .schemas import AnalysisResult, ExecutionResult, Finding, FindingSeverity
 
 agent_logger = structlog.get_logger()
 
@@ -94,11 +96,7 @@ class AnalyzerAgent(BaseAgent):
         min_confidence: Minimum confidence threshold for findings
     """
 
-    def __init__(
-        self,
-        min_confidence: float = 0.5,
-        **kwargs
-    ):
+    def __init__(self, min_confidence: float = 0.5, **kwargs):
         """Initialize Analyzer Agent.
 
         Args:
@@ -109,10 +107,7 @@ class AnalyzerAgent(BaseAgent):
         self.ioc_patterns = IOC_PATTERNS
         self.min_confidence = min_confidence
 
-        agent_logger.info(
-            "analyzer_initialized",
-            min_confidence=self.min_confidence
-        )
+        agent_logger.info("analyzer_initialized", min_confidence=self.min_confidence)
 
     async def process(self, input_data: dict[str, Any]) -> AgentResult:
         """Analyze tool output and extract findings.
@@ -141,7 +136,7 @@ class AnalyzerAgent(BaseAgent):
                     success=False,
                     data={},
                     status=AgentStatus.FAILED,
-                    error="Invalid input: execution_result is required"
+                    error="Invalid input: execution_result is required",
                 )
 
             exec_result: ExecutionResult = input_data["execution_result"]
@@ -150,15 +145,13 @@ class AnalyzerAgent(BaseAgent):
                 "analysis_started",
                 agent=self.name,
                 tool=exec_result.tool_name,
-                output_length=len(exec_result.stdout or "")
+                output_length=len(exec_result.stdout or ""),
             )
 
             # Handle empty or failed execution
             if not exec_result.stdout or len(exec_result.stdout.strip()) == 0:
                 agent_logger.warning(
-                    "empty_output",
-                    tool=exec_result.tool_name,
-                    status=exec_result.status.value
+                    "empty_output", tool=exec_result.tool_name, status=exec_result.status.value
                 )
 
                 return AgentResult(
@@ -170,10 +163,10 @@ class AnalyzerAgent(BaseAgent):
                             iocs={},
                             raw_output=exec_result.stdout or "",
                             parsed_output={},
-                            analysis_summary="No output to analyze"
+                            analysis_summary="No output to analyze",
                         )
                     },
-                    status=AgentStatus.SUCCESS
+                    status=AgentStatus.SUCCESS,
                 )
 
             # Step 1: Extract IOCs
@@ -182,34 +175,27 @@ class AnalyzerAgent(BaseAgent):
             agent_logger.debug(
                 "iocs_extracted",
                 tool=exec_result.tool_name,
-                ioc_counts={k: len(v) for k, v in iocs.items()}
+                ioc_counts={k: len(v) for k, v in iocs.items()},
             )
 
             # Step 2: Use LLM to analyze and generate findings
             findings = await self._analyze_with_llm(
-                tool_name=exec_result.tool_name,
-                output=exec_result.stdout,
-                iocs=iocs
+                tool_name=exec_result.tool_name, output=exec_result.stdout, iocs=iocs
             )
 
             # Step 3: Filter findings by confidence threshold
-            filtered_findings = [
-                f for f in findings
-                if f.confidence >= self.min_confidence
-            ]
+            filtered_findings = [f for f in findings if f.confidence >= self.min_confidence]
 
             agent_logger.info(
                 "analysis_completed",
                 tool=exec_result.tool_name,
                 findings_count=len(filtered_findings),
-                ioc_types=list(iocs.keys())
+                ioc_types=list(iocs.keys()),
             )
 
             # Step 4: Generate analysis summary
             summary = self._generate_summary(
-                tool_name=exec_result.tool_name,
-                findings=filtered_findings,
-                iocs=iocs
+                tool_name=exec_result.tool_name, findings=filtered_findings, iocs=iocs
             )
 
             # Create AnalysisResult
@@ -219,28 +205,21 @@ class AnalyzerAgent(BaseAgent):
                 iocs=iocs,
                 raw_output=exec_result.stdout,
                 parsed_output={"execution_time": exec_result.execution_time},
-                analysis_summary=summary
+                analysis_summary=summary,
             )
 
             return AgentResult(
                 success=True,
                 data={"analysis_result": analysis_result},
                 status=AgentStatus.SUCCESS,
-                confidence=self._calculate_overall_confidence(filtered_findings)
+                confidence=self._calculate_overall_confidence(filtered_findings),
             )
 
         except Exception as e:
-            log_agent_error(
-                agent_name=self.name,
-                error_type="analysis_error",
-                error_message=str(e)
-            )
+            log_agent_error(agent_name=self.name, error_type="analysis_error", error_message=str(e))
 
             return AgentResult(
-                success=False,
-                data={},
-                status=AgentStatus.FAILED,
-                error=f"Analysis failed: {e}"
+                success=False, data={}, status=AgentStatus.FAILED, error=f"Analysis failed: {e}"
             )
 
     async def validate(self, input_data: dict[str, Any]) -> bool:
@@ -285,11 +264,7 @@ class AnalyzerAgent(BaseAgent):
 
         return iocs
 
-    def _filter_false_positives(
-        self,
-        ioc_type: str,
-        values: list[str]
-    ) -> list[str]:
+    def _filter_false_positives(self, ioc_type: str, values: list[str]) -> list[str]:
         """Filter common false positives from IOC extractions.
 
         Args:
@@ -303,7 +278,7 @@ class AnalyzerAgent(BaseAgent):
             # Filter out private IPs and invalid addresses
             filtered = []
             for ip in values:
-                parts = ip.split('.')
+                parts = ip.split(".")
                 # Basic validation
                 if len(parts) == 4:
                     try:
@@ -319,19 +294,16 @@ class AnalyzerAgent(BaseAgent):
             filtered = []
             for domain in values:
                 # Skip very short domains or all-numeric
-                if len(domain) > 4 and not domain.replace('.', '').isdigit():
+                if len(domain) > 4 and not domain.replace(".", "").isdigit():
                     # Skip common extensions that aren't domains
-                    if not domain.endswith(('.dll', '.exe', '.sys', '.bin')):
+                    if not domain.endswith((".dll", ".exe", ".sys", ".bin")):
                         filtered.append(domain.lower())
             return filtered
 
         return values
 
     async def _analyze_with_llm(
-        self,
-        tool_name: str,
-        output: str,
-        iocs: dict[str, list[str]]
+        self, tool_name: str, output: str, iocs: dict[str, list[str]]
     ) -> list[Finding]:
         """Use LLM to analyze tool output and generate findings.
 
@@ -350,10 +322,9 @@ class AnalyzerAgent(BaseAgent):
             truncated_output += "\n... (output truncated)"
 
         # Format IOCs for prompt
-        ioc_summary = "\n".join([
-            f"{ioc_type.upper()}: {', '.join(values[:10])}"
-            for ioc_type, values in iocs.items()
-        ])
+        ioc_summary = "\n".join(
+            [f"{ioc_type.upper()}: {', '.join(values[:10])}" for ioc_type, values in iocs.items()]
+        )
 
         # Build LLM prompt
         messages = [
@@ -375,8 +346,8 @@ Analyze this output and generate findings. For each finding, provide:
 - Confidence (0.0-1.0)
 - Evidence (specific lines or indicators from output)
 
-Generate 0-5 findings based on the output. Focus on the most significant security-relevant findings."""
-            }
+Generate 0-5 findings based on the output. Focus on the most significant security-relevant findings.""",
+            },
         ]
 
         try:
@@ -384,32 +355,23 @@ Generate 0-5 findings based on the output. Focus on the most significant securit
             response = await self.llm.chat_with_schema(
                 messages=messages,
                 schema=AnalysisRequest,
-                temperature=0.2  # Low temperature for consistent analysis
+                temperature=0.2,  # Low temperature for consistent analysis
             )
 
             agent_logger.debug(
-                "llm_analysis_completed",
-                tool=tool_name,
-                findings_generated=len(response.findings)
+                "llm_analysis_completed", tool=tool_name, findings_generated=len(response.findings)
             )
 
             return response.findings
 
         except Exception as e:
-            agent_logger.error(
-                "llm_analysis_failed",
-                tool=tool_name,
-                error=str(e)
-            )
+            agent_logger.error("llm_analysis_failed", tool=tool_name, error=str(e))
 
             # Fallback: Generate basic findings from IOCs
             return self._generate_fallback_findings(tool_name, iocs, output)
 
     def _generate_fallback_findings(
-        self,
-        tool_name: str,
-        iocs: dict[str, list[str]],
-        output: str
+        self, tool_name: str, iocs: dict[str, list[str]], output: str
     ) -> list[Finding]:
         """Generate basic findings from IOCs when LLM fails.
 
@@ -432,17 +394,14 @@ Generate 0-5 findings based on the output. Focus on the most significant securit
                     severity=FindingSeverity.INFO,
                     confidence=0.6,
                     evidence=values[:10],
-                    tool_references=[tool_name]
+                    tool_references=[tool_name],
                 )
                 findings.append(finding)
 
         return findings
 
     def _generate_summary(
-        self,
-        tool_name: str,
-        findings: list[Finding],
-        iocs: dict[str, list[str]]
+        self, tool_name: str, findings: list[Finding], iocs: dict[str, list[str]]
     ) -> str:
         """Generate analysis summary.
 
@@ -465,17 +424,13 @@ Generate 0-5 findings based on the output. Focus on the most significant securit
                 sev = finding.severity.value
                 severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
-            severity_str = ", ".join([
-                f"{count} {severity}"
-                for severity, count in sorted(severity_counts.items())
-            ])
+            severity_str = ", ".join(
+                [f"{count} {severity}" for severity, count in sorted(severity_counts.items())]
+            )
             parts.append(f"{len(findings)} finding(s): {severity_str}")
 
         if iocs:
-            ioc_str = ", ".join([
-                f"{len(values)} {ioc_type}"
-                for ioc_type, values in iocs.items()
-            ])
+            ioc_str = ", ".join([f"{len(values)} {ioc_type}" for ioc_type, values in iocs.items()])
             parts.append(f"IOCs: {ioc_str}")
 
         return f"{tool_name} analysis: " + "; ".join(parts)

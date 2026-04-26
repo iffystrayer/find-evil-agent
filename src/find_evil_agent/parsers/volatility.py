@@ -7,15 +7,15 @@ Supports plugins:
 - malfind: Malware detection (suspicious memory regions)
 """
 
-import re
 from dataclasses import dataclass
-from typing import List
+
 from .base import BaseParser, ParserResult
 
 
 @dataclass
 class ProcessInfo:
     """Volatility process information."""
+
     offset: str
     name: str
     pid: int
@@ -31,6 +31,7 @@ class ProcessInfo:
 @dataclass
 class NetworkConnection:
     """Volatility network connection."""
+
     offset: str
     protocol: str
     local_addr: str
@@ -45,9 +46,10 @@ class NetworkConnection:
 @dataclass
 class VolatilityData:
     """Structured Volatility output data."""
+
     plugin: str
-    processes: List[ProcessInfo] | None = None
-    connections: List[NetworkConnection] | None = None
+    processes: list[ProcessInfo] | None = None
+    connections: list[NetworkConnection] | None = None
 
 
 class VolatilityParser(BaseParser):
@@ -94,15 +96,11 @@ class VolatilityParser(BaseParser):
 
         if not plugin:
             return self._create_error_result(
-                raw_output,
-                "Plugin name required (pslist, netscan, etc.)"
+                raw_output, "Plugin name required (pslist, netscan, etc.)"
             )
 
         if not raw_output or not raw_output.strip():
-            return self._create_error_result(
-                raw_output,
-                "Empty Volatility output"
-            )
+            return self._create_error_result(raw_output, "Empty Volatility output")
 
         try:
             if plugin == "pslist" or plugin == "pstree":
@@ -110,28 +108,19 @@ class VolatilityParser(BaseParser):
             elif plugin == "netscan":
                 data = self._parse_netscan(raw_output)
             else:
-                return self._create_error_result(
-                    raw_output,
-                    f"Unsupported plugin: {plugin}"
-                )
+                return self._create_error_result(raw_output, f"Unsupported plugin: {plugin}")
 
             return ParserResult(
                 success=True,
                 data=data,
                 raw_output=raw_output,
                 tool_name="volatility",
-                metadata={"plugin": plugin}
+                metadata={"plugin": plugin},
             )
 
         except Exception as e:
-            self._log_parse_error(
-                f"Failed to parse {plugin} output: {e}",
-                {"plugin": plugin}
-            )
-            return self._create_error_result(
-                raw_output,
-                f"Parse error: {e}"
-            )
+            self._log_parse_error(f"Failed to parse {plugin} output: {e}", {"plugin": plugin})
+            return self._create_error_result(raw_output, f"Parse error: {e}")
 
     def _parse_pslist(self, output: str) -> VolatilityData:
         """Parse pslist/pstree output.
@@ -141,11 +130,17 @@ class VolatilityParser(BaseParser):
         0xfffffa8000c91040 System                    4      0     95      528 ------      0 2026-04-01 12:00:00 UTC+0000
         """
         processes = []
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
 
         # Skip header lines (Volatility version, column headers, separator)
-        data_lines = [l for l in lines if l and not l.startswith('Volatility')
-                      and not l.startswith('Offset') and not l.startswith('---')]
+        data_lines = [
+            l
+            for l in lines
+            if l
+            and not l.startswith("Volatility")
+            and not l.startswith("Offset")
+            and not l.startswith("---")
+        ]
 
         for line in data_lines:
             try:
@@ -160,7 +155,7 @@ class VolatilityParser(BaseParser):
                 ppid = int(parts[3])
                 threads = int(parts[4])
                 handles = int(parts[5])
-                session = parts[6] if parts[6] != '------' else None
+                session = parts[6] if parts[6] != "------" else None
                 wow64 = int(parts[7])
 
                 # Start time (may have spaces)
@@ -170,9 +165,9 @@ class VolatilityParser(BaseParser):
 
                 if len(parts) > start_idx:
                     # Join date and time parts
-                    start_time = ' '.join(parts[start_idx:start_idx+3])
+                    start_time = " ".join(parts[start_idx : start_idx + 3])
                     if len(parts) > start_idx + 3:
-                        exit_time = ' '.join(parts[start_idx+3:start_idx+6])
+                        exit_time = " ".join(parts[start_idx + 3 : start_idx + 6])
 
                 process = ProcessInfo(
                     offset=offset,
@@ -184,7 +179,7 @@ class VolatilityParser(BaseParser):
                     session=session,
                     wow64=wow64,
                     start_time=start_time,
-                    exit_time=exit_time
+                    exit_time=exit_time,
                 )
                 processes.append(process)
 
@@ -202,11 +197,17 @@ class VolatilityParser(BaseParser):
         0x13e397340        TCPv4    192.168.1.100:49157            93.184.216.34:80     ESTABLISHED      1337     malware.exe
         """
         connections = []
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
 
         # Skip header lines
-        data_lines = [l for l in lines if l and not l.startswith('Volatility')
-                      and not l.startswith('Offset') and not l.startswith('---')]
+        data_lines = [
+            l
+            for l in lines
+            if l
+            and not l.startswith("Volatility")
+            and not l.startswith("Offset")
+            and not l.startswith("---")
+        ]
 
         for line in data_lines:
             try:
@@ -218,15 +219,15 @@ class VolatilityParser(BaseParser):
                 protocol = parts[1]
 
                 # Parse local address (IP:Port or *:*)
-                local_addr_parts = parts[2].rsplit(':', 1)
+                local_addr_parts = parts[2].rsplit(":", 1)
                 local_addr = local_addr_parts[0]
-                local_port = int(local_addr_parts[1]) if local_addr_parts[1] != '*' else 0
+                local_port = int(local_addr_parts[1]) if local_addr_parts[1] != "*" else 0
 
                 # Parse foreign address
-                foreign_addr_parts = parts[3].rsplit(':', 1)
+                foreign_addr_parts = parts[3].rsplit(":", 1)
                 remote_addr = foreign_addr_parts[0]
                 remote_port = None
-                if foreign_addr_parts[1] != '*':
+                if foreign_addr_parts[1] != "*":
                     try:
                         remote_port = int(foreign_addr_parts[1])
                     except ValueError:
@@ -235,7 +236,7 @@ class VolatilityParser(BaseParser):
                 # State (TCP only)
                 state = None
                 pid_idx = 4
-                if protocol.startswith('TCP'):
+                if protocol.startswith("TCP"):
                     state = parts[4]
                     pid_idx = 5
 
@@ -251,7 +252,7 @@ class VolatilityParser(BaseParser):
                     remote_port=remote_port,
                     state=state,
                     pid=pid,
-                    owner=owner
+                    owner=owner,
                 )
                 connections.append(connection)
 

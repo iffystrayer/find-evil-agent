@@ -7,11 +7,12 @@ Skip in CI if Ollama unavailable:
 pytest tests/integration/llm/test_ollama_live.py -v -m "not integration"
 """
 
-import pytest
 import httpx
-from find_evil_agent.llm.providers.ollama import OllamaProvider
-from find_evil_agent.agents.schemas import ToolSelection
+import pytest
 from pydantic import BaseModel, Field
+
+from find_evil_agent.agents.schemas import ToolSelection
+from find_evil_agent.llm.providers.ollama import OllamaProvider
 
 
 # Check if Ollama is available
@@ -61,14 +62,12 @@ class TestOllamaLiveChat:
     async def test_simple_chat_with_llama3(self):
         """Test simple chat with llama3.2 (fastest model)."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
-        response = await provider.chat([
-            {"role": "user", "content": "Say 'hello' and nothing else."}
-        ])
+        response = await provider.chat(
+            [{"role": "user", "content": "Say 'hello' and nothing else."}]
+        )
 
         assert isinstance(response, str)
         assert len(response) > 0
@@ -80,14 +79,12 @@ class TestOllamaLiveChat:
     async def test_simple_chat_with_gemma4(self):
         """Test simple chat with gemma4:31b-cloud."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="gemma4:31b-cloud",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="gemma4:31b-cloud", temperature=0.1
         )
 
-        response = await provider.chat([
-            {"role": "user", "content": "What is DFIR? Answer in one sentence."}
-        ])
+        response = await provider.chat(
+            [{"role": "user", "content": "What is DFIR? Answer in one sentence."}]
+        )
 
         assert isinstance(response, str)
         assert len(response) > 0
@@ -99,15 +96,15 @@ class TestOllamaLiveChat:
     async def test_chat_with_system_message(self):
         """Test chat with system message."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
-        response = await provider.chat([
-            {"role": "system", "content": "You are a helpful assistant. Be concise."},
-            {"role": "user", "content": "What is 2+2?"}
-        ])
+        response = await provider.chat(
+            [
+                {"role": "system", "content": "You are a helpful assistant. Be concise."},
+                {"role": "user", "content": "What is 2+2?"},
+            ]
+        )
 
         assert isinstance(response, str)
         assert "4" in response
@@ -118,16 +115,11 @@ class TestOllamaLiveChat:
     async def test_chat_with_custom_temperature(self):
         """Test chat with custom temperature override."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
         # Override temperature in kwargs
-        response = await provider.chat(
-            [{"role": "user", "content": "Say 'test'"}],
-            temperature=0.9
-        )
+        response = await provider.chat([{"role": "user", "content": "Say 'test'"}], temperature=0.9)
 
         assert isinstance(response, str)
         assert len(response) > 0
@@ -144,9 +136,7 @@ class TestOllamaLiveStructuredOutput:
     async def test_structured_output_simple_schema(self):
         """Test structured output with simple schema."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
         class SimpleSchema(BaseModel):
@@ -154,10 +144,8 @@ class TestOllamaLiveStructuredOutput:
             confidence: float = Field(description="Confidence 0-1", ge=0.0, le=1.0)
 
         result = await provider.chat_with_schema(
-            messages=[
-                {"role": "user", "content": "What is 2+2? Be confident."}
-            ],
-            schema=SimpleSchema
+            messages=[{"role": "user", "content": "What is 2+2? Be confident."}],
+            schema=SimpleSchema,
         )
 
         assert isinstance(result, SimpleSchema)
@@ -171,23 +159,21 @@ class TestOllamaLiveStructuredOutput:
     async def test_structured_output_tool_selection(self):
         """Test structured output with ToolSelection schema (real use case)."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="gemma4:31b-cloud",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="gemma4:31b-cloud", temperature=0.1
         )
 
         selection = await provider.chat_with_schema(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a DFIR expert selecting SIFT tools for forensic analysis."
+                    "content": "You are a DFIR expert selecting SIFT tools for forensic analysis.",
                 },
                 {
                     "role": "user",
-                    "content": "I need to analyze a memory dump to find running processes. Which tool should I use?"
-                }
+                    "content": "I need to analyze a memory dump to find running processes. Which tool should I use?",
+                },
             ],
-            schema=ToolSelection
+            schema=ToolSelection,
         )
 
         assert isinstance(selection, ToolSelection)
@@ -204,9 +190,7 @@ class TestOllamaLiveStructuredOutput:
     async def test_structured_output_with_nested_fields(self):
         """Test structured output with nested schema."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
         class Address(BaseModel):
@@ -222,10 +206,10 @@ class TestOllamaLiveStructuredOutput:
             messages=[
                 {
                     "role": "user",
-                    "content": "Create a person named John, age 30, living at 123 Main St, Springfield"
+                    "content": "Create a person named John, age 30, living at 123 Main St, Springfield",
                 }
             ],
-            schema=Person
+            schema=Person,
         )
 
         assert isinstance(result, Person)
@@ -241,9 +225,7 @@ class TestOllamaLiveStructuredOutput:
     async def test_structured_output_validation_enforced(self):
         """Test that schema validation is enforced."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
         class StrictSchema(BaseModel):
@@ -251,13 +233,8 @@ class TestOllamaLiveStructuredOutput:
             percentage: float = Field(description="Must be 0-100", ge=0.0, le=100.0)
 
         result = await provider.chat_with_schema(
-            messages=[
-                {
-                    "role": "user",
-                    "content": "Give me count=5 and percentage=75"
-                }
-            ],
-            schema=StrictSchema
+            messages=[{"role": "user", "content": "Give me count=5 and percentage=75"}],
+            schema=StrictSchema,
         )
 
         assert isinstance(result, StrictSchema)
@@ -276,15 +253,11 @@ class TestOllamaLiveErrorHandling:
     async def test_connection_error_for_invalid_url(self):
         """Should raise RuntimeError for unreachable server."""
         provider = OllamaProvider(
-            base_url="http://invalid-server:11434",
-            model_name="test-model",
-            timeout=2.0
+            base_url="http://invalid-server:11434", model_name="test-model", timeout=2.0
         )
 
         with pytest.raises(RuntimeError, match="Ollama request failed"):
-            await provider.chat([
-                {"role": "user", "content": "Hello"}
-            ])
+            await provider.chat([{"role": "user", "content": "Hello"}])
 
         await provider.close()
 
@@ -292,16 +265,12 @@ class TestOllamaLiveErrorHandling:
     async def test_invalid_model_handled_gracefully(self):
         """Should handle invalid model name appropriately."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="nonexistent-model",
-            timeout=10.0
+            base_url="http://192.168.12.124:11434", model_name="nonexistent-model", timeout=10.0
         )
 
         # Ollama returns 404 for unknown models
         with pytest.raises(RuntimeError):
-            await provider.chat([
-                {"role": "user", "content": "Hello"}
-            ])
+            await provider.chat([{"role": "user", "content": "Hello"}])
 
         await provider.close()
 
@@ -320,13 +289,11 @@ class TestOllamaLivePerformance:
             base_url="http://192.168.12.124:11434",
             model_name="llama3.2:latest",
             temperature=0.1,
-            timeout=30.0
+            timeout=30.0,
         )
 
         start = time.time()
-        response = await provider.chat([
-            {"role": "user", "content": "Say 'done' briefly"}
-        ])
+        response = await provider.chat([{"role": "user", "content": "Say 'done' briefly"}])
         duration = time.time() - start
 
         assert isinstance(response, str)
@@ -343,7 +310,7 @@ class TestOllamaLivePerformance:
             base_url="http://192.168.12.124:11434",
             model_name="gemma4:31b-cloud",
             temperature=0.1,
-            timeout=60.0
+            timeout=60.0,
         )
 
         class SimpleSchema(BaseModel):
@@ -351,8 +318,7 @@ class TestOllamaLivePerformance:
 
         start = time.time()
         result = await provider.chat_with_schema(
-            messages=[{"role": "user", "content": "What is 1+1?"}],
-            schema=SimpleSchema
+            messages=[{"role": "user", "content": "What is 1+1?"}], schema=SimpleSchema
         )
         duration = time.time() - start
 

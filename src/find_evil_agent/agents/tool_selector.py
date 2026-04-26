@@ -23,11 +23,14 @@ Example:
 """
 
 from typing import Any
-from .base import BaseAgent, AgentResult, AgentStatus
-from .schemas import ToolSelection
-from find_evil_agent.tools.registry import ToolRegistry
-from find_evil_agent.telemetry import log_agent_error, logger
+
 import structlog
+
+from find_evil_agent.telemetry import log_agent_error
+from find_evil_agent.tools.registry import ToolRegistry
+
+from .base import AgentResult, AgentStatus, BaseAgent
+from .schemas import ToolSelection
 
 agent_logger = structlog.get_logger()
 
@@ -82,7 +85,7 @@ class ToolSelectorAgent(BaseAgent):
         registry: ToolRegistry | None = None,
         confidence_threshold: float = 0.7,
         semantic_top_k: int = 10,
-        **kwargs
+        **kwargs,
     ):
         """Initialize Tool Selector Agent.
 
@@ -130,7 +133,7 @@ class ToolSelectorAgent(BaseAgent):
                     success=False,
                     data={},
                     status=AgentStatus.FAILED,
-                    error="Invalid input: incident_description and analysis_goal required"
+                    error="Invalid input: incident_description and analysis_goal required",
                 )
 
             incident_description = input_data["incident_description"]
@@ -141,7 +144,7 @@ class ToolSelectorAgent(BaseAgent):
                 "tool_selection_started",
                 agent=self.name,
                 incident=incident_description[:50],
-                goal=analysis_goal[:50]
+                goal=analysis_goal[:50],
             )
 
             # Step 1: Semantic search for candidate tools
@@ -152,7 +155,7 @@ class ToolSelectorAgent(BaseAgent):
                 "semantic_search_completed",
                 query=query,
                 candidates_count=len(candidates),
-                top_3=[c["tool"]["name"] for c in candidates[:3]]
+                top_3=[c["tool"]["name"] for c in candidates[:3]],
             )
 
             # Step 2: Format candidates for LLM
@@ -172,22 +175,22 @@ EVIDENCE TYPE: {evidence_type if evidence_type else "Not specified"}
 CANDIDATE TOOLS:
 {candidates_text}
 
-Select the BEST tool for this scenario. Respond with your selection including tool name, confidence score, reasoning, and alternatives considered."""
-                }
+Select the BEST tool for this scenario. Respond with your selection including tool name, confidence score, reasoning, and alternatives considered.""",
+                },
             ]
 
             # Use LLM with structured output
             selection = await self.llm.chat_with_schema(
                 messages=messages,
                 schema=ToolSelection,
-                temperature=0.1  # Low temperature for deterministic selection
+                temperature=0.1,  # Low temperature for deterministic selection
             )
 
             agent_logger.info(
                 "llm_selection_completed",
                 tool=selection.tool_name,
                 confidence=selection.confidence,
-                reason_length=len(selection.reason)
+                reason_length=len(selection.reason),
             )
 
             # Step 4: Validate confidence threshold
@@ -197,7 +200,7 @@ Select the BEST tool for this scenario. Respond with your selection including to
                     error_type="confidence_threshold",
                     error_message=f"Tool selection confidence {selection.confidence:.2f} below threshold {self.confidence_threshold}",
                     tool=selection.tool_name,
-                    confidence=selection.confidence
+                    confidence=selection.confidence,
                 )
 
                 return AgentResult(
@@ -205,11 +208,11 @@ Select the BEST tool for this scenario. Respond with your selection including to
                     data={
                         "tool_selection": selection,
                         "candidates": candidates[:5],  # Include top 5 for debugging
-                        "threshold": self.confidence_threshold
+                        "threshold": self.confidence_threshold,
                     },
                     confidence=selection.confidence,
                     status=AgentStatus.FAILED,
-                    error=f"Tool selection confidence ({selection.confidence:.2f}) below threshold ({self.confidence_threshold}). Reason: {selection.reason}"
+                    error=f"Tool selection confidence ({selection.confidence:.2f}) below threshold ({self.confidence_threshold}). Reason: {selection.reason}",
                 )
 
             # Step 5: Validate tool exists in registry
@@ -219,18 +222,15 @@ Select the BEST tool for this scenario. Respond with your selection including to
                     agent_name=self.name,
                     error_type="tool_not_found",
                     error_message=f"LLM selected unknown tool: {selection.tool_name}",
-                    tool=selection.tool_name
+                    tool=selection.tool_name,
                 )
 
                 return AgentResult(
                     success=False,
-                    data={
-                        "tool_selection": selection,
-                        "candidates": candidates[:5]
-                    },
+                    data={"tool_selection": selection, "candidates": candidates[:5]},
                     confidence=selection.confidence,
                     status=AgentStatus.FAILED,
-                    error=f"Selected tool '{selection.tool_name}' not found in registry (possible hallucination)"
+                    error=f"Selected tool '{selection.tool_name}' not found in registry (possible hallucination)",
                 )
 
             # Success!
@@ -238,7 +238,7 @@ Select the BEST tool for this scenario. Respond with your selection including to
                 "tool_selection_success",
                 tool=selection.tool_name,
                 confidence=selection.confidence,
-                category=tool_meta["category"]
+                category=tool_meta["category"],
             )
 
             return AgentResult(
@@ -247,24 +247,22 @@ Select the BEST tool for this scenario. Respond with your selection including to
                     "tool_selection": selection,
                     "tool_metadata": tool_meta,
                     "candidates": candidates[:5],  # Top 5 for context
-                    "semantic_top_match": candidates[0]["tool"]["name"] if candidates else None
+                    "semantic_top_match": candidates[0]["tool"]["name"] if candidates else None,
                 },
                 confidence=selection.confidence,
-                status=AgentStatus.SUCCESS
+                status=AgentStatus.SUCCESS,
             )
 
         except Exception as e:
             log_agent_error(
-                agent_name=self.name,
-                error_type="processing_error",
-                error_message=str(e)
+                agent_name=self.name, error_type="processing_error", error_message=str(e)
             )
 
             return AgentResult(
                 success=False,
                 data={},
                 status=AgentStatus.FAILED,
-                error=f"Tool selection failed: {e}"
+                error=f"Tool selection failed: {e}",
             )
 
     async def validate(self, input_data: dict[str, Any]) -> bool:
@@ -301,7 +299,7 @@ Select the BEST tool for this scenario. Respond with your selection including to
             lines.append(f"   Description: {tool['description']}")
 
             # Include example usage if available
-            if 'examples' in tool and tool['examples']:
+            if "examples" in tool and tool["examples"]:
                 lines.append(f"   Example: {tool['examples'][0]}")
 
             lines.append("")  # Blank line between tools

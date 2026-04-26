@@ -19,11 +19,11 @@ Example:
 """
 
 from .base import BaseParser, ParserResult
-from .volatility import VolatilityParser
+from .grep import GrepParser
+from .strings import StringsParser
 from .timeline import TimelineParser
 from .tsk import TSKParser
-from .strings import StringsParser
-from .grep import GrepParser
+from .volatility import VolatilityParser
 
 __all__ = [
     "BaseParser",

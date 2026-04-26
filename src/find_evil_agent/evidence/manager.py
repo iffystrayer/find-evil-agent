@@ -1,11 +1,8 @@
 """Evidence manager for forensic chain-of-custody tracking."""
 
-import hashlib
 import json
-import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
 import asyncssh
@@ -20,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class EvidenceManager:
     """Manage forensic evidence with chain-of-custody tracking."""
 
-    def __init__(self, storage_path: Optional[Path] = None):
+    def __init__(self, storage_path: Path | None = None):
         """Initialize evidence manager.
 
         Args:
@@ -34,9 +31,9 @@ class EvidenceManager:
         self,
         file_path: str,
         name: str,
-        description: Optional[str] = None,
-        source: Optional[str] = None,
-        acquisition_date: Optional[datetime] = None,
+        description: str | None = None,
+        source: str | None = None,
+        acquisition_date: datetime | None = None,
         registered_by: str = "find-evil-agent",
     ) -> Evidence:
         """Register new evidence with hash computation and validation.
@@ -129,7 +126,7 @@ class EvidenceManager:
                 evidence.add_custody_entry(
                     action="validated",
                     actor="find-evil-agent",
-                    details=f"Evidence integrity verified (hash match)",
+                    details="Evidence integrity verified (hash match)",
                     location=evidence.file_path,
                 )
                 self._save_evidence(evidence)
@@ -229,10 +226,7 @@ class EvidenceManager:
             return EvidenceType.DISK_IMAGE
 
         # Memory dumps
-        if any(
-            ext in file_path_lower
-            for ext in [".mem", ".dmp", ".raw", ".vmem", ".lime"]
-        ):
+        if any(ext in file_path_lower for ext in [".mem", ".dmp", ".raw", ".vmem", ".lime"]):
             return EvidenceType.MEMORY_DUMP
 
         # Network captures
@@ -240,10 +234,7 @@ class EvidenceManager:
             return EvidenceType.NETWORK_CAPTURE
 
         # Log files
-        if any(
-            ext in file_path_lower
-            for ext in [".log", ".txt", ".evtx", ".csv", ".json"]
-        ):
+        if any(ext in file_path_lower for ext in [".log", ".txt", ".evtx", ".csv", ".json"]):
             return EvidenceType.LOG_FILE
 
         # Filesystem exports
@@ -264,7 +255,7 @@ class EvidenceManager:
 
         logger.debug("evidence_saved", evidence_id=str(evidence.evidence_id))
 
-    def load_evidence(self, evidence_id: UUID) -> Optional[Evidence]:
+    def load_evidence(self, evidence_id: UUID) -> Evidence | None:
         """Load evidence metadata from disk.
 
         Args:
@@ -279,7 +270,7 @@ class EvidenceManager:
             logger.warning("evidence_not_found", evidence_id=str(evidence_id))
             return None
 
-        with open(evidence_file, "r") as f:
+        with open(evidence_file) as f:
             data = json.load(f)
             evidence = Evidence(**data)
 
@@ -295,7 +286,7 @@ class EvidenceManager:
         evidence_list = []
 
         for evidence_file in self.storage_path.glob("*.json"):
-            with open(evidence_file, "r") as f:
+            with open(evidence_file) as f:
                 data = json.load(f)
                 evidence = Evidence(**data)
                 evidence_list.append(evidence)
@@ -309,8 +300,8 @@ class EvidenceManager:
         action: str,
         actor: str,
         details: str,
-        location: Optional[str] = None,
-    ) -> Optional[Evidence]:
+        location: str | None = None,
+    ) -> Evidence | None:
         """Add chain-of-custody entry to evidence.
 
         Args:
@@ -328,9 +319,7 @@ class EvidenceManager:
         if evidence is None:
             return None
 
-        evidence.add_custody_entry(
-            action=action, actor=actor, details=details, location=location
-        )
+        evidence.add_custody_entry(action=action, actor=actor, details=details, location=location)
 
         self._save_evidence(evidence)
 

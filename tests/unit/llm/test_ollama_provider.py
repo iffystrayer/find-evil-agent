@@ -7,9 +7,10 @@ TDD Structure:
 """
 
 import pytest
-from find_evil_agent.llm.providers.ollama import OllamaProvider
-from find_evil_agent.agents.schemas import ToolSelection
 from pydantic import BaseModel, Field
+
+from find_evil_agent.agents.schemas import ToolSelection
+from find_evil_agent.llm.providers.ollama import OllamaProvider
 
 
 class TestOllamaProviderSpecification:
@@ -67,59 +68,41 @@ class TestOllamaProviderStructure:
 
     def test_provider_implements_protocol_methods(self):
         """Provider must implement LLMProvider protocol methods."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
-        assert hasattr(provider, 'chat')
-        assert hasattr(provider, 'chat_with_schema')
-        assert hasattr(provider, 'get_model_name')
+        assert hasattr(provider, "chat")
+        assert hasattr(provider, "chat_with_schema")
+        assert hasattr(provider, "get_model_name")
         assert callable(provider.chat)
         assert callable(provider.chat_with_schema)
         assert callable(provider.get_model_name)
 
     def test_provider_accepts_required_parameters(self):
         """Provider must accept base_url and model_name."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
         assert provider._base_url == "http://test:11434"
         assert provider._model_name == "test-model"
 
     def test_provider_accepts_optional_parameters(self):
         """Provider should accept optional temperature and timeout."""
         provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model",
-            temperature=0.5,
-            timeout=60.0
+            base_url="http://test:11434", model_name="test-model", temperature=0.5, timeout=60.0
         )
         assert provider._temperature == 0.5
 
     def test_provider_strips_trailing_slash_from_url(self):
         """Provider should normalize URL by removing trailing slash."""
-        provider = OllamaProvider(
-            base_url="http://test:11434/",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434/", model_name="test-model")
         assert provider._base_url == "http://test:11434"
 
     def test_provider_has_async_http_client(self):
         """Provider should create async HTTP client."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
         assert provider._client is not None
 
     def test_get_model_name_returns_string(self):
         """get_model_name() should return model name string."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="gemma4:31b-cloud"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="gemma4:31b-cloud")
         assert provider.get_model_name() == "gemma4:31b-cloud"
 
 
@@ -132,10 +115,7 @@ class TestOllamaProviderExecution:
 
     def test_build_schema_prompt_includes_schema(self):
         """_build_schema_prompt should include JSON schema."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
         class SimpleSchema(BaseModel):
             name: str = Field(description="A name")
@@ -150,14 +130,9 @@ class TestOllamaProviderExecution:
 
     def test_inject_schema_prompt_prepends_system_message(self):
         """_inject_schema_prompt should prepend system message if none exists."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
-        messages = [
-            {"role": "user", "content": "Hello"}
-        ]
+        messages = [{"role": "user", "content": "Hello"}]
 
         result = provider._inject_schema_prompt(messages, "Schema: ...")
 
@@ -168,14 +143,11 @@ class TestOllamaProviderExecution:
 
     def test_inject_schema_prompt_appends_to_existing_system(self):
         """_inject_schema_prompt should append to existing system message."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
         messages = [
             {"role": "system", "content": "You are helpful"},
-            {"role": "user", "content": "Hello"}
+            {"role": "user", "content": "Hello"},
         ]
 
         result = provider._inject_schema_prompt(messages, "Schema: ...")
@@ -188,10 +160,7 @@ class TestOllamaProviderExecution:
     @pytest.mark.asyncio
     async def test_close_closes_client(self):
         """close() should close the HTTP client."""
-        provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
         # Should not raise error
         await provider.close()
@@ -212,12 +181,10 @@ class TestOllamaProviderIntegration:
         provider = OllamaProvider(
             base_url="http://192.168.12.124:11434",
             model_name="llama3.2:latest",  # Use smallest model
-            temperature=0.1
+            temperature=0.1,
         )
 
-        response = await provider.chat([
-            {"role": "user", "content": "Say 'test' and nothing else"}
-        ])
+        response = await provider.chat([{"role": "user", "content": "Say 'test' and nothing else"}])
 
         assert isinstance(response, str)
         assert len(response) > 0
@@ -230,9 +197,7 @@ class TestOllamaProviderIntegration:
     async def test_chat_with_schema_real_ollama(self):
         """Test structured output with real Ollama server."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
         class SimpleResponse(BaseModel):
@@ -240,10 +205,8 @@ class TestOllamaProviderIntegration:
             confidence: float = Field(description="Confidence 0-1", ge=0.0, le=1.0)
 
         result = await provider.chat_with_schema(
-            messages=[
-                {"role": "user", "content": "What is 2+2? Respond with high confidence."}
-            ],
-            schema=SimpleResponse
+            messages=[{"role": "user", "content": "What is 2+2? Respond with high confidence."}],
+            schema=SimpleResponse,
         )
 
         assert isinstance(result, SimpleResponse)
@@ -257,23 +220,15 @@ class TestOllamaProviderIntegration:
     async def test_chat_with_tool_selection_schema(self):
         """Test with actual ToolSelection schema used in agent."""
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="gemma4:31b-cloud",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="gemma4:31b-cloud", temperature=0.1
         )
 
         selection = await provider.chat_with_schema(
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a DFIR expert selecting SIFT tools."
-                },
-                {
-                    "role": "user",
-                    "content": "I need to list files in a disk image. Which tool?"
-                }
+                {"role": "system", "content": "You are a DFIR expert selecting SIFT tools."},
+                {"role": "user", "content": "I need to list files in a disk image. Which tool?"},
             ],
-            schema=ToolSelection
+            schema=ToolSelection,
         )
 
         assert isinstance(selection, ToolSelection)
@@ -292,9 +247,7 @@ class TestOllamaProviderIntegration:
         # This test documents that when LLM consistently returns invalid data,
         # the provider will retry and eventually raise RuntimeError
         provider = OllamaProvider(
-            base_url="http://192.168.12.124:11434",
-            model_name="llama3.2:latest",
-            temperature=0.1
+            base_url="http://192.168.12.124:11434", model_name="llama3.2:latest", temperature=0.1
         )
 
         class StrictSchema(BaseModel):
@@ -304,10 +257,8 @@ class TestOllamaProviderIntegration:
         # Intentionally ambiguous prompt that may cause validation failure
         with pytest.raises(RuntimeError, match="Failed to get valid structured output"):
             await provider.chat_with_schema(
-                messages=[
-                    {"role": "user", "content": "Generate a response"}  # Too vague
-                ],
-                schema=StrictSchema
+                messages=[{"role": "user", "content": "Generate a response"}],  # Too vague
+                schema=StrictSchema,
             )
 
         await provider.close()

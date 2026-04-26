@@ -6,12 +6,14 @@ IR reports that meet Valhuntir quality standards.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
 class ReportFormat(str, Enum):
     """Supported report output formats."""
+
     MARKDOWN = "markdown"
     HTML = "html"
     PDF = "pdf"
@@ -229,13 +231,19 @@ class ReportSchema(BaseModel):
     analysis_goal: str = Field(default="", description="Analysis goal")
     executive_summary: ExecutiveSummary = Field(..., description="Executive summary")
     findings: list[Any] = Field(default_factory=list, description="All findings")
-    ioc_tables: dict[str, list[IOCTableEntry]] = Field(default_factory=dict, description="IOC tables")
+    ioc_tables: dict[str, list[IOCTableEntry]] = Field(
+        default_factory=dict, description="IOC tables"
+    )
     timeline: list[TimelineEntry] = Field(default_factory=list, description="Event timeline")
     mitre_mappings: list[MITREMapping] = Field(default_factory=list, description="MITRE mappings")
-    recommendations: list[Recommendation] = Field(default_factory=list, description="Recommendations")
+    recommendations: list[Recommendation] = Field(
+        default_factory=list, description="Recommendations"
+    )
     metadata: ReportMetadata = Field(..., description="Report metadata")
-    evidence_citations: dict[str, str] = Field(default_factory=dict, description="Evidence references")
-    attack_graph: Optional[AttackGraph] = Field(default=None, description="Attack chain graph")
+    evidence_citations: dict[str, str] = Field(
+        default_factory=dict, description="Evidence references"
+    )
+    attack_graph: AttackGraph | None = Field(default=None, description="Attack chain graph")
 
     class Config:
         arbitrary_types_allowed = True

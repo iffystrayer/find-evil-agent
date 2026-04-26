@@ -9,13 +9,14 @@ Supports tools:
 
 import re
 from dataclasses import dataclass
-from typing import List
+
 from .base import BaseParser, ParserResult
 
 
 @dataclass
 class FileEntry:
     """File entry from fls output."""
+
     type: str  # 'r' (regular), 'd' (directory), etc.
     deleted: bool
     inode: int
@@ -25,6 +26,7 @@ class FileEntry:
 @dataclass
 class Partition:
     """Partition from mmls output."""
+
     slot: str
     start_sector: int
     end_sector: int
@@ -35,6 +37,7 @@ class Partition:
 @dataclass
 class FilesystemInfo:
     """Filesystem information from fsstat."""
+
     fs_type: str
     block_size: int | None = None
     total_blocks: int | None = None
@@ -45,9 +48,10 @@ class FilesystemInfo:
 @dataclass
 class TSKData:
     """Structured TSK tool output data."""
+
     tool: str
-    files: List[FileEntry] | None = None
-    partitions: List[Partition] | None = None
+    files: list[FileEntry] | None = None
+    partitions: list[Partition] | None = None
     filesystem: FilesystemInfo | None = None
 
 
@@ -95,16 +99,10 @@ class TSKParser(BaseParser):
         tool = kwargs.get("tool", "").lower()
 
         if not tool:
-            return self._create_error_result(
-                raw_output,
-                "Tool name required (fls, mmls, fsstat)"
-            )
+            return self._create_error_result(raw_output, "Tool name required (fls, mmls, fsstat)")
 
         if not raw_output or not raw_output.strip():
-            return self._create_error_result(
-                raw_output,
-                f"Empty {tool} output"
-            )
+            return self._create_error_result(raw_output, f"Empty {tool} output")
 
         try:
             if tool == "fls":
@@ -114,28 +112,19 @@ class TSKParser(BaseParser):
             elif tool == "fsstat":
                 data = self._parse_fsstat(raw_output)
             else:
-                return self._create_error_result(
-                    raw_output,
-                    f"Unsupported TSK tool: {tool}"
-                )
+                return self._create_error_result(raw_output, f"Unsupported TSK tool: {tool}")
 
             return ParserResult(
                 success=True,
                 data=data,
                 raw_output=raw_output,
                 tool_name=tool,
-                metadata={"tool": tool}
+                metadata={"tool": tool},
             )
 
         except Exception as e:
-            self._log_parse_error(
-                f"Failed to parse {tool} output: {e}",
-                {"tool": tool}
-            )
-            return self._create_error_result(
-                raw_output,
-                f"Parse error: {e}"
-            )
+            self._log_parse_error(f"Failed to parse {tool} output: {e}", {"tool": tool})
+            return self._create_error_result(raw_output, f"Parse error: {e}")
 
     def _parse_fls(self, output: str) -> TSKData:
         """Parse fls (file listing) output.
@@ -146,11 +135,11 @@ class TSKParser(BaseParser):
         d/d 12347:	suspicious_folder
         """
         files = []
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
 
         # Pattern: <type>/<meta> [*] <inode>:\t<name>
         # Example: r/r * 12346:	deleted_file.txt
-        pattern = re.compile(r'([a-z])/([a-z])\s+(\*\s+)?(\d+):\s+(.+)')
+        pattern = re.compile(r"([a-z])/([a-z])\s+(\*\s+)?(\d+):\s+(.+)")
 
         for line in lines:
             if not line.strip():
@@ -163,12 +152,7 @@ class TSKParser(BaseParser):
                 inode = int(match.group(4))
                 name = match.group(5).strip()
 
-                file_entry = FileEntry(
-                    type=file_type,
-                    deleted=deleted,
-                    inode=inode,
-                    name=name
-                )
+                file_entry = FileEntry(type=file_type, deleted=deleted, inode=inode, name=name)
                 files.append(file_entry)
 
         return TSKData(tool="fls", files=files)
@@ -187,12 +171,12 @@ class TSKParser(BaseParser):
         002:  000:000   0000002048   0002099199   0002097152   NTFS / exFAT (0x07)
         """
         partitions = []
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
 
         # Find the partition table data (after headers)
         in_table = False
         for line in lines:
-            if 'Slot' in line and 'Start' in line:
+            if "Slot" in line and "Start" in line:
                 in_table = True
                 continue
 
@@ -205,14 +189,14 @@ class TSKParser(BaseParser):
                         start = int(parts[2])
                         end = int(parts[3])
                         length = int(parts[4])
-                        description = ' '.join(parts[5:]) if len(parts) > 5 else ""
+                        description = " ".join(parts[5:]) if len(parts) > 5 else ""
 
                         partition = Partition(
                             slot=slot,
                             start_sector=start,
                             end_sector=end,
                             length=length,
-                            description=description
+                            description=description,
                         )
                         partitions.append(partition)
 
@@ -226,7 +210,7 @@ class TSKParser(BaseParser):
 
         Format varies by filesystem type, extract key details.
         """
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
 
         # Extract filesystem type
         fs_type = "unknown"
@@ -239,30 +223,30 @@ class TSKParser(BaseParser):
             line_lower = line.lower()
 
             # Filesystem type
-            if 'file system type' in line_lower or 'filesystem type' in line_lower:
-                fs_type = line.split(':')[-1].strip()
+            if "file system type" in line_lower or "filesystem type" in line_lower:
+                fs_type = line.split(":")[-1].strip()
 
             # Block size
-            elif 'block size' in line_lower:
-                match = re.search(r'(\d+)', line)
+            elif "block size" in line_lower:
+                match = re.search(r"(\d+)", line)
                 if match:
                     block_size = int(match.group(1))
 
             # Total blocks
-            elif 'block count' in line_lower or 'total blocks' in line_lower:
-                match = re.search(r'(\d+)', line)
+            elif "block count" in line_lower or "total blocks" in line_lower:
+                match = re.search(r"(\d+)", line)
                 if match:
                     total_blocks = int(match.group(1))
 
             # Free blocks
-            elif 'free blocks' in line_lower:
-                match = re.search(r'(\d+)', line)
+            elif "free blocks" in line_lower:
+                match = re.search(r"(\d+)", line)
                 if match:
                     free_blocks = int(match.group(1))
 
             # Add other metadata
-            if ':' in line:
-                key, value = line.split(':', 1)
+            if ":" in line:
+                key, value = line.split(":", 1)
                 metadata[key.strip()] = value.strip()
 
         filesystem = FilesystemInfo(
@@ -270,7 +254,7 @@ class TSKParser(BaseParser):
             block_size=block_size,
             total_blocks=total_blocks,
             free_blocks=free_blocks,
-            metadata=metadata
+            metadata=metadata,
         )
 
         return TSKData(tool="fsstat", filesystem=filesystem)

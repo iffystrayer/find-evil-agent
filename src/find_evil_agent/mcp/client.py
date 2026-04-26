@@ -14,11 +14,11 @@ from typing import Any
 
 class MCPClient:
     """Client for MCP-enabled SIFT server.
-    
+
     Connects to the SIFT workstation MCP server
     to execute forensic tools remotely.
     """
-    
+
     def __init__(self, server_url: str | None = None):
         """Initialize client.
 
@@ -27,25 +27,20 @@ class MCPClient:
         """
         if server_url is None:
             from find_evil_agent.config.settings import get_settings
+
             settings = get_settings()
             server_url = f"http://{settings.mcp_server_host}:{settings.mcp_server_port}"
         self.server_url = server_url
         self.connected = False
-    
+
     async def connect(self) -> bool:
         """Stub: Connect to MCP server."""
-        raise NotImplementedError(
-            "MCP Client implementation pending starter code"
-        )
-    
+        raise NotImplementedError("MCP Client implementation pending starter code")
+
     async def list_tools(self) -> list[dict[str, Any]]:
         """Stub: List available tools."""
-        raise NotImplementedError(
-            "Tool listing pending starter code"
-        )
-    
+        raise NotImplementedError("Tool listing pending starter code")
+
     async def call_tool(self, tool_name: str, args: dict) -> dict[str, Any]:
         """Stub: Execute tool via MCP."""
-        raise NotImplementedError(
-            "Tool execution pending starter code"
-        )
+        raise NotImplementedError("Tool execution pending starter code")

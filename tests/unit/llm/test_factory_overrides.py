@@ -5,9 +5,9 @@ provider and model overrides for CLI/API usage.
 """
 
 import pytest
-from find_evil_agent.config.settings import Settings, LLMProviderEnum
+
+from find_evil_agent.config.settings import LLMProviderEnum, Settings
 from find_evil_agent.llm.factory import create_llm_provider
-from find_evil_agent.llm.protocol import LLMProvider
 
 
 class TestFactoryOverridesSpecification:
@@ -55,6 +55,7 @@ class TestFactoryOverridesStructure:
     def test_factory_accepts_provider_override(self):
         """Factory function accepts optional provider_override parameter."""
         import inspect
+
         sig = inspect.signature(create_llm_provider)
         assert "provider_override" in sig.parameters
         assert sig.parameters["provider_override"].default is None
@@ -62,6 +63,7 @@ class TestFactoryOverridesStructure:
     def test_factory_accepts_model_override(self):
         """Factory function accepts optional model_override parameter."""
         import inspect
+
         sig = inspect.signature(create_llm_provider)
         assert "model_override" in sig.parameters
         assert sig.parameters["model_override"].default is None
@@ -69,6 +71,7 @@ class TestFactoryOverridesStructure:
     def test_overrides_are_optional(self):
         """Override parameters have None defaults for backward compatibility."""
         import inspect
+
         sig = inspect.signature(create_llm_provider)
         assert sig.parameters["provider_override"].default is None
         assert sig.parameters["model_override"].default is None
@@ -82,7 +85,7 @@ class TestFactoryOverridesExecution:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # Override to OpenAI (without API key should fail)
@@ -94,7 +97,7 @@ class TestFactoryOverridesExecution:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # Override model
@@ -106,14 +109,12 @@ class TestFactoryOverridesExecution:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # Override both
         provider = create_llm_provider(
-            settings,
-            provider_override="ollama",
-            model_override="qwen3.5:397b-cloud"
+            settings, provider_override="ollama", model_override="qwen3.5:397b-cloud"
         )
         assert provider.get_model_name() == "qwen3.5:397b-cloud"
 
@@ -122,7 +123,7 @@ class TestFactoryOverridesExecution:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         provider = create_llm_provider(settings)
@@ -133,20 +134,20 @@ class TestFactoryOverridesExecution:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # String should be converted to enum
         provider = create_llm_provider(settings, provider_override="ollama")
         assert provider is not None
-        assert hasattr(provider, 'chat')  # Has protocol method
+        assert hasattr(provider, "chat")  # Has protocol method
 
     def test_invalid_provider_override_raises_error(self):
         """Invalid provider override raises ValueError."""
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         with pytest.raises(ValueError):
@@ -157,7 +158,7 @@ class TestFactoryOverridesExecution:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # Override only model
@@ -165,6 +166,7 @@ class TestFactoryOverridesExecution:
 
         # Should still be Ollama provider
         from find_evil_agent.llm.providers.ollama import OllamaProvider
+
         assert isinstance(provider, OllamaProvider)
         assert provider.get_model_name() == "new-model"
 
@@ -177,16 +179,15 @@ class TestFactoryOverridesIntegration:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         provider = create_llm_provider(
-            settings,
-            provider_override="ollama",
-            model_override="llama3:70b"
+            settings, provider_override="ollama", model_override="llama3:70b"
         )
 
         from find_evil_agent.llm.providers.ollama import OllamaProvider
+
         assert isinstance(provider, OllamaProvider)
         assert provider.get_model_name() == "llama3:70b"
 
@@ -196,7 +197,7 @@ class TestFactoryOverridesIntegration:
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
             ollama_base_url="http://localhost:11434",
-            openai_api_key=None  # No API key
+            openai_api_key=None,  # No API key
         )
 
         with pytest.raises(ValueError, match="OPENAI_API_KEY"):
@@ -208,7 +209,7 @@ class TestFactoryOverridesIntegration:
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
             ollama_base_url="http://localhost:11434",
-            anthropic_api_key=None  # No API key
+            anthropic_api_key=None,  # No API key
         )
 
         with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
@@ -220,16 +221,15 @@ class TestFactoryOverridesIntegration:
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
             ollama_base_url="http://localhost:11434",
-            openai_api_key="sk-test-key-12345"
+            openai_api_key="sk-test-key-12345",
         )
 
         provider = create_llm_provider(
-            settings,
-            provider_override="openai",
-            model_override="gpt-4-turbo"
+            settings, provider_override="openai", model_override="gpt-4-turbo"
         )
 
         from find_evil_agent.llm.providers.openai import OpenAIProvider
+
         assert isinstance(provider, OpenAIProvider)
         assert provider.get_model_name() == "gpt-4-turbo"
 
@@ -239,16 +239,15 @@ class TestFactoryOverridesIntegration:
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
             ollama_base_url="http://localhost:11434",
-            anthropic_api_key="sk-ant-test-key-12345"
+            anthropic_api_key="sk-ant-test-key-12345",
         )
 
         provider = create_llm_provider(
-            settings,
-            provider_override="anthropic",
-            model_override="claude-sonnet-4"
+            settings, provider_override="anthropic", model_override="claude-sonnet-4"
         )
 
         from find_evil_agent.llm.providers.anthropic import AnthropicProvider
+
         assert isinstance(provider, AnthropicProvider)
         assert provider.get_model_name() == "claude-sonnet-4"
 
@@ -261,7 +260,7 @@ class TestFactoryOverridesEdgeCases:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # Empty string is falsy, so it's treated as None (no override)
@@ -269,6 +268,7 @@ class TestFactoryOverridesEdgeCases:
 
         # Should use settings default
         from find_evil_agent.llm.providers.ollama import OllamaProvider
+
         assert isinstance(provider, OllamaProvider)
         assert provider.get_model_name() == "gemma4:31b-cloud"
 
@@ -277,7 +277,7 @@ class TestFactoryOverridesEdgeCases:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # Whitespace is preserved (garbage in, garbage out - user responsibility)
@@ -289,7 +289,7 @@ class TestFactoryOverridesEdgeCases:
         settings = Settings(
             llm_provider=LLMProviderEnum.OLLAMA,
             llm_model_name="gemma4:31b-cloud",
-            ollama_base_url="http://localhost:11434"
+            ollama_base_url="http://localhost:11434",
         )
 
         # "Ollama" (capital O) should fail

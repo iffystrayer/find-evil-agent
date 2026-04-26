@@ -6,8 +6,10 @@ TDD Structure:
 3. TestToolRegistryExecution - Tests actual registry behavior
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from find_evil_agent.tools.registry import ToolRegistry
 
 
@@ -25,7 +27,16 @@ class TestToolRegistrySpecification:
             "search_backend": "FAISS IndexFlatL2",
             "caching": "Disk cache for embeddings (.cache/embeddings/)",
             "tools_count": 18,  # SIFT tools documented
-            "categories": ["memory", "disk", "timeline", "network", "analysis", "hash", "registry", "metadata"],
+            "categories": [
+                "memory",
+                "disk",
+                "timeline",
+                "network",
+                "analysis",
+                "hash",
+                "registry",
+                "metadata",
+            ],
         }
         assert requirements["metadata_source"] == "YAML file (tools/metadata.yaml)"
         assert requirements["embedding_model"] == "SentenceTransformers (all-MiniLM-L6-v2)"
@@ -67,26 +78,26 @@ class TestToolRegistryStructure:
     def test_registry_has_required_methods(self):
         """ToolRegistry should have search, get_tool, list_tools methods."""
         registry = ToolRegistry()
-        assert hasattr(registry, 'search')
-        assert hasattr(registry, 'get_tool')
-        assert hasattr(registry, 'list_tools')
-        assert hasattr(registry, 'get_categories')
-        assert hasattr(registry, 'refresh_embeddings')
+        assert hasattr(registry, "search")
+        assert hasattr(registry, "get_tool")
+        assert hasattr(registry, "list_tools")
+        assert hasattr(registry, "get_categories")
+        assert hasattr(registry, "refresh_embeddings")
         assert callable(registry.search)
         assert callable(registry.get_tool)
 
     def test_registry_loads_tools_on_init(self):
         """ToolRegistry should load tools from metadata on initialization."""
         registry = ToolRegistry()
-        assert hasattr(registry, 'tools')
+        assert hasattr(registry, "tools")
         assert isinstance(registry.tools, list)
         assert len(registry.tools) > 0
 
     def test_registry_creates_index_on_init(self):
         """ToolRegistry should create FAISS index on initialization."""
         registry = ToolRegistry()
-        assert hasattr(registry, 'index')
-        assert hasattr(registry, 'embeddings')
+        assert hasattr(registry, "index")
+        assert hasattr(registry, "embeddings")
         assert registry.index is not None
 
 
@@ -257,10 +268,12 @@ class TestToolRegistryExecution:
 
         # Get original modification time
         import os
+
         original_mtime = os.path.getmtime(embeddings_file)
 
         # Sleep briefly to ensure new timestamp
         import time
+
         time.sleep(0.1)
 
         # Refresh embeddings
@@ -296,7 +309,6 @@ class TestToolRegistryExecution:
 
     def test_registry_handles_missing_metadata_file(self):
         """ToolRegistry should raise FileNotFoundError if metadata missing."""
-        from pathlib import Path
 
         invalid_path = Path("/nonexistent/metadata.yaml")
 

@@ -11,11 +11,10 @@ Test Structure:
 """
 
 import pytest
-from datetime import datetime
-from uuid import uuid4
 
 # Conditional import for TDD - Components may not exist yet
 try:
+    from find_evil_agent.agents.orchestrator import OrchestratorAgent
     from find_evil_agent.agents.schemas import (
         InvestigativeLead,
         IterationResult,
@@ -23,9 +22,9 @@ try:
         LeadPriority,
         LeadType,
     )
-    from find_evil_agent.agents.orchestrator import OrchestratorAgent
     from find_evil_agent.config.settings import get_settings
     from find_evil_agent.llm import create_llm_provider
+
     SCHEMAS_AVAILABLE = True
 except ImportError:
     SCHEMAS_AVAILABLE = False
@@ -70,12 +69,15 @@ class TestIterativeOrchestrationSpecification:
                 "max_iterations_reached",
                 "no_leads_found",
                 "user_disabled_auto_follow",
-                "confidence_too_low"
+                "confidence_too_low",
             ],
             "lead_types": ["process", "network", "file", "timeline", "registry"],
-            "priorities": ["high", "medium", "low"]
+            "priorities": ["high", "medium", "low"],
         }
-        assert requirements["workflow"] == "analyze → extract_leads → follow_leads → repeat → synthesize"
+        assert (
+            requirements["workflow"]
+            == "analyze → extract_leads → follow_leads → repeat → synthesize"
+        )
         assert len(requirements["stopping_conditions"]) == 4
         assert len(requirements["lead_types"]) == 5
 
@@ -87,7 +89,7 @@ class TestIterativeOrchestrationSpecification:
             "priority": "High/medium/low priority for follow-up",
             "suggested_tool": "Optional tool recommendation",
             "context": "Dict with IOCs or data needed for investigation",
-            "confidence": "How confident the LLM is this lead is worth following"
+            "confidence": "How confident the LLM is this lead is worth following",
         }
         assert "lead_type" in schema
         assert "priority" in schema
@@ -103,7 +105,7 @@ class TestIterativeOrchestrationSpecification:
             "leads_discovered": "New leads found",
             "lead_followed": "The lead that triggered this iteration (None for first)",
             "duration": "How long this iteration took",
-            "timestamp": "When iteration completed"
+            "timestamp": "When iteration completed",
         }
         assert "iteration_number" in schema
         assert "leads_discovered" in schema
@@ -115,7 +117,7 @@ class TestIterativeOrchestrationSpecification:
             "max_iterations": "Prevent infinite loops (default: 5)",
             "no_leads": "No new investigative leads discovered",
             "auto_follow_disabled": "User wants manual control",
-            "low_confidence": "Leads have confidence below threshold"
+            "low_confidence": "Leads have confidence below threshold",
         }
         assert stopping_conditions["max_iterations"] == "Prevent infinite loops (default: 5)"
 
@@ -131,15 +133,15 @@ class TestIterativeOrchestrationStructure:
             description="Check network traffic for C2 communication",
             priority=LeadPriority.HIGH,
             context={"process": "ransom.exe", "pid": 4532},
-            confidence=0.85
+            confidence=0.85,
         )
 
-        assert hasattr(lead, 'lead_type')
-        assert hasattr(lead, 'description')
-        assert hasattr(lead, 'priority')
-        assert hasattr(lead, 'context')
-        assert hasattr(lead, 'confidence')
-        assert hasattr(lead, 'suggested_tool')  # Optional field
+        assert hasattr(lead, "lead_type")
+        assert hasattr(lead, "description")
+        assert hasattr(lead, "priority")
+        assert hasattr(lead, "context")
+        assert hasattr(lead, "confidence")
+        assert hasattr(lead, "suggested_tool")  # Optional field
 
     @pytest.mark.skipif(not SCHEMAS_AVAILABLE, reason="Schemas not implemented yet")
     def test_iteration_result_has_required_fields(self):
@@ -151,17 +153,17 @@ class TestIterativeOrchestrationStructure:
             iocs={},
             leads_discovered=[],
             lead_followed=None,
-            duration=45.2
+            duration=45.2,
         )
 
-        assert hasattr(result, 'iteration_number')
-        assert hasattr(result, 'tool_used')
-        assert hasattr(result, 'findings')
-        assert hasattr(result, 'iocs')
-        assert hasattr(result, 'leads_discovered')
-        assert hasattr(result, 'lead_followed')
-        assert hasattr(result, 'duration')
-        assert hasattr(result, 'timestamp')
+        assert hasattr(result, "iteration_number")
+        assert hasattr(result, "tool_used")
+        assert hasattr(result, "findings")
+        assert hasattr(result, "iocs")
+        assert hasattr(result, "leads_discovered")
+        assert hasattr(result, "lead_followed")
+        assert hasattr(result, "duration")
+        assert hasattr(result, "timestamp")
 
     @pytest.mark.skipif(not SCHEMAS_AVAILABLE, reason="Schemas not implemented yet")
     def test_orchestrator_has_iterative_methods(self):
@@ -169,16 +171,16 @@ class TestIterativeOrchestrationStructure:
         orchestrator = OrchestratorAgent()
 
         # New methods for iterative analysis
-        assert hasattr(orchestrator, 'process_iterative')
+        assert hasattr(orchestrator, "process_iterative")
         assert callable(orchestrator.process_iterative)
 
-        assert hasattr(orchestrator, '_extract_leads')
+        assert hasattr(orchestrator, "_extract_leads")
         assert callable(orchestrator._extract_leads)
 
-        assert hasattr(orchestrator, '_should_continue')
+        assert hasattr(orchestrator, "_should_continue")
         assert callable(orchestrator._should_continue)
 
-        assert hasattr(orchestrator, '_synthesize_investigation')
+        assert hasattr(orchestrator, "_synthesize_investigation")
         assert callable(orchestrator._synthesize_investigation)
 
 
@@ -195,7 +197,7 @@ class TestIterativeOrchestrationExecution:
             incident_description="Test incident",
             analysis_goal="Test goal",
             max_iterations=1,
-            auto_follow=False  # No follow-up
+            auto_follow=False,  # No follow-up
         )
 
         assert isinstance(result, IterativeAnalysisResult)
@@ -209,21 +211,10 @@ class TestIterativeOrchestrationExecution:
         orchestrator = OrchestratorAgent()
 
         # Mock findings with obvious leads
-        findings = [
-            {
-                "description": "Suspicious process ransom.exe found",
-                "severity": "critical"
-            }
-        ]
-        iocs = {
-            "processes": ["ransom.exe"]
-        }
+        findings = [{"description": "Suspicious process ransom.exe found", "severity": "critical"}]
+        iocs = {"processes": ["ransom.exe"]}
 
-        leads = await orchestrator._extract_leads(
-            findings=findings,
-            iocs=iocs,
-            iteration_number=1
-        )
+        leads = await orchestrator._extract_leads(findings=findings, iocs=iocs, iteration_number=1)
 
         assert isinstance(leads, list)
         assert len(leads) > 0
@@ -236,10 +227,7 @@ class TestIterativeOrchestrationExecution:
         orchestrator = OrchestratorAgent()
 
         findings = [
-            {
-                "description": "Malicious process with network activity",
-                "severity": "critical"
-            }
+            {"description": "Malicious process with network activity", "severity": "critical"}
         ]
 
         leads = await orchestrator._extract_leads(findings, {}, 1)
@@ -254,10 +242,7 @@ class TestIterativeOrchestrationExecution:
         """Finding IOCs should suggest timeline analysis lead."""
         orchestrator = OrchestratorAgent()
 
-        iocs = {
-            "ips": ["203.0.113.42"],
-            "domains": ["evil-c2.example.com"]
-        }
+        iocs = {"ips": ["203.0.113.42"], "domains": ["evil-c2.example.com"]}
 
         leads = await orchestrator._extract_leads([], iocs, 1)
 
@@ -275,7 +260,7 @@ class TestIterativeOrchestrationExecution:
             incident_description="Ransomware detected",
             analysis_goal="Complete investigation",
             max_iterations=3,
-            auto_follow=True
+            auto_follow=True,
         )
 
         # Should not exceed max_iterations even if leads exist
@@ -291,7 +276,7 @@ class TestIterativeOrchestrationExecution:
             incident_description="Simple benign activity",
             analysis_goal="Investigate",
             max_iterations=5,
-            auto_follow=True
+            auto_follow=True,
         )
 
         # Should stop early if no leads discovered
@@ -308,7 +293,7 @@ class TestIterativeOrchestrationExecution:
             incident_description="Ransomware detected",
             analysis_goal="Find malicious process",
             max_iterations=5,
-            auto_follow=False  # Disabled
+            auto_follow=False,  # Disabled
         )
 
         # Should only run initial iteration
@@ -326,15 +311,15 @@ class TestIterativeOrchestrationExecution:
                 description="Low priority check",
                 priority=LeadPriority.LOW,
                 context={},
-                confidence=0.5
+                confidence=0.5,
             ),
             InvestigativeLead(
                 lead_type=LeadType.PROCESS,
                 description="Critical process analysis",
                 priority=LeadPriority.HIGH,
                 context={},
-                confidence=0.9
-            )
+                confidence=0.9,
+            ),
         ]
 
         next_lead = orchestrator._select_next_lead(leads)
@@ -359,13 +344,13 @@ class TestIterativeOrchestrationExecution:
                         title="Malicious Process",
                         description="Found ransom.exe",
                         severity=FindingSeverity.CRITICAL,
-                        confidence=0.9
+                        confidence=0.9,
                     )
                 ],
                 iocs={},
                 leads_discovered=[],
                 lead_followed=None,
-                duration=30.0
+                duration=30.0,
             ),
             IterationResult(
                 iteration_number=2,
@@ -375,7 +360,7 @@ class TestIterativeOrchestrationExecution:
                         title="C2 Communication",
                         description="Found C2 IP",
                         severity=FindingSeverity.HIGH,
-                        confidence=0.85
+                        confidence=0.85,
                     )
                 ],
                 iocs={"ips": ["203.0.113.42"]},
@@ -385,10 +370,10 @@ class TestIterativeOrchestrationExecution:
                     description="Check network traffic",
                     priority=LeadPriority.HIGH,
                     context={},
-                    confidence=0.85
+                    confidence=0.85,
                 ),
-                duration=45.0
-            )
+                duration=45.0,
+            ),
         ]
 
         result = orchestrator._synthesize_investigation(
@@ -399,7 +384,7 @@ class TestIterativeOrchestrationExecution:
             investigation_chain=[iterations[1].lead_followed],  # One lead was followed
             all_findings=[f for it in iterations for f in it.findings],
             all_iocs={"ips": ["203.0.113.42"]},
-            total_duration=75.0
+            total_duration=75.0,
         )
 
         assert isinstance(result, IterativeAnalysisResult)
@@ -427,7 +412,7 @@ class TestIterativeOrchestrationIntegration:
             incident_description="Ransomware detected on Windows endpoint at 2026-04-10 14:30",
             analysis_goal="Reconstruct complete attack chain from initial infection to encryption",
             max_iterations=5,
-            auto_follow=True
+            auto_follow=True,
         )
 
         # Should complete at least one iteration
@@ -436,31 +421,32 @@ class TestIterativeOrchestrationIntegration:
         # Check if first tool execution succeeded
         first_iteration = result.iterations[0]
         tool_succeeded = (
-            first_iteration.execution_result and
-            first_iteration.execution_result.status.value == "success" and
-            first_iteration.execution_result.stdout
+            first_iteration.execution_result
+            and first_iteration.execution_result.status.value == "success"
+            and first_iteration.execution_result.stdout
         )
 
         if tool_succeeded:
             # If tools work, should discover multiple steps
-            assert len(result.iterations) >= 2, \
-                "Tool execution succeeded but investigation didn't iterate"
+            assert (
+                len(result.iterations) >= 2
+            ), "Tool execution succeeded but investigation didn't iterate"
 
             # Should have findings from multiple tools
             tools_used = {iteration.tool_used for iteration in result.iterations}
-            assert len(tools_used) >= 1, \
-                "No tools used despite successful execution"
+            assert len(tools_used) >= 1, "No tools used despite successful execution"
 
             # Should build investigation chain if leads were found
             if len(result.iterations) > 1:
-                assert len(result.investigation_chain) >= 1, \
-                    "Multiple iterations but no investigation chain"
+                assert (
+                    len(result.investigation_chain) >= 1
+                ), "Multiple iterations but no investigation chain"
         else:
             # Tool execution failed (forensic tools not installed)
             # Should handle gracefully - 1 iteration is acceptable
             assert result.stopping_reason in [
                 "No investigative leads discovered",
-                "max_iterations_reached"
+                "max_iterations_reached",
             ], f"Unexpected stopping reason: {result.stopping_reason}"
 
     @pytest.mark.integration
@@ -479,7 +465,7 @@ class TestIterativeOrchestrationIntegration:
             incident_description="Suspicious network connection to unknown IP 203.0.113.42",
             analysis_goal="Identify source process and determine if malicious",
             max_iterations=5,
-            auto_follow=True
+            auto_follow=True,
         )
 
         # Should complete at least one iteration
@@ -488,9 +474,9 @@ class TestIterativeOrchestrationIntegration:
         # Check if first tool execution succeeded
         first_iteration = result.iterations[0]
         tool_succeeded = (
-            first_iteration.execution_result and
-            first_iteration.execution_result.status.value == "success" and
-            first_iteration.execution_result.stdout
+            first_iteration.execution_result
+            and first_iteration.execution_result.status.value == "success"
+            and first_iteration.execution_result.stdout
         )
 
         if tool_succeeded:
@@ -504,7 +490,7 @@ class TestIterativeOrchestrationIntegration:
             # Tool execution failed - validate graceful handling
             assert result.stopping_reason in [
                 "No investigative leads discovered",
-                "max_iterations_reached"
+                "max_iterations_reached",
             ], f"Unexpected stopping reason: {result.stopping_reason}"
 
     @pytest.mark.integration
@@ -519,13 +505,14 @@ class TestIterativeOrchestrationIntegration:
             incident_description="Test incident",
             analysis_goal="Quick test",
             max_iterations=2,
-            auto_follow=True
+            auto_follow=True,
         )
 
         # Each iteration should be under 2 minutes
         for iteration in result.iterations:
-            assert iteration.duration < 120.0, \
-                f"Iteration {iteration.iteration_number} took {iteration.duration}s (>120s)"
+            assert (
+                iteration.duration < 120.0
+            ), f"Iteration {iteration.iteration_number} took {iteration.duration}s (>120s)"
 
     @pytest.mark.integration
     @pytest.mark.skipif(not SCHEMAS_AVAILABLE, reason="Schemas not implemented yet")
@@ -542,11 +529,11 @@ class TestIterativeOrchestrationIntegration:
             incident_description="Malware detected",
             analysis_goal="Investigate",
             max_iterations=3,
-            auto_follow=True
+            auto_follow=True,
         )
 
         # Should always have investigation summary (even if tools fail)
-        assert hasattr(result, 'investigation_summary')
+        assert hasattr(result, "investigation_summary")
         assert len(result.investigation_summary) > 0
 
         # Summary should be meaningful text

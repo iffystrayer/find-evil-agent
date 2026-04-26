@@ -7,7 +7,8 @@ TDD Structure:
 """
 
 import pytest
-from find_evil_agent.config.settings import Settings, LLMProviderEnum
+
+from find_evil_agent.config.settings import LLMProviderEnum, Settings
 from find_evil_agent.llm.factory import create_llm_provider
 from find_evil_agent.llm.providers.ollama import OllamaProvider
 
@@ -64,9 +65,9 @@ class TestFactoryStructure:
         provider = create_llm_provider(settings)
 
         # Check protocol methods exist
-        assert hasattr(provider, 'chat')
-        assert hasattr(provider, 'chat_with_schema')
-        assert hasattr(provider, 'get_model_name')
+        assert hasattr(provider, "chat")
+        assert hasattr(provider, "chat_with_schema")
+        assert hasattr(provider, "get_model_name")
 
 
 class TestFactoryExecution:
@@ -82,10 +83,7 @@ class TestFactoryExecution:
 
     def test_create_ollama_provider_with_custom_model(self):
         """Should use custom model name from settings."""
-        settings = Settings(
-            llm_provider=LLMProviderEnum.OLLAMA,
-            llm_model_name="llama3.2:latest"
-        )
+        settings = Settings(llm_provider=LLMProviderEnum.OLLAMA, llm_model_name="llama3.2:latest")
         provider = create_llm_provider(settings)
 
         assert provider.get_model_name() == "llama3.2:latest"
@@ -93,8 +91,7 @@ class TestFactoryExecution:
     def test_create_ollama_provider_with_custom_url(self):
         """Should use custom Ollama URL from settings."""
         settings = Settings(
-            llm_provider=LLMProviderEnum.OLLAMA,
-            ollama_base_url="http://custom:11434"
+            llm_provider=LLMProviderEnum.OLLAMA, ollama_base_url="http://custom:11434"
         )
         provider = create_llm_provider(settings)
 
@@ -132,10 +129,7 @@ class TestFactoryExecution:
 
     def test_factory_passes_temperature_to_provider(self):
         """Should pass temperature setting to provider."""
-        settings = Settings(
-            llm_provider=LLMProviderEnum.OLLAMA,
-            llm_temperature=0.5
-        )
+        settings = Settings(llm_provider=LLMProviderEnum.OLLAMA, llm_temperature=0.5)
         provider = create_llm_provider(settings)
 
         assert isinstance(provider, OllamaProvider)

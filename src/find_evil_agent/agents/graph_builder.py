@@ -11,16 +11,17 @@ Key Features:
 - Export to NetworkX, GraphML, GEXF, JSON formats
 """
 
-import re
 import json
-from datetime import datetime, timezone
+import re
 from collections import defaultdict
+from datetime import UTC, datetime
 from typing import Any
-import structlog
-import networkx as nx
 
-from .schemas import Finding, FindingSeverity
-from .report_schemas import GraphNode, GraphEdge, AttackGraph
+import networkx as nx
+import structlog
+
+from .report_schemas import AttackGraph, GraphEdge, GraphNode
+from .schemas import Finding
 
 logger = structlog.get_logger(__name__)
 
@@ -104,8 +105,8 @@ class GraphBuilder:
                     "node_count": 0,
                     "edge_count": 0,
                     "entry_point_count": 0,
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
-                }
+                    "generated_at": datetime.now(UTC).isoformat(),
+                },
             )
 
         # Track nodes and edges with deduplication
@@ -115,7 +116,7 @@ class GraphBuilder:
         # Process each finding
         for finding in findings:
             # Extract IOCs as nodes (if finding has iocs attribute)
-            finding_iocs = getattr(finding, 'iocs', [])
+            finding_iocs = getattr(finding, "iocs", [])
             for ioc in finding_iocs:
                 node_id = self._generate_node_id(ioc.type, ioc.value)
                 self._add_or_update_node(
@@ -127,9 +128,9 @@ class GraphBuilder:
                     {
                         "ioc_type": ioc.type,
                         "finding_title": finding.title,
-                        "tool_name": getattr(finding, 'tool_name', 'unknown'),
+                        "tool_name": getattr(finding, "tool_name", "unknown"),
                         "confidence": finding.confidence,
-                    }
+                    },
                 )
 
             # Extract relationships from description
@@ -145,7 +146,7 @@ class GraphBuilder:
                     rel["source"],
                     rel["source_type"],
                     finding.severity.value,
-                    {"finding_title": finding.title}
+                    {"finding_title": finding.title},
                 )
 
                 self._add_or_update_node(
@@ -154,20 +155,22 @@ class GraphBuilder:
                     rel["target"],
                     rel["target_type"],
                     finding.severity.value,
-                    {"finding_title": finding.title}
+                    {"finding_title": finding.title},
                 )
 
                 # Add edge
-                edges_list.append({
-                    "source": source_id,
-                    "target": target_id,
-                    "edge_type": rel["edge_type"],
-                    "label": rel["label"],
-                    "properties": {
-                        "finding_title": finding.title,
-                        "confidence": finding.confidence,
+                edges_list.append(
+                    {
+                        "source": source_id,
+                        "target": target_id,
+                        "edge_type": rel["edge_type"],
+                        "label": rel["label"],
+                        "properties": {
+                            "finding_title": finding.title,
+                            "confidence": finding.confidence,
+                        },
                     }
-                })
+                )
 
         # Convert to schema objects
         nodes = [
@@ -177,7 +180,7 @@ class GraphBuilder:
                 node_type=data["node_type"],
                 severity=data["severity"],
                 properties=data["properties"],
-                occurrences=data["occurrences"]
+                occurrences=data["occurrences"],
             )
             for node_id, data in nodes_dict.items()
         ]
@@ -188,7 +191,7 @@ class GraphBuilder:
                 target=edge["target"],
                 edge_type=edge["edge_type"],
                 label=edge["label"],
-                properties=edge["properties"]
+                properties=edge["properties"],
             )
             for edge in edges_list
         ]
@@ -205,7 +208,7 @@ class GraphBuilder:
             "node_count": len(nodes),
             "edge_count": len(edges),
             "entry_point_count": len(entry_points),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "severity_distribution": self._calculate_severity_distribution(nodes),
             "node_type_distribution": self._calculate_node_type_distribution(nodes),
         }
@@ -215,7 +218,7 @@ class GraphBuilder:
             edges=edges,
             entry_points=entry_points,
             critical_path=critical_path,
-            metadata=metadata
+            metadata=metadata,
         )
 
     def extract_relationships(self, finding: Finding) -> list[dict[str, Any]]:
@@ -238,14 +241,16 @@ class GraphBuilder:
                     source, target = match
                 else:
                     continue
-                relationships.append({
-                    "source": source,
-                    "source_type": "process",
-                    "target": target,
-                    "target_type": "process",
-                    "edge_type": "spawned",
-                    "label": f"{source} spawned {target}"
-                })
+                relationships.append(
+                    {
+                        "source": source,
+                        "source_type": "process",
+                        "target": target,
+                        "target_type": "process",
+                        "edge_type": "spawned",
+                        "label": f"{source} spawned {target}",
+                    }
+                )
 
         # Process file creation patterns
         for pattern in RELATIONSHIP_PATTERNS["file_created"]:
@@ -253,17 +258,21 @@ class GraphBuilder:
             for match in matches:
                 file_path = match if isinstance(match, str) else match[0]
                 # Try to find the creating process in the description
-                process_match = re.search(r"([\w\.\-]+)\s+(?:created|wrote)", description, re.IGNORECASE)
+                process_match = re.search(
+                    r"([\w\.\-]+)\s+(?:created|wrote)", description, re.IGNORECASE
+                )
                 if process_match:
                     process_name = process_match.group(1)
-                    relationships.append({
-                        "source": process_name,
-                        "source_type": "process",
-                        "target": file_path,
-                        "target_type": "file",
-                        "edge_type": "created",
-                        "label": f"{process_name} created {file_path}"
-                    })
+                    relationships.append(
+                        {
+                            "source": process_name,
+                            "source_type": "process",
+                            "target": file_path,
+                            "target_type": "file",
+                            "edge_type": "created",
+                            "label": f"{process_name} created {file_path}",
+                        }
+                    )
 
         # Process network connections
         for pattern in RELATIONSHIP_PATTERNS["network_connection"]:
@@ -281,14 +290,16 @@ class GraphBuilder:
                 if process_match:
                     process_name = process_match.group(1)
                     target = f"{ip}:{port}" if port else ip
-                    relationships.append({
-                        "source": process_name,
-                        "source_type": "process",
-                        "target": target,
-                        "target_type": "network",
-                        "edge_type": "connected_to",
-                        "label": f"{process_name} connected to {target}"
-                    })
+                    relationships.append(
+                        {
+                            "source": process_name,
+                            "source_type": "process",
+                            "target": target,
+                            "target_type": "network",
+                            "edge_type": "connected_to",
+                            "label": f"{process_name} connected to {target}",
+                        }
+                    )
 
         # Process registry modifications
         for pattern in RELATIONSHIP_PATTERNS["registry_modification"]:
@@ -299,14 +310,16 @@ class GraphBuilder:
                 process_match = re.search(r"([\w\.\-]+)\s+modified", description, re.IGNORECASE)
                 if process_match:
                     process_name = process_match.group(1)
-                    relationships.append({
-                        "source": process_name,
-                        "source_type": "process",
-                        "target": registry_key,
-                        "target_type": "registry",
-                        "edge_type": "modified",
-                        "label": f"{process_name} modified {registry_key}"
-                    })
+                    relationships.append(
+                        {
+                            "source": process_name,
+                            "source_type": "process",
+                            "target": registry_key,
+                            "target_type": "registry",
+                            "edge_type": "modified",
+                            "label": f"{process_name} modified {registry_key}",
+                        }
+                    )
 
         return relationships
 
@@ -345,8 +358,14 @@ class GraphBuilder:
         """
         # Check if edge already exists
         existing = next(
-            (e for e in graph.edges if e.source == edge.source and e.target == edge.target and e.edge_type == edge.edge_type),
-            None
+            (
+                e
+                for e in graph.edges
+                if e.source == edge.source
+                and e.target == edge.target
+                and e.edge_type == edge.edge_type
+            ),
+            None,
         )
         if not existing:
             graph.edges.append(edge)
@@ -372,7 +391,7 @@ class GraphBuilder:
                 node_type=node.node_type,
                 severity=node.severity,
                 occurrences=node.occurrences,
-                **node.properties
+                **node.properties,
             )
 
         # Add edges
@@ -382,7 +401,7 @@ class GraphBuilder:
                 edge.target,
                 edge_type=edge.edge_type,
                 label=edge.label,
-                **edge.properties
+                **edge.properties,
             )
 
         return G
@@ -399,7 +418,13 @@ class GraphBuilder:
         """
         G = self.export_networkx(graph)
         nx.write_graphml(G, output_path)
-        self.logger.info("graph_exported", format="graphml", path=output_path, nodes=len(graph.nodes), edges=len(graph.edges))
+        self.logger.info(
+            "graph_exported",
+            format="graphml",
+            path=output_path,
+            nodes=len(graph.nodes),
+            edges=len(graph.edges),
+        )
 
     def export_json(self, graph: AttackGraph) -> str:
         """Export graph to JSON format.
@@ -418,7 +443,7 @@ class GraphBuilder:
                     "type": node.node_type,
                     "severity": node.severity,
                     "occurrences": node.occurrences,
-                    "properties": node.properties
+                    "properties": node.properties,
                 }
                 for node in graph.nodes
             ],
@@ -428,11 +453,11 @@ class GraphBuilder:
                     "target": edge.target,
                     "type": edge.edge_type,
                     "label": edge.label,
-                    "properties": edge.properties
+                    "properties": edge.properties,
                 }
                 for edge in graph.edges
             ],
-            "metadata": graph.metadata
+            "metadata": graph.metadata,
         }
         return json.dumps(data, indent=2)
 
@@ -464,7 +489,9 @@ class GraphBuilder:
             return "file"
 
         # Check if it's a registry key
-        if "\\" in value and any(value.upper().startswith(k) for k in ["HKLM", "HKCU", "HKCR", "HKU"]):
+        if "\\" in value and any(
+            value.upper().startswith(k) for k in ["HKLM", "HKCU", "HKCR", "HKU"]
+        ):
             return "registry"
 
         # Check if it's a process (ends with .exe, .dll, etc.)
@@ -489,7 +516,7 @@ class GraphBuilder:
         label: str,
         node_type: str,
         severity: str,
-        properties: dict[str, Any]
+        properties: dict[str, Any],
     ) -> None:
         """Add new node or update existing node with deduplication."""
         if node_id in nodes_dict:
@@ -525,15 +552,15 @@ class GraphBuilder:
 
         # Find highest severity nodes
         critical_nodes = sorted(
-            nodes,
-            key=lambda n: SEVERITY_ORDER.get(n.severity, 0),
-            reverse=True
-        )[:3]  # Top 3 most critical
+            nodes, key=lambda n: SEVERITY_ORDER.get(n.severity, 0), reverse=True
+        )[
+            :3
+        ]  # Top 3 most critical
 
         # Find paths between critical nodes
         paths = []
         for i, source in enumerate(critical_nodes):
-            for target in critical_nodes[i+1:]:
+            for target in critical_nodes[i + 1 :]:
                 try:
                     if nx.has_path(G, source.id, target.id):
                         path = nx.shortest_path(G, source.id, target.id)

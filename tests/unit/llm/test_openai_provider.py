@@ -13,18 +13,22 @@ Design Notes:
     - Real API tests skip if OPENAI_API_KEY not available
 """
 
-import pytest
 import os
+
+import pytest
 from pydantic import BaseModel, Field
 
 # Conditional import for TDD - Provider may not exist yet
 try:
     from find_evil_agent.llm.providers.openai import OpenAIProvider
+
     OPENAI_PROVIDER_AVAILABLE = True
 except ImportError:
     OPENAI_PROVIDER_AVAILABLE = False
+
     class OpenAIProvider:  # Placeholder for tests
         pass
+
 
 from find_evil_agent.agents.schemas import ToolSelection
 
@@ -47,7 +51,7 @@ class TestOpenAIProviderSpecification:
                 "gpt-4",
                 "gpt-4-0613",
                 "gpt-3.5-turbo",
-                "gpt-3.5-turbo-0125"
+                "gpt-3.5-turbo-0125",
             ],
             "structured_outputs": True,  # Supports response_format
             "json_mode": True,  # response_format: {"type": "json_object"}
@@ -132,19 +136,16 @@ class TestOpenAIProviderStructure:
         if not OPENAI_PROVIDER_AVAILABLE:
             pytest.skip("OpenAIProvider not implemented yet")
 
-        return OpenAIProvider(
-            api_key="sk-test-key-for-structure-tests",
-            model_name="gpt-4-turbo"
-        )
+        return OpenAIProvider(api_key="sk-test-key-for-structure-tests", model_name="gpt-4-turbo")
 
     @pytest.mark.skipif(not OPENAI_PROVIDER_AVAILABLE, reason="OpenAIProvider not implemented yet")
     def test_provider_implements_protocol_methods(self, provider):
         """Provider must implement LLMProvider protocol methods."""
-        assert hasattr(provider, 'generate')
-        assert hasattr(provider, 'chat')
-        assert hasattr(provider, 'generate_json')
-        assert hasattr(provider, 'chat_with_schema')
-        assert hasattr(provider, 'get_model_name')
+        assert hasattr(provider, "generate")
+        assert hasattr(provider, "chat")
+        assert hasattr(provider, "generate_json")
+        assert hasattr(provider, "chat_with_schema")
+        assert hasattr(provider, "get_model_name")
 
         assert callable(provider.generate)
         assert callable(provider.chat)
@@ -155,10 +156,7 @@ class TestOpenAIProviderStructure:
     @pytest.mark.skipif(not OPENAI_PROVIDER_AVAILABLE, reason="OpenAIProvider not implemented yet")
     def test_provider_accepts_required_parameters(self):
         """Provider must accept api_key and model_name."""
-        provider = OpenAIProvider(
-            api_key="sk-test-key",
-            model_name="gpt-4-turbo"
-        )
+        provider = OpenAIProvider(api_key="sk-test-key", model_name="gpt-4-turbo")
         assert provider._api_key == "sk-test-key"
         assert provider._model_name == "gpt-4-turbo"
 
@@ -166,10 +164,7 @@ class TestOpenAIProviderStructure:
     def test_provider_accepts_optional_parameters(self):
         """Provider should accept optional temperature and timeout."""
         provider = OpenAIProvider(
-            api_key="sk-test-key",
-            model_name="gpt-4-turbo",
-            temperature=0.5,
-            timeout=60.0
+            api_key="sk-test-key", model_name="gpt-4-turbo", temperature=0.5, timeout=60.0
         )
         assert provider._temperature == 0.5
         assert provider._timeout == 60.0
@@ -182,7 +177,7 @@ class TestOpenAIProviderStructure:
     @pytest.mark.skipif(not OPENAI_PROVIDER_AVAILABLE, reason="OpenAIProvider not implemented yet")
     def test_provider_has_client_attribute(self, provider):
         """Provider should initialize OpenAI client."""
-        assert hasattr(provider, '_client')
+        assert hasattr(provider, "_client")
 
 
 class TestOpenAIProviderExecution:
@@ -209,7 +204,7 @@ class TestOpenAIProviderExecution:
         return OpenAIProvider(
             api_key=api_key,
             model_name="gpt-3.5-turbo",  # Use faster/cheaper model for tests
-            temperature=0.1
+            temperature=0.1,
         )
 
     @pytest.mark.skipif(not OPENAI_PROVIDER_AVAILABLE, reason="OpenAIProvider not implemented yet")
@@ -217,8 +212,7 @@ class TestOpenAIProviderExecution:
     async def test_generate_simple_text(self, provider):
         """Test simple text generation from prompt."""
         response = await provider.generate(
-            "Say 'Hello from OpenAI' and nothing else.",
-            temperature=0.0
+            "Say 'Hello from OpenAI' and nothing else.", temperature=0.0
         )
 
         assert isinstance(response, str)
@@ -231,7 +225,7 @@ class TestOpenAIProviderExecution:
         """Test chat with message history."""
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "What is 2+2? Answer with just the number."}
+            {"role": "user", "content": "What is 2+2? Answer with just the number."},
         ]
 
         response = await provider.chat(messages, temperature=0.0)
@@ -246,7 +240,7 @@ class TestOpenAIProviderExecution:
         response = await provider.generate_json(
             "Return a JSON object with a 'greeting' field containing 'hello'. "
             "Respond only with the JSON object.",
-            temperature=0.0
+            temperature=0.0,
         )
 
         assert isinstance(response, dict)
@@ -257,19 +251,17 @@ class TestOpenAIProviderExecution:
     @pytest.mark.asyncio
     async def test_chat_with_schema_simple(self, provider):
         """Test structured output with simple Pydantic schema."""
+
         class SimpleResponse(BaseModel):
             """Simple test schema."""
+
             answer: int = Field(description="The numeric answer")
 
         messages = [
             {"role": "user", "content": "What is 5+5? Respond in JSON with an 'answer' field."}
         ]
 
-        response = await provider.chat_with_schema(
-            messages,
-            schema=SimpleResponse,
-            temperature=0.0
-        )
+        response = await provider.chat_with_schema(messages, schema=SimpleResponse, temperature=0.0)
 
         assert isinstance(response, SimpleResponse)
         assert response.answer == 10
@@ -281,19 +273,15 @@ class TestOpenAIProviderExecution:
         messages = [
             {
                 "role": "system",
-                "content": "You are a DFIR tool selector. Select the best tool for memory analysis."
+                "content": "You are a DFIR tool selector. Select the best tool for memory analysis.",
             },
             {
                 "role": "user",
-                "content": "I need to analyze a memory dump for malware artifacts. Which tool should I use?"
-            }
+                "content": "I need to analyze a memory dump for malware artifacts. Which tool should I use?",
+            },
         ]
 
-        response = await provider.chat_with_schema(
-            messages,
-            schema=ToolSelection,
-            temperature=0.1
-        )
+        response = await provider.chat_with_schema(messages, schema=ToolSelection, temperature=0.1)
 
         assert isinstance(response, ToolSelection)
         assert isinstance(response.tool_name, str)
@@ -307,9 +295,7 @@ class TestOpenAIProviderExecution:
     @pytest.mark.asyncio
     async def test_temperature_override(self, provider):
         """Test that kwargs can override default temperature."""
-        messages = [
-            {"role": "user", "content": "Say 'test' and nothing else."}
-        ]
+        messages = [{"role": "user", "content": "Say 'test' and nothing else."}]
 
         response = await provider.chat(messages, temperature=0.0)
 
@@ -336,11 +322,7 @@ class TestOpenAIProviderIntegration:
         if not api_key:
             pytest.skip("OPENAI_API_KEY not set - skipping integration tests")
 
-        return OpenAIProvider(
-            api_key=api_key,
-            model_name="gpt-3.5-turbo",
-            temperature=0.1
-        )
+        return OpenAIProvider(api_key=api_key, model_name="gpt-3.5-turbo", temperature=0.1)
 
     @pytest.mark.skipif(not OPENAI_PROVIDER_AVAILABLE, reason="OpenAIProvider not implemented yet")
     @pytest.mark.asyncio
@@ -357,24 +339,22 @@ Available tools:
 - strings: Extract printable strings from binary files
 - grep: Search for patterns in text files
 
-Select the most appropriate tool for the given task."""
+Select the most appropriate tool for the given task.""",
             },
             {
                 "role": "user",
-                "content": "I need to analyze a Windows memory dump (memory.dmp) to find evidence of malware execution."
-            }
+                "content": "I need to analyze a Windows memory dump (memory.dmp) to find evidence of malware execution.",
+            },
         ]
 
-        selection = await provider.chat_with_schema(
-            messages,
-            schema=ToolSelection,
-            temperature=0.1
-        )
+        selection = await provider.chat_with_schema(messages, schema=ToolSelection, temperature=0.1)
 
         # Verify selection is valid
         assert selection.tool_name in ["volatility", "strings", "grep"]
         assert selection.confidence > 0.5  # Should be confident in volatility
-        assert "memory" in selection.reasoning.lower() or "volatility" in selection.reasoning.lower()
+        assert (
+            "memory" in selection.reasoning.lower() or "volatility" in selection.reasoning.lower()
+        )
 
     @pytest.mark.skipif(not OPENAI_PROVIDER_AVAILABLE, reason="OpenAIProvider not implemented yet")
     @pytest.mark.asyncio
@@ -395,7 +375,7 @@ Select the most appropriate tool for the given task."""
         response3 = await provider.chat_with_schema(
             [{"role": "user", "content": "Return JSON with value='third'"}],
             schema=TestSchema,
-            temperature=0.0
+            temperature=0.0,
         )
         assert isinstance(response3, TestSchema)
 
@@ -412,10 +392,7 @@ class TestOpenAIProviderErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_api_key_raises_error(self):
         """Provider should raise error for invalid API key."""
-        provider = OpenAIProvider(
-            api_key="sk-invalid-key-12345",
-            model_name="gpt-3.5-turbo"
-        )
+        provider = OpenAIProvider(api_key="sk-invalid-key-12345", model_name="gpt-3.5-turbo")
 
         with pytest.raises(Exception) as exc_info:
             await provider.generate("test")
@@ -431,10 +408,7 @@ class TestOpenAIProviderErrorHandling:
         if not api_key:
             pytest.skip("OPENAI_API_KEY not set")
 
-        provider = OpenAIProvider(
-            api_key=api_key,
-            model_name="invalid-model-xyz"
-        )
+        provider = OpenAIProvider(api_key=api_key, model_name="invalid-model-xyz")
 
         with pytest.raises(Exception) as exc_info:
             await provider.generate("test")

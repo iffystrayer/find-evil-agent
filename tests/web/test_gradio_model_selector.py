@@ -7,12 +7,11 @@ Following TDD methodology:
 4. Integration Tests - End-to-end workflow tests
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from find_evil_agent.web.gradio_app import analyze_incident, investigate_incident, create_app
-from find_evil_agent.config.settings import get_settings
-from find_evil_agent.llm.factory import create_llm_provider
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from find_evil_agent.web.gradio_app import analyze_incident, create_app, investigate_incident
 
 # ==============================================================================
 # SPECIFICATION TESTS (Always Pass)
@@ -66,9 +65,11 @@ class TestAnalyzeIncidentWithModelSelector:
     @pytest.mark.asyncio
     async def test_analyze_with_provider_override(self):
         """Test analyze_incident creates LLM provider with override."""
-        with patch('find_evil_agent.web.gradio_app.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.web.gradio_app.ReporterAgent') as mock_reporter_class, \
-             patch('find_evil_agent.llm.factory.create_llm_provider') as mock_factory:
+        with (
+            patch("find_evil_agent.web.gradio_app.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.web.gradio_app.ReporterAgent") as mock_reporter_class,
+            patch("find_evil_agent.llm.factory.create_llm_provider") as mock_factory,
+        ):
 
             # Setup factory mock
             mock_provider = Mock()
@@ -84,9 +85,9 @@ class TestAnalyzeIncidentWithModelSelector:
                         session_id="test-session",
                         findings=[],
                         iocs=[],
-                        selected_tools=[Mock(tool_name="strings")]
+                        selected_tools=[Mock(tool_name="strings")],
                     )
-                }
+                },
             )
 
             mock_reporter = AsyncMock()
@@ -100,7 +101,7 @@ class TestAnalyzeIncidentWithModelSelector:
                 max_iterations=1,
                 output_format="html",
                 provider="openai",
-                model="gpt-4-turbo"
+                model="gpt-4-turbo",
             )
 
             # Verify OrchestratorAgent was called with llm_provider
@@ -112,8 +113,10 @@ class TestAnalyzeIncidentWithModelSelector:
     @pytest.mark.asyncio
     async def test_analyze_without_override_uses_default(self):
         """Test analyze_incident without override uses default settings."""
-        with patch('find_evil_agent.web.gradio_app.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.web.gradio_app.ReporterAgent') as mock_reporter_class:
+        with (
+            patch("find_evil_agent.web.gradio_app.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.web.gradio_app.ReporterAgent") as mock_reporter_class,
+        ):
 
             # Setup mocks
             mock_orch = AsyncMock()
@@ -125,9 +128,9 @@ class TestAnalyzeIncidentWithModelSelector:
                         session_id="test-session",
                         findings=[],
                         iocs=[],
-                        selected_tools=[Mock(tool_name="strings")]
+                        selected_tools=[Mock(tool_name="strings")],
                     )
-                }
+                },
             )
 
             mock_reporter = AsyncMock()
@@ -139,7 +142,7 @@ class TestAnalyzeIncidentWithModelSelector:
                 incident_description="Test incident",
                 analysis_goal="Test goal",
                 max_iterations=1,
-                output_format="html"
+                output_format="html",
             )
 
             # Verify OrchestratorAgent was called without llm_provider (uses default)
@@ -151,8 +154,10 @@ class TestAnalyzeIncidentWithModelSelector:
     @pytest.mark.asyncio
     async def test_analyze_with_model_override_only(self):
         """Test analyze_incident with only model override (no provider change)."""
-        with patch('find_evil_agent.web.gradio_app.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.web.gradio_app.ReporterAgent') as mock_reporter_class:
+        with (
+            patch("find_evil_agent.web.gradio_app.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.web.gradio_app.ReporterAgent") as mock_reporter_class,
+        ):
 
             # Setup mocks
             mock_orch = AsyncMock()
@@ -164,9 +169,9 @@ class TestAnalyzeIncidentWithModelSelector:
                         session_id="test-session",
                         findings=[],
                         iocs=[],
-                        selected_tools=[Mock(tool_name="strings")]
+                        selected_tools=[Mock(tool_name="strings")],
                     )
-                }
+                },
             )
 
             mock_reporter = AsyncMock()
@@ -179,7 +184,7 @@ class TestAnalyzeIncidentWithModelSelector:
                 analysis_goal="Test goal",
                 max_iterations=1,
                 output_format="html",
-                model="gpt-4"
+                model="gpt-4",
             )
 
             # Verify OrchestratorAgent was called with llm_provider
@@ -194,9 +199,11 @@ class TestInvestigateIncidentWithModelSelector:
     @pytest.mark.asyncio
     async def test_investigate_with_provider_override(self):
         """Test investigate_incident creates LLM provider with override."""
-        with patch('find_evil_agent.web.gradio_app.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.web.gradio_app.ReporterAgent') as mock_reporter_class, \
-             patch('find_evil_agent.llm.factory.create_llm_provider') as mock_factory:
+        with (
+            patch("find_evil_agent.web.gradio_app.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.web.gradio_app.ReporterAgent") as mock_reporter_class,
+            patch("find_evil_agent.llm.factory.create_llm_provider") as mock_factory,
+        ):
 
             # Setup factory mock
             mock_provider = Mock()
@@ -209,7 +216,7 @@ class TestInvestigateIncidentWithModelSelector:
                 session_id="test-session",
                 total_duration=10.5,
                 all_findings=[],
-                stopping_reason="Complete"
+                stopping_reason="Complete",
             )
 
             mock_reporter = AsyncMock()
@@ -223,7 +230,7 @@ class TestInvestigateIncidentWithModelSelector:
                 max_iterations=3,
                 output_format="html",
                 provider="anthropic",
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
             # Verify OrchestratorAgent was called with llm_provider
@@ -242,7 +249,7 @@ class TestGradioUIComponents:
 
         # Verify app was created successfully
         assert app is not None
-        assert hasattr(app, 'blocks')
+        assert hasattr(app, "blocks")
 
     def test_provider_choices_correct(self):
         """Test provider dropdown has correct choices."""
@@ -274,8 +281,10 @@ class TestModelSelectorIntegration:
     @pytest.mark.asyncio
     async def test_end_to_end_with_ollama_override(self):
         """Test complete workflow with Ollama provider override."""
-        with patch('find_evil_agent.web.gradio_app.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.web.gradio_app.ReporterAgent') as mock_reporter_class:
+        with (
+            patch("find_evil_agent.web.gradio_app.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.web.gradio_app.ReporterAgent") as mock_reporter_class,
+        ):
 
             # Setup mocks
             mock_orch = AsyncMock()
@@ -287,9 +296,9 @@ class TestModelSelectorIntegration:
                         session_id="integration-test",
                         findings=[],
                         iocs=[],
-                        selected_tools=[Mock(tool_name="volatility")]
+                        selected_tools=[Mock(tool_name="volatility")],
                     )
-                }
+                },
             )
 
             mock_reporter = AsyncMock()
@@ -303,7 +312,7 @@ class TestModelSelectorIntegration:
                 max_iterations=1,
                 output_format="html",
                 provider="ollama",
-                model="qwen3.5:397b-cloud"
+                model="qwen3.5:397b-cloud",
             )
 
             # Verify successful execution
@@ -323,7 +332,7 @@ class TestModelSelectorErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_provider_handled_gracefully(self):
         """Test that invalid provider is handled gracefully."""
-        with patch('find_evil_agent.llm.factory.create_llm_provider') as mock_factory:
+        with patch("find_evil_agent.llm.factory.create_llm_provider") as mock_factory:
             mock_factory.side_effect = ValueError("Unknown provider: invalid")
 
             result = await analyze_incident(
@@ -332,7 +341,7 @@ class TestModelSelectorErrorHandling:
                 max_iterations=1,
                 output_format="html",
                 provider="invalid",
-                model="test-model"
+                model="test-model",
             )
 
             # Should return error tuple
@@ -342,7 +351,7 @@ class TestModelSelectorErrorHandling:
     @pytest.mark.asyncio
     async def test_missing_api_key_handled(self):
         """Test that missing API key is handled gracefully."""
-        with patch('find_evil_agent.llm.factory.create_llm_provider') as mock_factory:
+        with patch("find_evil_agent.llm.factory.create_llm_provider") as mock_factory:
             mock_factory.side_effect = ValueError("OPENAI_API_KEY required")
 
             result = await analyze_incident(
@@ -351,7 +360,7 @@ class TestModelSelectorErrorHandling:
                 max_iterations=1,
                 output_format="html",
                 provider="openai",
-                model="gpt-4-turbo"
+                model="gpt-4-turbo",
             )
 
             # Should return error tuple

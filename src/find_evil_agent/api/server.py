@@ -15,12 +15,12 @@ Example:
       -d '{"incident_description": "Ransomware detected", "analysis_goal": "Find process"}'
 """
 
+import logging
 from contextlib import asynccontextmanager
-from typing import Optional
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import logging
 
 from find_evil_agent.agents.orchestrator import OrchestratorAgent
 from find_evil_agent.config.settings import get_settings
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # Request/Response Models
 class AnalyzeRequest(BaseModel):
     """Request for single-shot analysis."""
+
     incident_description: str = Field(..., description="Description of the security incident")
     analysis_goal: str = Field(..., description="What to analyze or discover")
 
@@ -41,13 +42,14 @@ class AnalyzeRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "incident_description": "Ransomware detected on Windows 10 endpoint",
-                "analysis_goal": "Identify malicious process and C2 communication"
+                "analysis_goal": "Identify malicious process and C2 communication",
             }
         }
 
 
 class InvestigateRequest(BaseModel):
     """Request for autonomous iterative investigation."""
+
     incident_description: str = Field(..., description="Description of the security incident")
     analysis_goal: str = Field(..., description="Investigation goal")
     max_iterations: int = Field(default=5, ge=1, le=10, description="Maximum analysis iterations")
@@ -57,25 +59,23 @@ class InvestigateRequest(BaseModel):
             "example": {
                 "incident_description": "Data exfiltration detected to unknown IP",
                 "analysis_goal": "Reconstruct complete attack chain from entry to exfiltration",
-                "max_iterations": 5
+                "max_iterations": 5,
             }
         }
 
 
 class ResumeRequest(BaseModel):
     """Request to resume a paused workflow after human approval."""
+
     approved: bool = Field(..., description="Whether to approve the lead execution.")
-    
+
     class Config:
-        json_schema_extra = {
-            "example": {
-                "approved": True
-            }
-        }
+        json_schema_extra = {"example": {"approved": True}}
 
 
 class AnalyzeResponse(BaseModel):
     """Response from single-shot analysis."""
+
     success: bool
     session_id: str
     summary: str
@@ -88,6 +88,7 @@ class AnalyzeResponse(BaseModel):
 
 class InvestigateResponse(BaseModel):
     """Response from iterative investigation."""
+
     success: bool
     session_id: str
     iterations: list[dict]
@@ -101,6 +102,7 @@ class InvestigateResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str
     version: str
     llm_provider: str
@@ -109,6 +111,7 @@ class HealthResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     """Configuration response."""
+
     llm_provider: str
     llm_model_name: str
     sift_vm_host: str
@@ -135,7 +138,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         docs_url="/api/docs",
         redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json"
+        openapi_url="/api/openapi.json",
     )
 
     # CORS middleware for React frontend
@@ -158,7 +161,7 @@ def create_app() -> FastAPI:
             status="healthy",
             version="0.1.0",
             llm_provider=settings.llm_provider.value,
-            sift_vm_host=settings.sift_vm_host
+            sift_vm_host=settings.sift_vm_host,
         )
 
     # Configuration
@@ -171,15 +174,19 @@ def create_app() -> FastAPI:
             llm_model_name=settings.llm_model_name,
             sift_vm_host=settings.sift_vm_host,
             sift_vm_port=settings.sift_vm_port,
-            langfuse_enabled=settings.langfuse_enabled
+            langfuse_enabled=settings.langfuse_enabled,
         )
 
     # Single-shot analysis
     @app.post("/api/v1/analyze", response_model=AnalyzeResponse, tags=["Analysis"])
     async def analyze(
         request: AnalyzeRequest,
-        provider: Optional[str] = Query(None, description="LLM provider override (ollama, openai, anthropic)"),
-        model: Optional[str] = Query(None, description="Model name override (e.g., gpt-4-turbo, claude-sonnet-4)")
+        provider: str | None = Query(
+            None, description="LLM provider override (ollama, openai, anthropic)"
+        ),
+        model: str | None = Query(
+            None, description="Model name override (e.g., gpt-4-turbo, claude-sonnet-4)"
+        ),
     ):
         """Perform single-shot forensic analysis.
 
@@ -202,10 +209,12 @@ def create_app() -> FastAPI:
                 llm_provider = create_llm_provider(settings, provider, model)
 
             orchestrator = OrchestratorAgent(llm_provider=llm_provider)
-            result = await orchestrator.process({
-                "incident_description": request.incident_description,
-                "analysis_goal": request.analysis_goal
-            })
+            result = await orchestrator.process(
+                {
+                    "incident_description": request.incident_description,
+                    "analysis_goal": request.analysis_goal,
+                }
+            )
 
             if not result.success:
                 raise HTTPException(status_code=500, detail=result.error)
@@ -219,7 +228,7 @@ def create_app() -> FastAPI:
                 findings=state.findings,
                 iocs=state.iocs,
                 step_count=state.step_count,
-                confidence=result.confidence
+                confidence=result.confidence,
             )
 
         except Exception as e:
@@ -230,8 +239,12 @@ def create_app() -> FastAPI:
     @app.post("/api/v1/investigate", response_model=InvestigateResponse, tags=["Investigation"])
     async def investigate(
         request: InvestigateRequest,
-        provider: Optional[str] = Query(None, description="LLM provider override (ollama, openai, anthropic)"),
-        model: Optional[str] = Query(None, description="Model name override (e.g., gpt-4-turbo, claude-sonnet-4)")
+        provider: str | None = Query(
+            None, description="LLM provider override (ollama, openai, anthropic)"
+        ),
+        model: str | None = Query(
+            None, description="Model name override (e.g., gpt-4-turbo, claude-sonnet-4)"
+        ),
     ):
         """Perform autonomous iterative investigation.
 
@@ -265,7 +278,7 @@ def create_app() -> FastAPI:
                 incident_description=request.incident_description,
                 analysis_goal=request.analysis_goal,
                 max_iterations=request.max_iterations,
-                auto_follow=True
+                auto_follow=True,
             )
 
             return InvestigateResponse(
@@ -278,7 +291,7 @@ def create_app() -> FastAPI:
                         "findings_count": len(it.findings),
                         "iocs_count": sum(len(v) for v in it.iocs.values()),
                         "leads_count": len(it.leads_discovered),
-                        "duration": it.duration
+                        "duration": it.duration,
                     }
                     for it in result.iterations
                 ],
@@ -287,15 +300,16 @@ def create_app() -> FastAPI:
                         "type": lead.lead_type.value,
                         "description": lead.description,
                         "priority": lead.priority.value,
-                        "confidence": lead.confidence
+                        "confidence": lead.confidence,
                     }
-                    for lead in result.investigation_chain if lead
+                    for lead in result.investigation_chain
+                    if lead
                 ],
                 all_findings=[f.model_dump() for f in result.all_findings],
                 all_iocs=result.all_iocs,
                 total_duration=result.total_duration,
                 stopping_reason=result.stopping_reason,
-                summary=result.investigation_summary
+                summary=result.investigation_summary,
             )
 
         except Exception as e:
@@ -303,7 +317,11 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     # Autonomous iterative investigation resume hook
-    @app.post("/api/v1/investigate/{session_id}/resume", response_model=InvestigateResponse, tags=["Investigation"])
+    @app.post(
+        "/api/v1/investigate/{session_id}/resume",
+        response_model=InvestigateResponse,
+        tags=["Investigation"],
+    )
     async def resume_investigation(session_id: str, request: ResumeRequest):
         """Resume a paused investigation after a human analyst reviews the lead."""
         try:
@@ -311,27 +329,24 @@ def create_app() -> FastAPI:
 
             orchestrator = OrchestratorAgent()
             config = {"configurable": {"thread_id": session_id}}
-            
+
             # Update the state internally
-                        # Get current state to avoid overwriting nested dict
+            # Get current state to avoid overwriting nested dict
             current_state_info = orchestrator.iterative_workflow.get_state(config)
             current_state_dict = current_state_info.values.get("state", {})
             if hasattr(current_state_dict, "model_dump"):
                 current_state_dict = current_state_dict.model_dump()
             elif hasattr(current_state_dict, "__dict__"):
                 current_state_dict = vars(current_state_dict)
-            current_state_dict["human_approved"] = request.approved if hasattr(request, "approved") else approved
-            
-            orchestrator.iterative_workflow.update_state(
-                config,
-                {"state": current_state_dict}
+            current_state_dict["human_approved"] = (
+                request.approved if hasattr(request, "approved") else approved
             )
-            
+
+            orchestrator.iterative_workflow.update_state(config, {"state": current_state_dict})
+
             # Re-trigger process_iterative to proceed
             result = await orchestrator.process_iterative(
-                incident_description="",
-                analysis_goal="",
-                session_id=session_id
+                incident_description="", analysis_goal="", session_id=session_id
             )
 
             return InvestigateResponse(
@@ -344,7 +359,7 @@ def create_app() -> FastAPI:
                         "findings_count": len(it.findings),
                         "iocs_count": sum(len(v) for v in it.iocs.values()),
                         "leads_count": len(it.leads_discovered),
-                        "duration": it.duration
+                        "duration": it.duration,
                     }
                     for it in result.iterations
                 ],
@@ -353,15 +368,16 @@ def create_app() -> FastAPI:
                         "type": lead.lead_type.value,
                         "description": lead.description,
                         "priority": lead.priority.value,
-                        "confidence": lead.confidence
+                        "confidence": lead.confidence,
                     }
-                    for lead in result.investigation_chain if lead
+                    for lead in result.investigation_chain
+                    if lead
                 ],
                 all_findings=[f.model_dump() for f in result.all_findings],
                 all_iocs=result.all_iocs,
                 total_duration=result.total_duration,
                 stopping_reason=result.stopping_reason,
-                summary=result.investigation_summary
+                summary=result.investigation_summary,
             )
 
         except Exception as e:
@@ -377,4 +393,5 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=18000)
+
+    uvicorn.run(app, host="0.0.0.0", port=18000)  # nosec B104

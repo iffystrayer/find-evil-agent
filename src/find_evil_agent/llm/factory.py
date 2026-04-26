@@ -1,14 +1,11 @@
 """Factory for creating LLM providers based on configuration."""
 
-from typing import Optional
-from find_evil_agent.config.settings import Settings, LLMProviderEnum
+from find_evil_agent.config.settings import LLMProviderEnum, Settings
 from find_evil_agent.llm.protocol import LLMProvider
 
 
 def create_llm_provider(
-    settings: Settings,
-    provider_override: Optional[str] = None,
-    model_override: Optional[str] = None
+    settings: Settings, provider_override: str | None = None, model_override: str | None = None
 ) -> LLMProvider:
     """Create LLM provider instance based on settings.
 
@@ -53,10 +50,11 @@ def create_llm_provider(
     match provider:
         case LLMProviderEnum.OLLAMA:
             from find_evil_agent.llm.providers.ollama import OllamaProvider
+
             return OllamaProvider(
                 base_url=settings.ollama_base_url,
                 model_name=model_name,
-                temperature=settings.llm_temperature
+                temperature=settings.llm_temperature,
             )
 
         case LLMProviderEnum.OPENAI:
@@ -66,10 +64,11 @@ def create_llm_provider(
                     "Set environment variable or update .env file."
                 )
             from find_evil_agent.llm.providers.openai import OpenAIProvider
+
             return OpenAIProvider(
                 api_key=settings.openai_api_key,
                 model_name=model_name,
-                temperature=settings.llm_temperature
+                temperature=settings.llm_temperature,
             )
 
         case LLMProviderEnum.ANTHROPIC:
@@ -79,10 +78,11 @@ def create_llm_provider(
                     "Set environment variable or update .env file."
                 )
             from find_evil_agent.llm.providers.anthropic import AnthropicProvider
+
             return AnthropicProvider(
                 api_key=settings.anthropic_api_key,
                 model_name=model_name,
-                temperature=settings.llm_temperature
+                temperature=settings.llm_temperature,
             )
 
         case _:

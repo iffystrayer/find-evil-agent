@@ -30,18 +30,19 @@ Example:
     >>> print(response)
 """
 
-import orjson
 from typing import Any
-from pydantic import BaseModel, ValidationError
+
+import orjson
 import structlog
-from openai import AsyncOpenAI
 from openai import (
+    APIConnectionError,
     APIError,
     APITimeoutError,
-    RateLimitError,
+    AsyncOpenAI,
     AuthenticationError,
-    APIConnectionError
+    RateLimitError,
 )
+from pydantic import BaseModel, ValidationError
 
 logger = structlog.get_logger()
 
@@ -61,11 +62,7 @@ class OpenAIProvider:
     """
 
     def __init__(
-        self,
-        api_key: str,
-        model_name: str,
-        temperature: float = 0.1,
-        timeout: float = 120.0
+        self, api_key: str, model_name: str, temperature: float = 0.1, timeout: float = 120.0
     ):
         """Initialize OpenAI provider.
 
@@ -86,10 +83,7 @@ class OpenAIProvider:
         self._model_name = model_name
         self._temperature = temperature
         self._timeout = timeout
-        self._client = AsyncOpenAI(
-            api_key=api_key,
-            timeout=timeout
-        )
+        self._client = AsyncOpenAI(api_key=api_key, timeout=timeout)
 
     async def generate(self, prompt: str, **kwargs) -> str:
         """Generate text from simple prompt (convenience wrapper).
@@ -139,26 +133,27 @@ class OpenAIProvider:
             ...     {"role": "user", "content": "Explain volatility"}
             ... ])
         """
-        temperature = kwargs.get('temperature', self._temperature)
+        temperature = kwargs.get("temperature", self._temperature)
 
         try:
             response = await self._client.chat.completions.create(
-                model=self._model_name,
-                messages=messages,
-                temperature=temperature
+                model=self._model_name, messages=messages, temperature=temperature
             )
 
             return response.choices[0].message.content
 
-        except (APIError, APITimeoutError, RateLimitError, AuthenticationError, APIConnectionError) as e:
+        except (
+            APIError,
+            APITimeoutError,
+            RateLimitError,
+            AuthenticationError,
+            APIConnectionError,
+        ) as e:
             logger.error("openai_request_failed", error=str(e), model=self._model_name)
             raise RuntimeError(f"OpenAI request failed: {e}")
 
     async def generate_json(
-        self,
-        prompt: str,
-        schema: type[BaseModel] | None = None,
-        **kwargs
+        self, prompt: str, schema: type[BaseModel] | None = None, **kwargs
     ) -> dict[str, Any] | BaseModel:
         """Generate structured JSON from prompt (convenience wrapper).
 
@@ -191,28 +186,31 @@ class OpenAIProvider:
             return await self.chat_with_schema(messages, schema, **kwargs)
         else:
             # Return raw JSON dict
-            temperature = kwargs.get('temperature', self._temperature)
+            temperature = kwargs.get("temperature", self._temperature)
 
             try:
                 response = await self._client.chat.completions.create(
                     model=self._model_name,
                     messages=messages,
                     temperature=temperature,
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
                 )
 
                 json_str = response.choices[0].message.content
                 return orjson.loads(json_str)
 
-            except (APIError, APITimeoutError, RateLimitError, AuthenticationError, APIConnectionError) as e:
+            except (
+                APIError,
+                APITimeoutError,
+                RateLimitError,
+                AuthenticationError,
+                APIConnectionError,
+            ) as e:
                 logger.error("openai_json_request_failed", error=str(e))
                 raise RuntimeError(f"OpenAI JSON request failed: {e}")
 
     async def chat_with_schema(
-        self,
-        messages: list[dict[str, str]],
-        schema: type[BaseModel],
-        **kwargs
+        self, messages: list[dict[str, str]], schema: type[BaseModel], **kwargs
     ) -> BaseModel:
         """Chat with structured output using JSON mode.
 
@@ -252,7 +250,7 @@ class OpenAIProvider:
         messages_with_schema = self._inject_schema_prompt(messages, schema_prompt)
 
         # Request JSON output
-        temperature = kwargs.get('temperature', self._temperature)
+        temperature = kwargs.get("temperature", self._temperature)
 
         max_retries = 2
         for attempt in range(max_retries):
@@ -261,7 +259,7 @@ class OpenAIProvider:
                     model=self._model_name,
                     messages=messages_with_schema,
                     temperature=temperature,
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
                 )
 
                 json_str = response.choices[0].message.content
@@ -271,9 +269,7 @@ class OpenAIProvider:
                 validated = schema.model_validate(json_obj)
 
                 logger.info(
-                    "openai_structured_output_success",
-                    schema=schema.__name__,
-                    attempt=attempt + 1
+                    "openai_structured_output_success", schema=schema.__name__, attempt=attempt + 1
                 )
                 return validated
 
@@ -282,7 +278,7 @@ class OpenAIProvider:
                     "openai_structured_output_failed",
                     schema=schema.__name__,
                     attempt=attempt + 1,
-                    error=str(e)
+                    error=str(e),
                 )
 
                 if attempt < max_retries - 1:
@@ -291,17 +287,20 @@ class OpenAIProvider:
                         f"Previous response was invalid: {e}. "
                         f"Please respond with valid JSON matching the schema exactly."
                     )
-                    messages_with_schema.append({
-                        "role": "user",
-                        "content": error_msg
-                    })
+                    messages_with_schema.append({"role": "user", "content": error_msg})
                 else:
                     raise RuntimeError(
                         f"Failed to get valid structured output from {self._model_name} "
                         f"after {max_retries} attempts: {e}"
                     )
 
-            except (APIError, APITimeoutError, RateLimitError, AuthenticationError, APIConnectionError) as e:
+            except (
+                APIError,
+                APITimeoutError,
+                RateLimitError,
+                AuthenticationError,
+                APIConnectionError,
+            ) as e:
                 logger.error("openai_structured_request_failed", error=str(e))
                 raise RuntimeError(f"OpenAI structured request failed: {e}")
 
@@ -340,9 +339,7 @@ IMPORTANT:
 - Follow the exact field names and types"""
 
     def _inject_schema_prompt(
-        self,
-        messages: list[dict[str, str]],
-        schema_prompt: str
+        self, messages: list[dict[str, str]], schema_prompt: str
     ) -> list[dict[str, str]]:
         """Inject schema into system message or prepend.
 
@@ -366,10 +363,7 @@ IMPORTANT:
             messages_copy[0]["content"] += f"\n\n{schema_prompt}"
         else:
             # Prepend new system message
-            messages_copy.insert(0, {
-                "role": "system",
-                "content": schema_prompt
-            })
+            messages_copy.insert(0, {"role": "system", "content": schema_prompt})
 
         return messages_copy
 

@@ -8,15 +8,16 @@ Supports formats:
 
 import csv
 import json
-from io import StringIO
 from dataclasses import dataclass
-from typing import List
+from io import StringIO
+
 from .base import BaseParser, ParserResult
 
 
 @dataclass
 class TimelineEvent:
     """Timeline event entry."""
+
     timestamp: str
     timestamp_desc: str
     source: str
@@ -30,7 +31,8 @@ class TimelineEvent:
 @dataclass
 class TimelineData:
     """Structured timeline data."""
-    events: List[TimelineEvent]
+
+    events: list[TimelineEvent]
     total_events: int
     format: str
 
@@ -78,10 +80,7 @@ class TimelineParser(BaseParser):
         output_format = kwargs.get("format", "csv").lower()
 
         if not raw_output or not raw_output.strip():
-            return self._create_error_result(
-                raw_output,
-                "Empty timeline output"
-            )
+            return self._create_error_result(raw_output, "Empty timeline output")
 
         try:
             if output_format == "csv":
@@ -90,8 +89,7 @@ class TimelineParser(BaseParser):
                 data = self._parse_json(raw_output)
             else:
                 return self._create_error_result(
-                    raw_output,
-                    f"Unsupported format: {output_format} (use 'csv' or 'json')"
+                    raw_output, f"Unsupported format: {output_format} (use 'csv' or 'json')"
                 )
 
             return ParserResult(
@@ -99,18 +97,14 @@ class TimelineParser(BaseParser):
                 data=data,
                 raw_output=raw_output,
                 tool_name="psort",
-                metadata={"format": output_format, "event_count": len(data.events)}
+                metadata={"format": output_format, "event_count": len(data.events)},
             )
 
         except Exception as e:
             self._log_parse_error(
-                f"Failed to parse timeline output: {e}",
-                {"format": output_format}
+                f"Failed to parse timeline output: {e}", {"format": output_format}
             )
-            return self._create_error_result(
-                raw_output,
-                f"Parse error: {e}"
-            )
+            return self._create_error_result(raw_output, f"Parse error: {e}")
 
     def _parse_csv(self, output: str) -> TimelineData:
         """Parse CSV timeline output.
@@ -133,7 +127,7 @@ class TimelineParser(BaseParser):
                     message=row.get("message", ""),
                     parser=row.get("parser", ""),
                     display_name=row.get("display_name", ""),
-                    tag=row.get("tag") if row.get("tag") else None
+                    tag=row.get("tag") if row.get("tag") else None,
                 )
                 events.append(event)
 
@@ -141,11 +135,7 @@ class TimelineParser(BaseParser):
                 self.logger.debug("skipping_csv_row", error=str(e))
                 continue
 
-        return TimelineData(
-            events=events,
-            total_events=len(events),
-            format="csv"
-        )
+        return TimelineData(events=events, total_events=len(events), format="csv")
 
     def _parse_json(self, output: str) -> TimelineData:
         """Parse JSON timeline output.
@@ -177,7 +167,7 @@ class TimelineParser(BaseParser):
                     message=item.get("message", ""),
                     parser=item.get("parser", ""),
                     display_name=item.get("display_name", ""),
-                    tag=item.get("tag")
+                    tag=item.get("tag"),
                 )
                 events.append(event)
 
@@ -185,8 +175,4 @@ class TimelineParser(BaseParser):
                 self.logger.debug("skipping_json_item", error=str(e))
                 continue
 
-        return TimelineData(
-            events=events,
-            total_events=len(events),
-            format="json"
-        )
+        return TimelineData(events=events, total_events=len(events), format="json")

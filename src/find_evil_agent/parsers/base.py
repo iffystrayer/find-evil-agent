@@ -5,13 +5,14 @@ to convert raw tool output into structured data.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
 from dataclasses import dataclass
+from typing import Any, Generic, TypeVar
+
 import structlog
 
 logger = structlog.get_logger()
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -26,6 +27,7 @@ class ParserResult(Generic[T]):
         parse_errors: List of parsing errors/warnings
         metadata: Additional parser-specific metadata
     """
+
     success: bool
     data: T | None
     raw_output: str
@@ -102,18 +104,10 @@ class BaseParser(ABC):
             error: Error message
             context: Additional context for debugging
         """
-        self.logger.warning(
-            "parse_error",
-            error=error,
-            tool=self.tool_name,
-            **(context or {})
-        )
+        self.logger.warning("parse_error", error=error, tool=self.tool_name, **(context or {}))
 
     def _create_error_result(
-        self,
-        raw_output: str,
-        error: str,
-        tool_name: str | None = None
+        self, raw_output: str, error: str, tool_name: str | None = None
     ) -> ParserResult:
         """Create a failed ParserResult.
 
@@ -130,5 +124,5 @@ class BaseParser(ABC):
             data=None,
             raw_output=raw_output,
             tool_name=tool_name or self.tool_name or "unknown",
-            parse_errors=[error]
+            parse_errors=[error],
         )

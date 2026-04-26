@@ -23,7 +23,7 @@ Example:
     ... )
 """
 
-from .protocol import LLMProvider
 from .factory import create_llm_provider
+from .protocol import LLMProvider
 
 __all__ = ["LLMProvider", "create_llm_provider"]

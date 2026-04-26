@@ -9,11 +9,11 @@ Prevents:
 
 import re
 from pathlib import Path
-from typing import Optional
 
 
 class SecurityValidationError(Exception):
     """Raised when security validation fails."""
+
     pass
 
 
@@ -30,7 +30,7 @@ class PathValidator:
     - Normalizes paths before validation
     """
 
-    def __init__(self, whitelist: Optional[list[str]] = None):
+    def __init__(self, whitelist: list[str] | None = None):
         """
         Initialize path validator.
 
@@ -60,11 +60,9 @@ class PathValidator:
 
         # Check for unicode characters (potential evasion)
         try:
-            path.encode('ascii')
+            path.encode("ascii")
         except UnicodeEncodeError:
-            raise SecurityValidationError(
-                f"non-ASCII characters not allowed in path: {path}"
-            )
+            raise SecurityValidationError(f"non-ASCII characters not allowed in path: {path}")
 
         # Normalize path to resolve .. and other sequences
         try:
@@ -74,15 +72,11 @@ class PathValidator:
 
         # Check for path traversal patterns (before and after normalization)
         if ".." in path:
-            raise SecurityValidationError(
-                f"path traversal detected in: {path}"
-            )
+            raise SecurityValidationError(f"path traversal detected in: {path}")
 
         # Block home directory access
         if path.startswith("~/") or path.startswith("~"):
-            raise SecurityValidationError(
-                f"home directory access not allowed: {path}"
-            )
+            raise SecurityValidationError(f"home directory access not allowed: {path}")
 
         # Block system directories
         dangerous_prefixes = {
@@ -99,9 +93,7 @@ class PathValidator:
         # Check both original and normalized paths
         for prefix, desc in dangerous_prefixes.items():
             if normalized.startswith(prefix) or path.startswith(prefix):
-                raise SecurityValidationError(
-                    f"{desc} access not allowed: {normalized}"
-                )
+                raise SecurityValidationError(f"{desc} access not allowed: {normalized}")
 
         # Also handle /private/var on macOS (symlink resolution)
         private_dangerous_prefixes = {
@@ -112,24 +104,18 @@ class PathValidator:
 
         for prefix, desc in private_dangerous_prefixes.items():
             if normalized.startswith(prefix):
-                raise SecurityValidationError(
-                    f"{desc} access not allowed: {normalized}"
-                )
+                raise SecurityValidationError(f"{desc} access not allowed: {normalized}")
 
         # Allow /var/log for forensic analysis, block other /var subdirs
         if normalized.startswith("/var/") and not normalized.startswith("/var/log/"):
             # Check if it's already been caught by dangerous_prefixes
-            caught = any(normalized.startswith(prefix) for prefix in dangerous_prefixes.keys())
+            caught = any(normalized.startswith(prefix) for prefix in dangerous_prefixes)
             if not caught:
-                raise SecurityValidationError(
-                    f"/var directory access restricted: {normalized}"
-                )
+                raise SecurityValidationError(f"/var directory access restricted: {normalized}")
 
         # Check against root directory evasion
         if normalized in ["/", "/root", "/etc", "/sys", "/proc", "/dev"]:
-            raise SecurityValidationError(
-                f"Root directory access not allowed: {normalized}"
-            )
+            raise SecurityValidationError(f"Root directory access not allowed: {normalized}")
 
         # Enforce whitelist if provided
         if self.whitelist:
@@ -160,26 +146,26 @@ class CommandValidator:
 
     # Dangerous patterns that indicate injection attempts
     INJECTION_PATTERNS = [
-        r';',           # Command chaining
-        r'\|',          # Pipe to another command
-        r'&',           # Background execution / chaining
-        r'\$\(',        # Command substitution $(...)
-        r'`',           # Backtick command substitution
-        r'\n',          # Newline injection
-        r'\r',          # Carriage return
+        r";",  # Command chaining
+        r"\|",  # Pipe to another command
+        r"&",  # Background execution / chaining
+        r"\$\(",  # Command substitution $(...)
+        r"`",  # Backtick command substitution
+        r"\n",  # Newline injection
+        r"\r",  # Carriage return
     ]
 
     REDIRECTION_PATTERNS = [
-        r'>',           # Output redirection
-        r'<',           # Input redirection
-        r'>>',          # Append redirection
+        r">",  # Output redirection
+        r"<",  # Input redirection
+        r">>",  # Append redirection
     ]
 
     def __init__(self):
         """Initialize command validator."""
         # Compile patterns for efficiency
-        self.injection_regex = re.compile('|'.join(self.INJECTION_PATTERNS))
-        self.redirection_regex = re.compile('|'.join(self.REDIRECTION_PATTERNS))
+        self.injection_regex = re.compile("|".join(self.INJECTION_PATTERNS))
+        self.redirection_regex = re.compile("|".join(self.REDIRECTION_PATTERNS))
 
     def validate_command(self, command: str) -> None:
         """
@@ -199,18 +185,12 @@ class CommandValidator:
 
         # Check for command injection patterns
         if self.injection_regex.search(command):
-            raise SecurityValidationError(
-                f"Command injection pattern detected in: {command}"
-            )
+            raise SecurityValidationError(f"Command injection pattern detected in: {command}")
 
         # Check for redirection patterns
         if self.redirection_regex.search(command):
-            raise SecurityValidationError(
-                f"Command redirection not allowed in: {command}"
-            )
+            raise SecurityValidationError(f"Command redirection not allowed in: {command}")
 
         # Additional checks for specific dangerous patterns
-        if '&&' in command or '||' in command:
-            raise SecurityValidationError(
-                f"Command chaining (&&, ||) not allowed in: {command}"
-            )
+        if "&&" in command or "||" in command:
+            raise SecurityValidationError(f"Command chaining (&&, ||) not allowed in: {command}")
