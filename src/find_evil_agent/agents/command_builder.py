@@ -4,14 +4,15 @@ Constructs tool commands dynamically using LLM and tool metadata,
 replacing hardcoded command strings with context-aware generation.
 """
 
-import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Any
+
+import yaml
 
 from find_evil_agent.agents.schemas import ToolSelection
 from find_evil_agent.security import (
-    PathValidator,
     CommandValidator,
+    PathValidator,
     SecurityValidationError,
 )
 
@@ -33,7 +34,7 @@ class DynamicCommandBuilder:
         llm_router,
         metadata_path: str = "tools/metadata.yaml",
         validate_paths: bool = False,
-        evidence_whitelist: Optional[List[str]] = None
+        evidence_whitelist: list[str] | None = None,
     ):
         """Initialize command builder.
 
@@ -54,16 +55,16 @@ class DynamicCommandBuilder:
         # Load tool metadata
         self.metadata = self._load_metadata()
 
-    def _load_metadata(self) -> Dict[str, Any]:
+    def _load_metadata(self) -> dict[str, Any]:
         """Load tool metadata from YAML file.
 
         Returns:
             Metadata dictionary
         """
-        with open(self.metadata_path, 'r') as f:
+        with open(self.metadata_path) as f:
             return yaml.safe_load(f)
 
-    def _get_tool_metadata(self, tool_name: str) -> Optional[Dict[str, Any]]:
+    def _get_tool_metadata(self, tool_name: str) -> dict[str, Any] | None:
         """Get metadata for specific tool.
 
         Args:
@@ -77,11 +78,7 @@ class DynamicCommandBuilder:
                 return tool
         return None
 
-    async def build_command(
-        self,
-        tool_selection: ToolSelection,
-        context: Dict[str, Any]
-    ) -> str:
+    async def build_command(self, tool_selection: ToolSelection, context: dict[str, Any]) -> str:
         """Build command dynamically using LLM and metadata.
 
         Args:
@@ -104,9 +101,7 @@ class DynamicCommandBuilder:
         prompt = self._build_command_prompt(tool_selection, tool_meta, context)
 
         # Generate command using LLM
-        response = await self.llm_router.chat([
-            {"role": "user", "content": prompt}
-        ])
+        response = await self.llm_router.chat([{"role": "user", "content": prompt}])
 
         command = response.strip()
 
@@ -116,10 +111,7 @@ class DynamicCommandBuilder:
         return command
 
     def _build_command_prompt(
-        self,
-        tool_selection: ToolSelection,
-        tool_meta: Dict[str, Any],
-        context: Dict[str, Any]
+        self, tool_selection: ToolSelection, tool_meta: dict[str, Any], context: dict[str, Any]
     ) -> str:
         """Build LLM prompt for command generation.
 
@@ -145,7 +137,7 @@ class DynamicCommandBuilder:
 **Inputs:**
 """
         for inp in tool_meta.get("inputs", []):
-            desc = inp.get('description', 'No description')
+            desc = inp.get("description", "No description")
             prompt += f"  - {inp['name']} ({inp['type']}): {desc}"
             if inp.get("required"):
                 prompt += " [REQUIRED]"
@@ -153,7 +145,7 @@ class DynamicCommandBuilder:
                 prompt += f" Examples: {', '.join(inp['examples'])}"
             prompt += "\n"
 
-        prompt += f"""
+        prompt += """
 **Example Commands:**
 """
         for example in tool_meta.get("examples", []):
@@ -183,7 +175,7 @@ class DynamicCommandBuilder:
 
         return prompt
 
-    def _validate_command(self, command: str, evidence_paths: List[str]) -> None:
+    def _validate_command(self, command: str, evidence_paths: list[str]) -> None:
         """Validate command for security issues using dedicated validators.
 
         Args:
@@ -202,7 +194,7 @@ class DynamicCommandBuilder:
         tokens = command.split()
         for token in tokens:
             # Check if token looks like a path (starts with / or contains /)
-            if '/' in token:
+            if "/" in token:
                 # Clean token (remove quotes, etc.)
                 clean_token = token.strip('"').strip("'")
                 try:

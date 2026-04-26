@@ -8,13 +8,14 @@ TDD Structure:
 """
 
 import pytest
-from uuid import uuid4
+
 from find_evil_agent.agents.base import AgentResult, AgentStatus
-from find_evil_agent.agents.schemas import AgentState, ToolSelection, ExecutionResult, Finding
+from find_evil_agent.agents.schemas import AgentState
 
 # Conditional import for TDD - OrchestratorAgent may not exist yet
 try:
     from find_evil_agent.agents.orchestrator import OrchestratorAgent
+
     ORCHESTRATOR_AVAILABLE = True
 except ImportError:
     ORCHESTRATOR_AVAILABLE = False
@@ -41,7 +42,7 @@ class TestOrchestratorSpecification:
                 "1. Tool Selection (ToolSelectorAgent)",
                 "2. Tool Execution (ToolExecutorAgent)",
                 "3. Analysis (AnalyzerAgent)",
-                "4. Return results"
+                "4. Return results",
             ],
             "output": "AgentResult with complete analysis",
         }
@@ -101,13 +102,13 @@ class TestOrchestratorStructure:
     def test_orchestrator_has_process_method(self):
         """OrchestratorAgent should have async process() method."""
         agent = OrchestratorAgent()
-        assert hasattr(agent, 'process')
+        assert hasattr(agent, "process")
         assert callable(agent.process)
 
     def test_orchestrator_has_validate_method(self):
         """OrchestratorAgent should have validate() method."""
         agent = OrchestratorAgent()
-        assert hasattr(agent, 'validate')
+        assert hasattr(agent, "validate")
         assert callable(agent.validate)
 
     def test_orchestrator_name_is_orchestrator(self):
@@ -118,9 +119,9 @@ class TestOrchestratorStructure:
     def test_orchestrator_has_agent_references(self):
         """OrchestratorAgent should have references to sub-agents."""
         agent = OrchestratorAgent()
-        assert hasattr(agent, 'tool_selector')
-        assert hasattr(agent, 'tool_executor')
-        assert hasattr(agent, 'analyzer')
+        assert hasattr(agent, "tool_selector")
+        assert hasattr(agent, "tool_executor")
+        assert hasattr(agent, "analyzer")
 
 
 @pytest.mark.skipif(not ORCHESTRATOR_AVAILABLE, reason="OrchestratorAgent not implemented yet")
@@ -134,14 +135,14 @@ class TestOrchestratorExecution:
 
         input_data = {
             "incident_description": "Suspicious process detected",
-            "analysis_goal": "Identify malicious activity"
+            "analysis_goal": "Identify malicious activity",
         }
 
         result = await agent.process(input_data)
 
         assert isinstance(result, AgentResult)
-        assert hasattr(result, 'success')
-        assert hasattr(result, 'data')
+        assert hasattr(result, "success")
+        assert hasattr(result, "data")
 
     @pytest.mark.asyncio
     async def test_validate_requires_incident_description(self):
@@ -158,10 +159,7 @@ class TestOrchestratorExecution:
         assert not await agent.validate({"analysis_goal": "test"})
 
         # Valid input
-        assert await agent.validate({
-            "incident_description": "test",
-            "analysis_goal": "test"
-        })
+        assert await agent.validate({"incident_description": "test", "analysis_goal": "test"})
 
     @pytest.mark.asyncio
     async def test_process_with_invalid_input_returns_error(self):
@@ -178,10 +176,7 @@ class TestOrchestratorExecution:
         """process() should include AgentState in data."""
         agent = OrchestratorAgent()
 
-        input_data = {
-            "incident_description": "Test incident",
-            "analysis_goal": "Test goal"
-        }
+        input_data = {"incident_description": "Test incident", "analysis_goal": "Test goal"}
 
         result = await agent.process(input_data)
 
@@ -194,10 +189,7 @@ class TestOrchestratorExecution:
         """AgentState should include session_id."""
         agent = OrchestratorAgent()
 
-        input_data = {
-            "incident_description": "Test incident",
-            "analysis_goal": "Test goal"
-        }
+        input_data = {"incident_description": "Test incident", "analysis_goal": "Test goal"}
 
         result = await agent.process(input_data)
 
@@ -210,10 +202,7 @@ class TestOrchestratorExecution:
         """AgentState should track step_count."""
         agent = OrchestratorAgent()
 
-        input_data = {
-            "incident_description": "Test incident",
-            "analysis_goal": "Test goal"
-        }
+        input_data = {"incident_description": "Test incident", "analysis_goal": "Test goal"}
 
         result = await agent.process(input_data)
 
@@ -229,7 +218,7 @@ class TestOrchestratorExecution:
 
         input_data = {
             "incident_description": "Memory analysis needed",
-            "analysis_goal": "Find malicious processes"
+            "analysis_goal": "Find malicious processes",
         }
 
         result = await agent.process(input_data)
@@ -260,7 +249,7 @@ class TestOrchestratorIntegration:
 
         input_data = {
             "incident_description": "Ransomware detected on Windows 10 system",
-            "analysis_goal": "Identify malicious processes in memory dump"
+            "analysis_goal": "Identify malicious processes in memory dump",
         }
 
         result = await agent.process(input_data)
@@ -285,7 +274,7 @@ class TestOrchestratorIntegration:
 
         input_data = {
             "incident_description": "Suspicious files found on disk",
-            "analysis_goal": "List files and find malware indicators"
+            "analysis_goal": "List files and find malware indicators",
         }
 
         result = await agent.process(input_data)
@@ -300,7 +289,7 @@ class TestOrchestratorIntegration:
 
         input_data = {
             "incident_description": "Suspicious network traffic detected",
-            "analysis_goal": "Analyze network connections and identify C2 communication"
+            "analysis_goal": "Analyze network connections and identify C2 communication",
         }
 
         result = await agent.process(input_data)
@@ -314,10 +303,7 @@ class TestOrchestratorIntegration:
         agent = OrchestratorAgent()
 
         # Vague input that might fail tool selection
-        input_data = {
-            "incident_description": "Something weird happened",
-            "analysis_goal": "Fix it"
-        }
+        input_data = {"incident_description": "Something weird happened", "analysis_goal": "Fix it"}
 
         result = await agent.process(input_data)
 
@@ -330,10 +316,7 @@ class TestOrchestratorIntegration:
         """Test workflow handles execution failure gracefully."""
         agent = OrchestratorAgent()
 
-        input_data = {
-            "incident_description": "Test incident",
-            "analysis_goal": "Test goal"
-        }
+        input_data = {"incident_description": "Test incident", "analysis_goal": "Test goal"}
 
         result = await agent.process(input_data)
 

@@ -2,8 +2,6 @@
 
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -27,7 +25,7 @@ class ChainOfCustodyEntry(BaseModel):
     action: str = Field(..., description="Action taken (registered, analyzed, transferred)")
     actor: str = Field(..., description="Person or system performing action")
     details: str = Field(..., description="Additional details about the action")
-    location: Optional[str] = Field(None, description="Evidence location at time of action")
+    location: str | None = Field(None, description="Evidence location at time of action")
 
 
 class Evidence(BaseModel):
@@ -36,19 +34,19 @@ class Evidence(BaseModel):
     # Identification
     evidence_id: UUID = Field(default_factory=uuid4)
     name: str = Field(..., description="Human-readable evidence name")
-    description: Optional[str] = Field(None, description="Evidence description")
+    description: str | None = Field(None, description="Evidence description")
 
     # File information
     file_path: str = Field(..., description="Path to evidence file on SIFT VM")
-    file_size: Optional[int] = Field(None, description="File size in bytes")
+    file_size: int | None = Field(None, description="File size in bytes")
     sha256_hash: str = Field(..., description="SHA256 hash for integrity verification")
 
     # Evidence metadata
     evidence_type: EvidenceType = Field(
         default=EvidenceType.UNKNOWN, description="Type of evidence"
     )
-    source: Optional[str] = Field(None, description="Source system or location")
-    acquisition_date: Optional[datetime] = Field(None, description="When evidence was acquired")
+    source: str | None = Field(None, description="Source system or location")
+    acquisition_date: datetime | None = Field(None, description="When evidence was acquired")
 
     # Registration
     registered_at: datetime = Field(default_factory=datetime.utcnow)
@@ -61,18 +59,16 @@ class Evidence(BaseModel):
 
     # Validation
     validated: bool = Field(default=False, description="Whether file exists on SIFT VM")
-    validation_timestamp: Optional[datetime] = Field(None, description="When validated")
+    validation_timestamp: datetime | None = Field(None, description="When validated")
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat(), UUID: lambda v: str(v)}
 
     def add_custody_entry(
-        self, action: str, actor: str, details: str, location: Optional[str] = None
+        self, action: str, actor: str, details: str, location: str | None = None
     ) -> None:
         """Add entry to chain-of-custody log."""
-        entry = ChainOfCustodyEntry(
-            action=action, actor=actor, details=details, location=location
-        )
+        entry = ChainOfCustodyEntry(action=action, actor=actor, details=details, location=location)
         self.chain_of_custody.append(entry)
 
     def verify_hash(self, computed_hash: str) -> bool:

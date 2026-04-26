@@ -4,15 +4,14 @@ This factory determines which parser to use based on the tool name
 and applies it to the raw output.
 """
 
-from typing import Any
 import structlog
 
 from .base import BaseParser, ParserResult
-from .volatility import VolatilityParser
+from .grep import GrepParser
+from .strings import StringsParser
 from .timeline import TimelineParser
 from .tsk import TSKParser
-from .strings import StringsParser
-from .grep import GrepParser
+from .volatility import VolatilityParser
 
 logger = structlog.get_logger()
 
@@ -40,10 +39,7 @@ class ParserFactory:
             GrepParser(),
         ]
 
-        logger.info(
-            "parser_factory_initialized",
-            parser_count=len(self.parsers)
-        )
+        logger.info("parser_factory_initialized", parser_count=len(self.parsers))
 
     def get_parser(self, tool_name: str) -> BaseParser | None:
         """Get appropriate parser for a tool.
@@ -58,17 +54,13 @@ class ParserFactory:
 
         for parser in self.parsers:
             if parser.supports_tool(tool_lower):
-                logger.debug(
-                    "parser_found",
-                    tool=tool_name,
-                    parser=parser.__class__.__name__
-                )
+                logger.debug("parser_found", tool=tool_name, parser=parser.__class__.__name__)
                 return parser
 
         logger.debug(
             "no_parser_found",
             tool=tool_name,
-            available_parsers=[p.__class__.__name__ for p in self.parsers]
+            available_parsers=[p.__class__.__name__ for p in self.parsers],
         )
         return None
 
@@ -86,11 +78,7 @@ class ParserFactory:
         parser = self.get_parser(tool_name)
 
         if not parser:
-            logger.debug(
-                "parsing_skipped",
-                tool=tool_name,
-                reason="no_parser_available"
-            )
+            logger.debug("parsing_skipped", tool=tool_name, reason="no_parser_available")
             return None
 
         try:
@@ -101,17 +89,14 @@ class ParserFactory:
                 tool=tool_name,
                 parser=parser.__class__.__name__,
                 success=result.success,
-                errors=len(result.parse_errors or [])
+                errors=len(result.parse_errors or []),
             )
 
             return result
 
         except Exception as e:
             logger.error(
-                "parsing_failed",
-                tool=tool_name,
-                parser=parser.__class__.__name__,
-                error=str(e)
+                "parsing_failed", tool=tool_name, parser=parser.__class__.__name__, error=str(e)
             )
             return None
 

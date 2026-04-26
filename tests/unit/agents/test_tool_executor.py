@@ -7,15 +7,17 @@ TDD Structure:
 4. TestToolExecutorIntegration - Tests with real SIFT VM SSH
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+
+import pytest
+
 from find_evil_agent.agents.base import AgentResult, AgentStatus
 from find_evil_agent.agents.schemas import ExecutionResult, ExecutionStatus
 
 # Conditional import for TDD - ToolExecutorAgent may not exist yet
 try:
     from find_evil_agent.agents.tool_executor import ToolExecutorAgent
+
     TOOL_EXECUTOR_AVAILABLE = True
 except ImportError:
     TOOL_EXECUTOR_AVAILABLE = False
@@ -80,14 +82,33 @@ class TestToolExecutorSpecification:
         """Document security validation requirements."""
         security = {
             "allowed_commands": [
-                "volatility", "vol.py", "rekall", "bulk_extractor",
-                "sleuthkit", "plaso", "log2timeline.py", "psort.py",
-                "strings", "grep", "find", "cat", "head", "tail",
+                "volatility",
+                "vol.py",
+                "rekall",
+                "bulk_extractor",
+                "sleuthkit",
+                "plaso",
+                "log2timeline.py",
+                "psort.py",
+                "strings",
+                "grep",
+                "find",
+                "cat",
+                "head",
+                "tail",
             ],
             "blocked_patterns": [
-                "rm -rf", "dd if=", "mkfs", "format",
-                "; rm", "&& rm", "| rm",
-                "curl", "wget", "nc ", "netcat",
+                "rm -rf",
+                "dd if=",
+                "mkfs",
+                "format",
+                "; rm",
+                "&& rm",
+                "| rm",
+                "curl",
+                "wget",
+                "nc ",
+                "netcat",
             ],
             "path_validation": "Commands must target allowed evidence paths only",
             "injection_prevention": "Escape shell metacharacters",
@@ -125,27 +146,27 @@ class TestToolExecutorStructure:
     def test_tool_executor_has_process_method(self):
         """ToolExecutorAgent should have async process() method."""
         agent = ToolExecutorAgent()
-        assert hasattr(agent, 'process')
+        assert hasattr(agent, "process")
         assert callable(agent.process)
         assert asyncio.iscoroutinefunction(agent.process)
 
     def test_tool_executor_has_validate_method(self):
         """ToolExecutorAgent should have validate() method."""
         agent = ToolExecutorAgent()
-        assert hasattr(agent, 'validate')
+        assert hasattr(agent, "validate")
         assert callable(agent.validate)
 
     def test_tool_executor_has_ssh_config_attributes(self):
         """ToolExecutorAgent should have SSH configuration attributes."""
         agent = ToolExecutorAgent()
-        assert hasattr(agent, 'ssh_host')
-        assert hasattr(agent, 'ssh_port')
-        assert hasattr(agent, 'ssh_user')
+        assert hasattr(agent, "ssh_host")
+        assert hasattr(agent, "ssh_port")
+        assert hasattr(agent, "ssh_user")
 
     def test_tool_executor_has_timeout_attributes(self):
         """ToolExecutorAgent should have timeout configuration."""
         agent = ToolExecutorAgent()
-        assert hasattr(agent, 'default_timeout')
+        assert hasattr(agent, "default_timeout")
         assert isinstance(agent.default_timeout, (int, float))
         assert agent.default_timeout > 0
 
@@ -164,16 +185,13 @@ class TestToolExecutorExecution:
         """process() should return AgentResult."""
         agent = ToolExecutorAgent()
 
-        input_data = {
-            "tool_name": "strings",
-            "command": "strings /etc/hostname"
-        }
+        input_data = {"tool_name": "strings", "command": "strings /etc/hostname"}
 
         result = await agent.process(input_data)
         assert isinstance(result, AgentResult)
-        assert hasattr(result, 'success')
-        assert hasattr(result, 'data')
-        assert hasattr(result, 'status')
+        assert hasattr(result, "success")
+        assert hasattr(result, "data")
+        assert hasattr(result, "status")
 
     @pytest.mark.asyncio
     async def test_validate_requires_tool_name_and_command(self):
@@ -190,10 +208,7 @@ class TestToolExecutorExecution:
         assert not await agent.validate({"command": "strings file.bin"})
 
         # Valid input
-        assert await agent.validate({
-            "tool_name": "strings",
-            "command": "strings file.bin"
-        })
+        assert await agent.validate({"tool_name": "strings", "command": "strings file.bin"})
 
     @pytest.mark.asyncio
     async def test_process_with_invalid_input_returns_error(self):
@@ -210,10 +225,7 @@ class TestToolExecutorExecution:
         """process() should include ExecutionResult in data."""
         agent = ToolExecutorAgent()
 
-        input_data = {
-            "tool_name": "echo",
-            "command": "echo 'test'"
-        }
+        input_data = {"tool_name": "echo", "command": "echo 'test'"}
 
         result = await agent.process(input_data)
 
@@ -226,22 +238,19 @@ class TestToolExecutorExecution:
         """ExecutionResult should have all required fields."""
         agent = ToolExecutorAgent()
 
-        input_data = {
-            "tool_name": "echo",
-            "command": "echo 'test'"
-        }
+        input_data = {"tool_name": "echo", "command": "echo 'test'"}
 
         result = await agent.process(input_data)
 
         if result.success and "execution_result" in result.data:
             exec_result = result.data["execution_result"]
-            assert hasattr(exec_result, 'tool_name')
-            assert hasattr(exec_result, 'command')
-            assert hasattr(exec_result, 'stdout')
-            assert hasattr(exec_result, 'stderr')
-            assert hasattr(exec_result, 'return_code')
-            assert hasattr(exec_result, 'status')
-            assert hasattr(exec_result, 'execution_time')
+            assert hasattr(exec_result, "tool_name")
+            assert hasattr(exec_result, "command")
+            assert hasattr(exec_result, "stdout")
+            assert hasattr(exec_result, "stderr")
+            assert hasattr(exec_result, "return_code")
+            assert hasattr(exec_result, "status")
+            assert hasattr(exec_result, "execution_time")
 
     @pytest.mark.asyncio
     async def test_timeout_parameter_is_respected(self):
@@ -249,11 +258,7 @@ class TestToolExecutorExecution:
         agent = ToolExecutorAgent()
 
         # Long-running command with short timeout
-        input_data = {
-            "tool_name": "sleep",
-            "command": "sleep 5",
-            "timeout": 1  # 1 second timeout
-        }
+        input_data = {"tool_name": "sleep", "command": "sleep 5", "timeout": 1}  # 1 second timeout
 
         result = await agent.process(input_data)
 
@@ -267,10 +272,7 @@ class TestToolExecutorExecution:
         """Successful command execution should have SUCCESS status."""
         agent = ToolExecutorAgent()
 
-        input_data = {
-            "tool_name": "echo",
-            "command": "echo 'success'"
-        }
+        input_data = {"tool_name": "echo", "command": "echo 'success'"}
 
         result = await agent.process(input_data)
 
@@ -285,10 +287,7 @@ class TestToolExecutorExecution:
         agent = ToolExecutorAgent()
 
         # Command that will fail
-        input_data = {
-            "tool_name": "cat",
-            "command": "cat /nonexistent/file/that/does/not/exist"
-        }
+        input_data = {"tool_name": "cat", "command": "cat /nonexistent/file/that/does/not/exist"}
 
         result = await agent.process(input_data)
 
@@ -302,10 +301,7 @@ class TestToolExecutorExecution:
         """stdout should be captured from command execution."""
         agent = ToolExecutorAgent()
 
-        input_data = {
-            "tool_name": "echo",
-            "command": "echo 'test output'"
-        }
+        input_data = {"tool_name": "echo", "command": "echo 'test output'"}
 
         result = await agent.process(input_data)
 
@@ -323,7 +319,7 @@ class TestToolExecutorExecution:
         # Command that writes to stderr
         input_data = {
             "tool_name": "cat",
-            "command": "cat /nonexistent_file 2>&1"  # Redirect stderr to stdout for testing
+            "command": "cat /nonexistent_file 2>&1",  # Redirect stderr to stdout for testing
         }
 
         result = await agent.process(input_data)
@@ -338,10 +334,7 @@ class TestToolExecutorExecution:
         """Execution time should be recorded."""
         agent = ToolExecutorAgent()
 
-        input_data = {
-            "tool_name": "sleep",
-            "command": "sleep 0.1"  # 100ms
-        }
+        input_data = {"tool_name": "sleep", "command": "sleep 0.1"}  # 100ms
 
         result = await agent.process(input_data)
 
@@ -371,10 +364,7 @@ class TestToolExecutorIntegration:
         agent = ToolExecutorAgent()
 
         # Simple hostname command
-        input_data = {
-            "tool_name": "hostname",
-            "command": "hostname"
-        }
+        input_data = {"tool_name": "hostname", "command": "hostname"}
 
         result = await agent.process(input_data)
 
@@ -394,10 +384,7 @@ class TestToolExecutorIntegration:
         agent = ToolExecutorAgent()
 
         # strings command on /etc/hostname
-        input_data = {
-            "tool_name": "strings",
-            "command": "strings /etc/hostname"
-        }
+        input_data = {"tool_name": "strings", "command": "strings /etc/hostname"}
 
         result = await agent.process(input_data)
 
@@ -414,16 +401,15 @@ class TestToolExecutorIntegration:
         agent = ToolExecutorAgent()
 
         # grep command
-        input_data = {
-            "tool_name": "grep",
-            "command": "grep -i 'ubuntu' /etc/os-release"
-        }
+        input_data = {"tool_name": "grep", "command": "grep -i 'ubuntu' /etc/os-release"}
 
         result = await agent.process(input_data)
 
         if result.success:
             exec_result = result.data["execution_result"]
-            assert exec_result.return_code == 0 or exec_result.return_code == 1  # grep returns 1 if no match
+            assert (
+                exec_result.return_code == 0 or exec_result.return_code == 1
+            )  # grep returns 1 if no match
             assert exec_result.stdout is not None or exec_result.stderr is not None
 
     @pytest.mark.asyncio
@@ -433,10 +419,7 @@ class TestToolExecutorIntegration:
         agent = ToolExecutorAgent()
 
         # Command that doesn't exist
-        input_data = {
-            "tool_name": "nonexistent",
-            "command": "nonexistent_command_xyz123"
-        }
+        input_data = {"tool_name": "nonexistent", "command": "nonexistent_command_xyz123"}
 
         result = await agent.process(input_data)
 
@@ -454,11 +437,7 @@ class TestToolExecutorIntegration:
         agent = ToolExecutorAgent()
 
         # Command that runs for 30 seconds with 2 second timeout
-        input_data = {
-            "tool_name": "sleep",
-            "command": "sleep 30",
-            "timeout": 2
-        }
+        input_data = {"tool_name": "sleep", "command": "sleep 30", "timeout": 2}
 
         result = await agent.process(input_data)
 
@@ -495,10 +474,7 @@ class TestToolExecutorIntegration:
         agent = ToolExecutorAgent()
 
         # Check if volatility is available
-        input_data = {
-            "tool_name": "volatility",
-            "command": "which vol.py || which volatility"
-        }
+        input_data = {"tool_name": "volatility", "command": "which vol.py || which volatility"}
 
         result = await agent.process(input_data)
 

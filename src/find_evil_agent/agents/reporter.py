@@ -11,19 +11,26 @@ Generates professional IR reports meeting Valhuntir quality standards:
 8. Multiple output formats (Markdown, HTML, PDF)
 """
 
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Optional
 from collections import defaultdict
+from datetime import UTC, datetime
+from pathlib import Path
+
 import structlog
 
-from .base import BaseAgent, AgentResult, AgentStatus
-from .schemas import Finding, FindingSeverity, AnalysisResult, IterativeAnalysisResult
-from .report_schemas import (
-    ReportFormat, ReportSchema, ExecutiveSummary, MITREMapping,
-    IOCTableEntry, TimelineEntry, Recommendation, ReportMetadata, AttackGraph
-)
+from .base import AgentResult, AgentStatus, BaseAgent
 from .graph_builder import GraphBuilder
+from .report_schemas import (
+    AttackGraph,
+    ExecutiveSummary,
+    IOCTableEntry,
+    MITREMapping,
+    Recommendation,
+    ReportFormat,
+    ReportMetadata,
+    ReportSchema,
+    TimelineEntry,
+)
+from .schemas import AnalysisResult, Finding, FindingSeverity, IterativeAnalysisResult
 
 logger = structlog.get_logger(__name__)
 
@@ -34,16 +41,31 @@ MITRE_PATTERNS = {
         ("T1059.001", "PowerShell", "Execution", "Command and Scripting Interpreter: PowerShell"),
     ],
     "cmd.exe": [
-        ("T1059.003", "Windows Command Shell", "Execution", "Command and Scripting Interpreter: Windows Command Shell"),
+        (
+            "T1059.003",
+            "Windows Command Shell",
+            "Execution",
+            "Command and Scripting Interpreter: Windows Command Shell",
+        ),
     ],
     "suspicious process": [
         ("T1055", "Process Injection", "Defense Evasion", "Process injection techniques"),
     ],
     "registry": [
-        ("T1547.001", "Registry Run Keys / Startup Folder", "Persistence", "Boot or Logon Autostart Execution"),
+        (
+            "T1547.001",
+            "Registry Run Keys / Startup Folder",
+            "Persistence",
+            "Boot or Logon Autostart Execution",
+        ),
     ],
     "c2": [
-        ("T1071", "Application Layer Protocol", "Command and Control", "Application layer protocols for C2"),
+        (
+            "T1071",
+            "Application Layer Protocol",
+            "Command and Control",
+            "Application layer protocols for C2",
+        ),
     ],
     "network connection": [
         ("T1071.001", "Web Protocols", "Command and Control", "Web-based C2 communication"),
@@ -52,10 +74,20 @@ MITRE_PATTERNS = {
         ("T1543", "Create or Modify System Process", "Persistence", "System service persistence"),
     ],
     "privilege escalation": [
-        ("T1068", "Exploitation for Privilege Escalation", "Privilege Escalation", "Exploit vulnerabilities for privilege escalation"),
+        (
+            "T1068",
+            "Exploitation for Privilege Escalation",
+            "Privilege Escalation",
+            "Exploit vulnerabilities for privilege escalation",
+        ),
     ],
     "credential": [
-        ("T1003", "OS Credential Dumping", "Credential Access", "Dump credentials from operating system"),
+        (
+            "T1003",
+            "OS Credential Dumping",
+            "Credential Access",
+            "Dump credentials from operating system",
+        ),
     ],
     "file modification": [
         ("T1486", "Data Encrypted for Impact", "Impact", "Ransomware and data encryption"),
@@ -132,27 +164,24 @@ class ReporterAgent(BaseAgent):
                 status=AgentStatus.SUCCESS,
                 success=True,
                 data={"report": report},
-                metadata={"format": input_data.get("format", "markdown")}
+                metadata={"format": input_data.get("format", "markdown")},
             )
 
         except Exception as e:
-            logger.error("report_generation_failed", error=str(e), session_id=input_data.get("session_id"))
-            return AgentResult(
-                status=AgentStatus.FAILED,
-                success=False,
-                error=str(e),
-                data={}
+            logger.error(
+                "report_generation_failed", error=str(e), session_id=input_data.get("session_id")
             )
+            return AgentResult(status=AgentStatus.FAILED, success=False, error=str(e), data={})
 
     async def generate_report(
         self,
-        analysis_result: Optional[AnalysisResult] = None,
-        iterative_result: Optional[IterativeAnalysisResult] = None,
+        analysis_result: AnalysisResult | None = None,
+        iterative_result: IterativeAnalysisResult | None = None,
         format: ReportFormat = ReportFormat.MARKDOWN,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         incident_description: str = "",
         analysis_goal: str = "",
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
         fallback_to_html: bool = True,
     ) -> str:
         """Generate professional IR report.
@@ -264,7 +293,7 @@ class ReporterAgent(BaseAgent):
         # Build metadata
         metadata = ReportMetadata(
             session_id=session_id,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
             tool_count=tool_count,
             finding_count=len(findings),
             ioc_count=sum(len(v) for v in iocs.values()),
@@ -337,7 +366,9 @@ high-severity discoveries that require immediate attention.
             key_findings = "\n".join(key_findings_list)
             # Ensure minimum length for validation
             if len(key_findings) < 50:
-                key_findings += f" ({len(key_findings_list)} finding(s) requiring immediate attention)"
+                key_findings += (
+                    f" ({len(key_findings_list)} finding(s) requiring immediate attention)"
+                )
         else:
             key_findings = "No critical or high-severity findings identified during analysis. All findings are medium severity or lower."
 
@@ -367,7 +398,7 @@ of recommended security controls are advised to maintain security posture.
 
         # Recommendations summary
         if critical_count > 0 or high_count > 0:
-            recommendations_summary = f"""
+            recommendations_summary = """
 Immediate actions are required: (1) Isolate affected systems to prevent lateral movement,
 (2) Conduct credential reset for potentially compromised accounts, (3) Review and block
 identified command and control infrastructure, (4) Deploy enhanced monitoring for indicators
@@ -375,7 +406,7 @@ identified in this report, and (5) Initiate incident response procedures per org
 Detailed recommendations are provided in the Recommendations section of this report.
 """.strip()
         else:
-            recommendations_summary = f"""
+            recommendations_summary = """
 Recommended actions include: (1) Review and validate findings to rule out false positives,
 (2) Implement additional monitoring for suspicious activities identified, (3) Review security
 configurations and policies based on findings, and (4) Conduct follow-up investigation if warranted.
@@ -406,14 +437,16 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 if pattern in finding_text:
                     for technique_id, name, tactic, description in techniques:
                         if technique_id not in seen_techniques:
-                            mappings.append(MITREMapping(
-                                technique_id=technique_id,
-                                technique_name=name,
-                                tactic=tactic,
-                                description=description,
-                                finding_references=[finding.title],
-                                confidence=0.8,
-                            ))
+                            mappings.append(
+                                MITREMapping(
+                                    technique_id=technique_id,
+                                    technique_name=name,
+                                    tactic=tactic,
+                                    description=description,
+                                    finding_references=[finding.title],
+                                    confidence=0.8,
+                                )
+                            )
                             seen_techniques.add(technique_id)
                         else:
                             # Add finding reference to existing mapping
@@ -447,7 +480,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 entry = IOCTableEntry(
                     value=ioc_value,
                     ioc_type=ioc_type,
-                    first_seen=datetime.now(timezone.utc),
+                    first_seen=datetime.now(UTC),
                     occurrences=count,
                     context=f"Found {count} time(s) during analysis",
                 )
@@ -470,13 +503,15 @@ Detailed recommendations are provided in the Recommendations section of this rep
         timeline = []
 
         for finding in findings:
-            timeline.append(TimelineEntry(
-                timestamp=finding.timestamp,
-                event_description=finding.title,
-                severity=finding.severity.value,
-                source_finding=finding.title,
-                details=finding.description,
-            ))
+            timeline.append(
+                TimelineEntry(
+                    timestamp=finding.timestamp,
+                    event_description=finding.title,
+                    severity=finding.severity.value,
+                    source_finding=finding.title,
+                    details=finding.description,
+                )
+            )
 
         # Sort chronologically
         return sorted(timeline, key=lambda t: t.timestamp)
@@ -501,67 +536,77 @@ Detailed recommendations are provided in the Recommendations section of this rep
 
         # Critical findings - immediate action
         for finding in critical_findings:
-            recommendations.append(Recommendation(
-                priority=priority,
-                title=f"Immediate Response: {finding.title}",
-                description=f"CRITICAL: {finding.description}. Immediate containment and investigation required. "
-                           f"Isolate affected systems, preserve evidence, and escalate to incident response team.",
-                related_findings=[finding.title],
-                urgency="immediate",
-            ))
+            recommendations.append(
+                Recommendation(
+                    priority=priority,
+                    title=f"Immediate Response: {finding.title}",
+                    description=f"CRITICAL: {finding.description}. Immediate containment and investigation required. "
+                    f"Isolate affected systems, preserve evidence, and escalate to incident response team.",
+                    related_findings=[finding.title],
+                    urgency="immediate",
+                )
+            )
             priority += 1
 
         # High findings - urgent action
         for finding in high_findings[:3]:  # Top 3 high findings
-            recommendations.append(Recommendation(
-                priority=priority,
-                title=f"Urgent Investigation: {finding.title}",
-                description=f"HIGH: {finding.description}. Conduct detailed investigation within 24 hours. "
-                           f"Review logs, identify affected assets, and implement containment if compromise confirmed.",
-                related_findings=[finding.title],
-                urgency="urgent",
-            ))
+            recommendations.append(
+                Recommendation(
+                    priority=priority,
+                    title=f"Urgent Investigation: {finding.title}",
+                    description=f"HIGH: {finding.description}. Conduct detailed investigation within 24 hours. "
+                    f"Review logs, identify affected assets, and implement containment if compromise confirmed.",
+                    related_findings=[finding.title],
+                    urgency="urgent",
+                )
+            )
             priority += 1
 
         # Medium findings - scheduled action
         if medium_findings:
-            recommendations.append(Recommendation(
-                priority=priority,
-                title=f"Review Medium-Severity Findings ({len(medium_findings)} total)",
-                description=f"Review {len(medium_findings)} medium-severity findings to determine if additional "
-                           f"investigation is warranted. Validate against known-good baselines and organizational policies.",
-                related_findings=[f.title for f in medium_findings[:5]],
-                urgency="scheduled",
-            ))
+            recommendations.append(
+                Recommendation(
+                    priority=priority,
+                    title=f"Review Medium-Severity Findings ({len(medium_findings)} total)",
+                    description=f"Review {len(medium_findings)} medium-severity findings to determine if additional "
+                    f"investigation is warranted. Validate against known-good baselines and organizational policies.",
+                    related_findings=[f.title for f in medium_findings[:5]],
+                    urgency="scheduled",
+                )
+            )
             priority += 1
 
         # General recommendations (linked to critical/high findings that triggered them)
         if critical_findings or high_findings:
             triggering_findings = [f.title for f in (critical_findings + high_findings)[:3]]
 
-            recommendations.append(Recommendation(
-                priority=priority,
-                title="Credential Reset and Access Review",
-                description="Reset credentials for all accounts with access to affected systems. Review and revoke "
-                           "unnecessary access privileges. Enable multi-factor authentication where not already deployed.",
-                related_findings=triggering_findings,
-                urgency="urgent",
-            ))
+            recommendations.append(
+                Recommendation(
+                    priority=priority,
+                    title="Credential Reset and Access Review",
+                    description="Reset credentials for all accounts with access to affected systems. Review and revoke "
+                    "unnecessary access privileges. Enable multi-factor authentication where not already deployed.",
+                    related_findings=triggering_findings,
+                    urgency="urgent",
+                )
+            )
             priority += 1
 
-            recommendations.append(Recommendation(
-                priority=priority,
-                title="Enhanced Monitoring and Detection",
-                description="Deploy enhanced monitoring for indicators identified in this report. Review SIEM rules "
-                           "and detection logic to ensure similar activity would be detected in the future. "
-                           "Consider threat hunting exercises for similar indicators across the environment.",
-                related_findings=triggering_findings,
-                urgency="short-term",
-            ))
+            recommendations.append(
+                Recommendation(
+                    priority=priority,
+                    title="Enhanced Monitoring and Detection",
+                    description="Deploy enhanced monitoring for indicators identified in this report. Review SIEM rules "
+                    "and detection logic to ensure similar activity would be detected in the future. "
+                    "Consider threat hunting exercises for similar indicators across the environment.",
+                    related_findings=triggering_findings,
+                    urgency="short-term",
+                )
+            )
 
         return recommendations
 
-    async def generate_attack_graph(self, findings: list[Finding]) -> Optional[AttackGraph]:
+    async def generate_attack_graph(self, findings: list[Finding]) -> AttackGraph | None:
         """Generate attack chain graph from findings.
 
         Args:
@@ -576,9 +621,11 @@ Detailed recommendations are provided in the Recommendations section of this rep
 
             # Only return graph if it has nodes
             if graph.nodes:
-                logger.info("attack_graph_generated",
-                           node_count=len(graph.nodes),
-                           edge_count=len(graph.edges))
+                logger.info(
+                    "attack_graph_generated",
+                    node_count=len(graph.nodes),
+                    edge_count=len(graph.edges),
+                )
                 return graph
             else:
                 logger.debug("attack_graph_empty", message="No relationships extracted")
@@ -627,17 +674,16 @@ Detailed recommendations are provided in the Recommendations section of this rep
         }
 
         # Read template and inject data
-        template_path = Path(__file__).parent.parent.parent.parent / "templates" / "report_graph_template.html"
+        template_path = (
+            Path(__file__).parent.parent.parent.parent / "templates" / "report_graph_template.html"
+        )
 
         try:
-            with open(template_path, 'r') as f:
+            with open(template_path) as f:
                 template_html = f.read()
 
             # Inject graph data into template
-            graph_html = template_html.replace(
-                "{{ GRAPH_DATA }}",
-                json.dumps(graph_data)
-            )
+            graph_html = template_html.replace("{{ GRAPH_DATA }}", json.dumps(graph_data))
 
             # Wrap in section for embedding
             return f"""
@@ -659,7 +705,9 @@ Detailed recommendations are provided in the Recommendations section of this rep
     </div>
 """
 
-    async def format_markdown(self, report: ReportSchema, iterative_result: Optional[IterativeAnalysisResult] = None) -> str:
+    async def format_markdown(
+        self, report: ReportSchema, iterative_result: IterativeAnalysisResult | None = None
+    ) -> str:
         """Format report as Markdown.
 
         Args:
@@ -674,7 +722,9 @@ Detailed recommendations are provided in the Recommendations section of this rep
         # Header
         md.append("# Find Evil Agent - Incident Response Report\n")
         md.append(f"**Session ID:** {report.session_id}\n")
-        md.append(f"**Generated:** {report.metadata.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
+        md.append(
+            f"**Generated:** {report.metadata.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+        )
         md.append(f"**Incident:** {report.incident_description}\n")
         if report.analysis_goal:
             md.append(f"**Analysis Goal:** {report.analysis_goal}\n")
@@ -696,16 +746,24 @@ Detailed recommendations are provided in the Recommendations section of this rep
             md.append("## Autonomous Investigation Chain\n\n")
 
             if iterative_result.iterations:
-                md.append(f"This investigation utilized autonomous reasoning across **{len(iterative_result.iterations)} iterations**, ")
-                md.append(f"following investigative leads and tool outputs to reconstruct the complete attack chain.\n\n")
+                md.append(
+                    f"This investigation utilized autonomous reasoning across **{len(iterative_result.iterations)} iterations**, "
+                )
+                md.append(
+                    "following investigative leads and tool outputs to reconstruct the complete attack chain.\n\n"
+                )
 
                 for iteration in iterative_result.iterations:
-                    md.append(f"### Iteration {iteration.iteration_number}: {iteration.tool_used}\n\n")
+                    md.append(
+                        f"### Iteration {iteration.iteration_number}: {iteration.tool_used}\n\n"
+                    )
                     if iteration.tool_selection:
                         md.append(f"**Reasoning:** {iteration.tool_selection.reason}\n\n")
                         md.append(f"**Confidence:** {iteration.tool_selection.confidence:.2f}\n\n")
                     if iteration.findings:
-                        md.append(f"**Findings:** {len(iteration.findings)} new findings discovered\n\n")
+                        md.append(
+                            f"**Findings:** {len(iteration.findings)} new findings discovered\n\n"
+                        )
                     if iteration.leads_discovered:
                         md.append(f"**Leads Discovered:** {len(iteration.leads_discovered)}\n\n")
                         for lead in iteration.leads_discovered[:3]:
@@ -716,8 +774,13 @@ Detailed recommendations are provided in the Recommendations section of this rep
                     md.append(f"**Duration:** {iteration.duration:.2f}s\n\n")
             else:
                 # No iterations but still iterative result - show summary
-                md.append(f"Investigation completed using autonomous reasoning (Iteration count: 0).\n\n")
-                if hasattr(iterative_result, 'investigation_summary') and iterative_result.investigation_summary:
+                md.append(
+                    "Investigation completed using autonomous reasoning (Iteration count: 0).\n\n"
+                )
+                if (
+                    hasattr(iterative_result, "investigation_summary")
+                    and iterative_result.investigation_summary
+                ):
                     md.append(f"**Summary:** {iterative_result.investigation_summary}\n\n")
 
             md.append(f"**Investigation Outcome:** {iterative_result.stopping_reason}\n\n")
@@ -732,7 +795,9 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 findings_str = ", ".join(mapping.finding_references[:3])
                 if len(mapping.finding_references) > 3:
                     findings_str += f" (+{len(mapping.finding_references) - 3} more)"
-                md.append(f"| {mapping.technique_id} | {mapping.technique_name} | {mapping.tactic} | {findings_str} |\n")
+                md.append(
+                    f"| {mapping.technique_id} | {mapping.technique_name} | {mapping.tactic} | {findings_str} |\n"
+                )
             md.append("\n")
         else:
             md.append("*No MITRE ATT&CK techniques mapped.*\n\n")
@@ -751,8 +816,8 @@ Detailed recommendations are provided in the Recommendations section of this rep
         else:
             md.append("*No IOCs extracted during analysis.*\n\n")
         md.append("---\n\n")
-        
-        # Attack Chain Graph 
+
+        # Attack Chain Graph
         if report.attack_graph and report.attack_graph.nodes:
             md.append("## 🕸️ Attack Chain Graph\n\n")
             md.append("```mermaid\n")
@@ -765,7 +830,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
                 elif node.severity == FindingSeverity.HIGH.value:
                     md.append(f"  style {node.id} fill:#fff3cd,stroke:#ffc107\n")
             for edge in report.attack_graph.edges:
-                edge_label = edge.label.replace('"', '')
+                edge_label = edge.label.replace('"', "")
                 md.append(f'  {edge.source} -->|"{edge_label}"| {edge.target}\n')
             md.append("```\n\n")
             md.append("---\n\n")
@@ -775,7 +840,9 @@ Detailed recommendations are provided in the Recommendations section of this rep
         if report.timeline:
             for entry in report.timeline:
                 timestamp_str = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                md.append(f"- **{timestamp_str}** [{entry.severity.upper()}] {entry.event_description}\n")
+                md.append(
+                    f"- **{timestamp_str}** [{entry.severity.upper()}] {entry.event_description}\n"
+                )
             md.append("\n")
         else:
             md.append("*No timeline events.*\n\n")
@@ -788,7 +855,13 @@ Detailed recommendations are provided in the Recommendations section of this rep
             md.append("*No suspicious findings detected during analysis.*\n\n")
         else:
             # Always show all severity levels (even if empty) for consistent structure
-            for severity in [FindingSeverity.CRITICAL, FindingSeverity.HIGH, FindingSeverity.MEDIUM, FindingSeverity.LOW, FindingSeverity.INFO]:
+            for severity in [
+                FindingSeverity.CRITICAL,
+                FindingSeverity.HIGH,
+                FindingSeverity.MEDIUM,
+                FindingSeverity.LOW,
+                FindingSeverity.INFO,
+            ]:
                 md.append(f"### {severity.value.upper()}\n\n")
                 severity_findings = [f for f in report.findings if f.severity == severity]
                 if severity_findings:
@@ -1002,10 +1075,14 @@ Detailed recommendations are provided in the Recommendations section of this rep
 """)
         if report.mitre_mappings:
             html.append('<table class="ioc-table">')
-            html.append("<tr><th>Technique ID</th><th>Technique Name</th><th>Tactic</th><th>Related Findings</th></tr>")
+            html.append(
+                "<tr><th>Technique ID</th><th>Technique Name</th><th>Tactic</th><th>Related Findings</th></tr>"
+            )
             for mapping in report.mitre_mappings:
                 findings_str = ", ".join(mapping.finding_references[:3])
-                html.append(f"<tr><td><code>{mapping.technique_id}</code></td><td>{mapping.technique_name}</td>")
+                html.append(
+                    f"<tr><td><code>{mapping.technique_id}</code></td><td>{mapping.technique_name}</td>"
+                )
                 html.append(f"<td>{mapping.tactic}</td><td>{findings_str}</td></tr>")
             html.append("</table>")
         else:
@@ -1035,7 +1112,13 @@ Detailed recommendations are provided in the Recommendations section of this rep
     <div class="section">
         <h2>🔍 Findings by Severity</h2>
 """)
-        for severity in [FindingSeverity.CRITICAL, FindingSeverity.HIGH, FindingSeverity.MEDIUM, FindingSeverity.LOW, FindingSeverity.INFO]:
+        for severity in [
+            FindingSeverity.CRITICAL,
+            FindingSeverity.HIGH,
+            FindingSeverity.MEDIUM,
+            FindingSeverity.LOW,
+            FindingSeverity.INFO,
+        ]:
             severity_findings = [f for f in report.findings if f.severity == severity]
             if severity_findings:
                 for finding in severity_findings:
@@ -1078,7 +1161,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
 
         return "".join(html)
 
-    async def format_pdf(self, report: ReportSchema, output_path: Optional[Path]) -> str:
+    async def format_pdf(self, report: ReportSchema, output_path: Path | None) -> str:
         """Format report as PDF.
 
         Args:
@@ -1102,6 +1185,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
         # Convert HTML to PDF using weasyprint (if available)
         try:
             from weasyprint import HTML
+
             HTML(string=html_content).write_pdf(output_path)
             logger.info("pdf_generated", path=str(output_path))
             return str(output_path)

@@ -7,9 +7,10 @@ TDD Structure:
 """
 
 import pytest
-from find_evil_agent.agents.tool_selector import ToolSelectorAgent
+
 from find_evil_agent.agents.base import AgentResult, AgentStatus
 from find_evil_agent.agents.schemas import ToolSelection
+from find_evil_agent.agents.tool_selector import ToolSelectorAgent
 from find_evil_agent.tools.registry import ToolRegistry
 
 
@@ -93,13 +94,13 @@ class TestToolSelectorStructure:
     def test_tool_selector_has_process_method(self):
         """ToolSelectorAgent should have async process() method."""
         agent = ToolSelectorAgent()
-        assert hasattr(agent, 'process')
+        assert hasattr(agent, "process")
         assert callable(agent.process)
 
     def test_tool_selector_has_validate_method(self):
         """ToolSelectorAgent should have validate() method."""
         agent = ToolSelectorAgent()
-        assert hasattr(agent, 'validate')
+        assert hasattr(agent, "validate")
         assert callable(agent.validate)
 
     def test_tool_selector_accepts_registry_parameter(self):
@@ -117,10 +118,7 @@ class TestToolSelectorStructure:
 
     def test_tool_selector_accepts_configuration_parameters(self):
         """ToolSelectorAgent should accept confidence_threshold and semantic_top_k."""
-        agent = ToolSelectorAgent(
-            confidence_threshold=0.8,
-            semantic_top_k=5
-        )
+        agent = ToolSelectorAgent(confidence_threshold=0.8, semantic_top_k=5)
         assert agent.confidence_threshold == 0.8
         assert agent.semantic_top_k == 5
 
@@ -139,15 +137,12 @@ class TestToolSelectorExecution:
         """validate() should require incident_description field."""
         agent = ToolSelectorAgent()
 
-        valid = await agent.validate({
-            "incident_description": "Test incident",
-            "analysis_goal": "Test goal"
-        })
+        valid = await agent.validate(
+            {"incident_description": "Test incident", "analysis_goal": "Test goal"}
+        )
         assert valid is True
 
-        invalid = await agent.validate({
-            "analysis_goal": "Test goal"
-        })
+        invalid = await agent.validate({"analysis_goal": "Test goal"})
         assert invalid is False
 
     @pytest.mark.asyncio
@@ -155,15 +150,12 @@ class TestToolSelectorExecution:
         """validate() should require analysis_goal field."""
         agent = ToolSelectorAgent()
 
-        valid = await agent.validate({
-            "incident_description": "Test incident",
-            "analysis_goal": "Test goal"
-        })
+        valid = await agent.validate(
+            {"incident_description": "Test incident", "analysis_goal": "Test goal"}
+        )
         assert valid is True
 
-        invalid = await agent.validate({
-            "incident_description": "Test incident"
-        })
+        invalid = await agent.validate({"incident_description": "Test incident"})
         assert invalid is False
 
     @pytest.mark.asyncio
@@ -171,16 +163,12 @@ class TestToolSelectorExecution:
         """validate() should reject empty strings."""
         agent = ToolSelectorAgent()
 
-        invalid = await agent.validate({
-            "incident_description": "",
-            "analysis_goal": "Test goal"
-        })
+        invalid = await agent.validate({"incident_description": "", "analysis_goal": "Test goal"})
         assert invalid is False
 
-        invalid = await agent.validate({
-            "incident_description": "Test incident",
-            "analysis_goal": ""
-        })
+        invalid = await agent.validate(
+            {"incident_description": "Test incident", "analysis_goal": ""}
+        )
         assert invalid is False
 
     @pytest.mark.asyncio
@@ -188,11 +176,13 @@ class TestToolSelectorExecution:
         """validate() should accept optional evidence_type field."""
         agent = ToolSelectorAgent()
 
-        valid = await agent.validate({
-            "incident_description": "Test incident",
-            "analysis_goal": "Test goal",
-            "evidence_type": "memory"
-        })
+        valid = await agent.validate(
+            {
+                "incident_description": "Test incident",
+                "analysis_goal": "Test goal",
+                "evidence_type": "memory",
+            }
+        )
         assert valid is True
 
     @pytest.mark.asyncio
@@ -200,10 +190,12 @@ class TestToolSelectorExecution:
         """process() should return AgentResult instance."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Suspicious process detected",
-            "analysis_goal": "Analyze memory dump for malicious processes"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Suspicious process detected",
+                "analysis_goal": "Analyze memory dump for malicious processes",
+            }
+        )
 
         assert isinstance(result, AgentResult)
 
@@ -212,10 +204,12 @@ class TestToolSelectorExecution:
         """process() should return failed result for invalid input."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Test"
-            # Missing analysis_goal
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Test"
+                # Missing analysis_goal
+            }
+        )
 
         assert result.success is False
         assert result.status == AgentStatus.FAILED
@@ -227,10 +221,12 @@ class TestToolSelectorExecution:
         agent = ToolSelectorAgent()
 
         # This will perform actual semantic search
-        result = await agent.process({
-            "incident_description": "Ransomware detected on workstation",
-            "analysis_goal": "Find running processes in memory dump"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Ransomware detected on workstation",
+                "analysis_goal": "Find running processes in memory dump",
+            }
+        )
 
         # Should return candidates in data
         if result.success:
@@ -243,10 +239,12 @@ class TestToolSelectorExecution:
         """process() should use LLM to select tool from candidates."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Memory dump contains suspicious process",
-            "analysis_goal": "Extract process list from memory"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Memory dump contains suspicious process",
+                "analysis_goal": "Extract process list from memory",
+            }
+        )
 
         # Should include tool_selection in result
         if result.success:
@@ -258,10 +256,12 @@ class TestToolSelectorExecution:
         """Successful selection should include tool metadata from registry."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Need to list files on disk image",
-            "analysis_goal": "Find all files including deleted ones"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Need to list files on disk image",
+                "analysis_goal": "Find all files including deleted ones",
+            }
+        )
 
         if result.success:
             assert "tool_metadata" in result.data
@@ -275,10 +275,12 @@ class TestToolSelectorExecution:
         """Result should include top semantic match for comparison."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Analyze network traffic",
-            "analysis_goal": "Inspect packets in PCAP file"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Analyze network traffic",
+                "analysis_goal": "Inspect packets in PCAP file",
+            }
+        )
 
         if result.success:
             assert "semantic_top_match" in result.data
@@ -289,18 +291,20 @@ class TestToolSelectorExecution:
         """ToolSelection should have tool_name, confidence, reason, alternatives, inputs."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Hash verification needed",
-            "analysis_goal": "Calculate file hashes for integrity check"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Hash verification needed",
+                "analysis_goal": "Calculate file hashes for integrity check",
+            }
+        )
 
         if result.success:
             selection = result.data["tool_selection"]
-            assert hasattr(selection, 'tool_name')
-            assert hasattr(selection, 'confidence')
-            assert hasattr(selection, 'reason')
-            assert hasattr(selection, 'alternatives')
-            assert hasattr(selection, 'inputs')
+            assert hasattr(selection, "tool_name")
+            assert hasattr(selection, "confidence")
+            assert hasattr(selection, "reason")
+            assert hasattr(selection, "alternatives")
+            assert hasattr(selection, "inputs")
 
     @pytest.mark.asyncio
     async def test_confidence_threshold_enforcement(self):
@@ -309,10 +313,12 @@ class TestToolSelectorExecution:
         agent = ToolSelectorAgent(confidence_threshold=0.95)
 
         # Vague query may result in low confidence
-        result = await agent.process({
-            "incident_description": "Something weird happened",
-            "analysis_goal": "Do some analysis"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Something weird happened",
+                "analysis_goal": "Do some analysis",
+            }
+        )
 
         # If confidence is low, should fail
         if not result.success:
@@ -331,8 +337,8 @@ class TestToolSelectorExecution:
         # and agent should return failed result with hallucination error
 
         # Verify agent has registry validation in process()
-        assert hasattr(agent, 'registry')
-        assert hasattr(agent.registry, 'get_tool')
+        assert hasattr(agent, "registry")
+        assert hasattr(agent.registry, "get_tool")
 
     @pytest.mark.asyncio
     async def test_format_candidates_includes_similarity(self):
@@ -367,17 +373,18 @@ class TestToolSelectorExecution:
         agent = ToolSelectorAgent()
 
         # With evidence_type
-        result_with_type = await agent.process({
-            "incident_description": "Suspicious activity",
-            "analysis_goal": "Find processes",
-            "evidence_type": "memory"
-        })
+        result_with_type = await agent.process(
+            {
+                "incident_description": "Suspicious activity",
+                "analysis_goal": "Find processes",
+                "evidence_type": "memory",
+            }
+        )
 
         # Without evidence_type
-        result_without_type = await agent.process({
-            "incident_description": "Suspicious activity",
-            "analysis_goal": "Find processes"
-        })
+        result_without_type = await agent.process(
+            {"incident_description": "Suspicious activity", "analysis_goal": "Find processes"}
+        )
 
         # Both should succeed, but may select different tools
         assert isinstance(result_with_type, AgentResult)
@@ -402,7 +409,7 @@ class TestToolSelectorExecution:
         # Actual log output verification would require capturing structlog output
 
         agent = ToolSelectorAgent()
-        assert hasattr(agent, 'name')
+        assert hasattr(agent, "name")
         assert agent.name == "tool_selector"
 
     @pytest.mark.asyncio
@@ -410,10 +417,12 @@ class TestToolSelectorExecution:
         """Result should include top 5 candidates for context."""
         agent = ToolSelectorAgent(semantic_top_k=10)
 
-        result = await agent.process({
-            "incident_description": "File system analysis needed",
-            "analysis_goal": "List files in disk image"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "File system analysis needed",
+                "analysis_goal": "List files in disk image",
+            }
+        )
 
         if result.success:
             candidates = result.data["candidates"]
@@ -425,29 +434,35 @@ class TestToolSelectorExecution:
         agent = ToolSelectorAgent()
 
         # Memory analysis
-        memory_result = await agent.process({
-            "incident_description": "Malware in memory",
-            "analysis_goal": "Extract process list from RAM dump"
-        })
+        memory_result = await agent.process(
+            {
+                "incident_description": "Malware in memory",
+                "analysis_goal": "Extract process list from RAM dump",
+            }
+        )
 
         # Network analysis
-        network_result = await agent.process({
-            "incident_description": "Suspicious network traffic",
-            "analysis_goal": "Analyze packets in PCAP file"
-        })
+        network_result = await agent.process(
+            {
+                "incident_description": "Suspicious network traffic",
+                "analysis_goal": "Analyze packets in PCAP file",
+            }
+        )
 
         # Disk analysis
-        disk_result = await agent.process({
-            "incident_description": "Deleted files need recovery",
-            "analysis_goal": "List all files including deleted"
-        })
+        disk_result = await agent.process(
+            {
+                "incident_description": "Deleted files need recovery",
+                "analysis_goal": "List all files including deleted",
+            }
+        )
 
         # Should select different tools
         if all([memory_result.success, network_result.success, disk_result.success]):
             tools = [
                 memory_result.data["tool_selection"].tool_name,
                 network_result.data["tool_selection"].tool_name,
-                disk_result.data["tool_selection"].tool_name
+                disk_result.data["tool_selection"].tool_name,
             ]
             # At least 2 should be different
             assert len(set(tools)) >= 2
@@ -467,11 +482,13 @@ class TestToolSelectorIntegration:
         """Test complete workflow for memory analysis scenario."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Ransomware detected encrypting files on workstation",
-            "analysis_goal": "Identify malicious processes running in memory",
-            "evidence_type": "memory dump"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Ransomware detected encrypting files on workstation",
+                "analysis_goal": "Identify malicious processes running in memory",
+                "evidence_type": "memory dump",
+            }
+        )
 
         assert result.success is True
         assert result.data["tool_selection"].tool_name in ["volatility", "rekall"]
@@ -484,11 +501,13 @@ class TestToolSelectorIntegration:
         """Test complete workflow for disk analysis scenario."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Suspected data exfiltration from compromised server",
-            "analysis_goal": "Find recently deleted files on disk image",
-            "evidence_type": "disk image"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Suspected data exfiltration from compromised server",
+                "analysis_goal": "Find recently deleted files on disk image",
+                "evidence_type": "disk image",
+            }
+        )
 
         assert result.success is True
         assert result.data["tool_selection"].tool_name in ["fls", "icat", "bulk_extractor"]
@@ -500,11 +519,13 @@ class TestToolSelectorIntegration:
         """Test complete workflow for network analysis scenario."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Unusual outbound connections detected by firewall",
-            "analysis_goal": "Analyze network traffic patterns in PCAP",
-            "evidence_type": "network capture"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Unusual outbound connections detected by firewall",
+                "analysis_goal": "Analyze network traffic patterns in PCAP",
+                "evidence_type": "network capture",
+            }
+        )
 
         assert result.success is True
         assert result.data["tool_selection"].tool_name in ["tcpdump", "wireshark"]
@@ -516,15 +537,19 @@ class TestToolSelectorIntegration:
         """LLM should provide detailed reasoning for selection."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Windows registry hive needs analysis",
-            "analysis_goal": "Extract user activity artifacts from NTUSER.DAT"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Windows registry hive needs analysis",
+                "analysis_goal": "Extract user activity artifacts from NTUSER.DAT",
+            }
+        )
 
         if result.success:
             selection = result.data["tool_selection"]
             assert len(selection.reason) > 20  # Meaningful explanation
-            assert "regripper" in selection.tool_name.lower() or "registry" in selection.reason.lower()
+            assert (
+                "regripper" in selection.tool_name.lower() or "registry" in selection.reason.lower()
+            )
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -533,10 +558,12 @@ class TestToolSelectorIntegration:
         """LLM should suggest alternative tools if applicable."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Need to calculate file hashes",
-            "analysis_goal": "Verify file integrity"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Need to calculate file hashes",
+                "analysis_goal": "Verify file integrity",
+            }
+        )
 
         if result.success:
             selection = result.data["tool_selection"]
@@ -549,10 +576,12 @@ class TestToolSelectorIntegration:
         """LLM should specify required inputs for selected tool."""
         agent = ToolSelectorAgent()
 
-        result = await agent.process({
-            "incident_description": "Memory dump analysis required",
-            "analysis_goal": "List running processes"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "Memory dump analysis required",
+                "analysis_goal": "List running processes",
+            }
+        )
 
         if result.success:
             selection = result.data["tool_selection"]
@@ -561,7 +590,9 @@ class TestToolSelectorIntegration:
             if selection.tool_name == "volatility":
                 # Check if inputs dict has relevant keys
                 inputs_str = str(selection.inputs).lower()
-                assert "profile" in inputs_str or "plugin" in inputs_str or len(selection.inputs) > 0
+                assert (
+                    "profile" in inputs_str or "plugin" in inputs_str or len(selection.inputs) > 0
+                )
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -569,10 +600,12 @@ class TestToolSelectorIntegration:
         """Semantic search should successfully constrain LLM to relevant tools."""
         agent = ToolSelectorAgent(semantic_top_k=5)
 
-        result = await agent.process({
-            "incident_description": "String extraction from binary file",
-            "analysis_goal": "Find readable text in executable"
-        })
+        result = await agent.process(
+            {
+                "incident_description": "String extraction from binary file",
+                "analysis_goal": "Find readable text in executable",
+            }
+        )
 
         if result.success:
             # Semantic search should have found 'strings' tool
@@ -590,20 +623,24 @@ class TestToolSelectorIntegration:
         agent = ToolSelectorAgent()
 
         # Clear, specific query
-        clear_result = await agent.process({
-            "incident_description": "Need to run Volatility pslist plugin on Windows 7 memory dump",
-            "analysis_goal": "Extract running processes from memory.raw"
-        })
+        clear_result = await agent.process(
+            {
+                "incident_description": "Need to run Volatility pslist plugin on Windows 7 memory dump",
+                "analysis_goal": "Extract running processes from memory.raw",
+            }
+        )
 
         # Vague, unclear query
-        vague_result = await agent.process({
-            "incident_description": "Something is wrong",
-            "analysis_goal": "Check the computer"
-        })
+        vague_result = await agent.process(
+            {"incident_description": "Something is wrong", "analysis_goal": "Check the computer"}
+        )
 
         # Clear query should have higher confidence
         if clear_result.success and vague_result.success:
-            assert clear_result.data["tool_selection"].confidence > vague_result.data["tool_selection"].confidence
+            assert (
+                clear_result.data["tool_selection"].confidence
+                > vague_result.data["tool_selection"].confidence
+            )
         elif clear_result.success and not vague_result.success:
             # Vague query may fail threshold
             assert True

@@ -9,27 +9,29 @@ Features:
 
 import re
 from dataclasses import dataclass
-from typing import List, Dict
+
 from .base import BaseParser, ParserResult
 
 
 @dataclass
 class GrepMatch:
     """Grep match entry."""
+
     filename: str
     line_number: int
     matched_text: str
-    context_before: List[str] | None = None
-    context_after: List[str] | None = None
+    context_before: list[str] | None = None
+    context_after: list[str] | None = None
 
 
 @dataclass
 class GrepData:
     """Structured grep data."""
-    matches: List[GrepMatch]
+
+    matches: list[GrepMatch]
     total_matches: int
     files_matched: int
-    iocs: Dict[str, List[str]] | None = None
+    iocs: dict[str, list[str]] | None = None
 
 
 class GrepParser(BaseParser):
@@ -48,13 +50,13 @@ class GrepParser(BaseParser):
     """
 
     # IOC patterns
-    IP_PATTERN = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
+    IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
     URL_PATTERN = re.compile(
-        r'https?://[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)+(?:/[^\s]*)?',
-        re.IGNORECASE
+        r"https?://[a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)+(?:/[^\s]*)?",
+        re.IGNORECASE,
     )
     DOMAIN_PATTERN = re.compile(
-        r'\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b'
+        r"\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b"
     )
 
     def __init__(self):
@@ -87,18 +89,15 @@ class GrepParser(BaseParser):
         extract_iocs = kwargs.get("extract_iocs", False)
 
         if not raw_output or not raw_output.strip():
-            return self._create_error_result(
-                raw_output,
-                "Empty grep output"
-            )
+            return self._create_error_result(raw_output, "Empty grep output")
 
         try:
             matches = []
-            lines = raw_output.strip().split('\n')
+            lines = raw_output.strip().split("\n")
 
             # Pattern: filename:line_number:matched_text
             # Example: /var/log/syslog:1234:Apr 01 15:30:45 malware: Starting C2
-            pattern = re.compile(r'^([^:]+):(\d+):(.+)$')
+            pattern = re.compile(r"^([^:]+):(\d+):(.+)$")
 
             for line in lines:
                 if not line.strip():
@@ -111,9 +110,7 @@ class GrepParser(BaseParser):
                     matched_text = match.group(3)
 
                     grep_match = GrepMatch(
-                        filename=filename,
-                        line_number=line_number,
-                        matched_text=matched_text
+                        filename=filename, line_number=line_number, matched_text=matched_text
                     )
                     matches.append(grep_match)
 
@@ -126,40 +123,27 @@ class GrepParser(BaseParser):
             unique_files = len(set(m.filename for m in matches))
 
             data = GrepData(
-                matches=matches,
-                total_matches=len(matches),
-                files_matched=unique_files,
-                iocs=iocs
+                matches=matches, total_matches=len(matches), files_matched=unique_files, iocs=iocs
             )
 
-            metadata = {
-                "extract_iocs": extract_iocs,
-                "unique_files": unique_files
-            }
+            metadata = {"extract_iocs": extract_iocs, "unique_files": unique_files}
 
             if iocs:
                 metadata["ioc_summary"] = {
                     "ips": len(iocs.get("ips", [])),
                     "urls": len(iocs.get("urls", [])),
-                    "domains": len(iocs.get("domains", []))
+                    "domains": len(iocs.get("domains", [])),
                 }
 
             return ParserResult(
-                success=True,
-                data=data,
-                raw_output=raw_output,
-                tool_name="grep",
-                metadata=metadata
+                success=True, data=data, raw_output=raw_output, tool_name="grep", metadata=metadata
             )
 
         except Exception as e:
             self._log_parse_error(f"Failed to parse grep output: {e}")
-            return self._create_error_result(
-                raw_output,
-                f"Parse error: {e}"
-            )
+            return self._create_error_result(raw_output, f"Parse error: {e}")
 
-    def _extract_iocs(self, matches: List[GrepMatch]) -> Dict[str, List[str]]:
+    def _extract_iocs(self, matches: list[GrepMatch]) -> dict[str, list[str]]:
         """Extract IOCs from grep matches.
 
         Args:
@@ -179,7 +163,7 @@ class GrepParser(BaseParser):
             for ip_match in self.IP_PATTERN.finditer(text):
                 ip = ip_match.group(0)
                 # Filter out invalid IPs
-                parts = ip.split('.')
+                parts = ip.split(".")
                 if all(0 <= int(p) <= 255 for p in parts):
                     ips.add(ip)
 
@@ -191,11 +175,11 @@ class GrepParser(BaseParser):
             for domain_match in self.DOMAIN_PATTERN.finditer(text):
                 domain = domain_match.group(0)
                 # Filter out common non-domain matches
-                if not domain.endswith('.log') and not domain.endswith('.txt'):
+                if not domain.endswith(".log") and not domain.endswith(".txt"):
                     domains.add(domain)
 
         return {
             "ips": sorted(list(ips)),
             "urls": sorted(list(urls)),
-            "domains": sorted(list(domains))
+            "domains": sorted(list(domains)),
         }

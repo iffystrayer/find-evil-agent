@@ -1,6 +1,7 @@
 """LLM Provider Protocol - Interface for all provider implementations."""
 
-from typing import Protocol, Any
+from typing import Any, Protocol
+
 from pydantic import BaseModel
 
 
@@ -64,10 +65,7 @@ class LLMProvider(Protocol):
         ...
 
     async def generate_json(
-        self,
-        prompt: str,
-        schema: type[BaseModel] | None = None,
-        **kwargs
+        self, prompt: str, schema: type[BaseModel] | None = None, **kwargs
     ) -> dict[str, Any] | BaseModel:
         """Generate structured JSON from prompt (convenience wrapper).
 
@@ -94,11 +92,7 @@ class LLMProvider(Protocol):
         """
         ...
 
-    async def chat(
-        self,
-        messages: list[dict[str, str]],
-        **kwargs
-    ) -> str:
+    async def chat(self, messages: list[dict[str, str]], **kwargs) -> str:
         """Send chat messages and get text response.
 
         Args:
@@ -130,10 +124,7 @@ class LLMProvider(Protocol):
         ...
 
     async def chat_with_schema(
-        self,
-        messages: list[dict[str, str]],
-        schema: type[BaseModel],
-        **kwargs
+        self, messages: list[dict[str, str]], schema: type[BaseModel], **kwargs
     ) -> BaseModel:
         """Chat with structured output validated against Pydantic schema.
 

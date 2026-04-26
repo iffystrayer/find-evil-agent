@@ -6,12 +6,9 @@ Defines conditions for branching in the workflow:
 - Complete when report generated
 """
 
-from typing import Any
-
 
 def should_retry(state: dict) -> str:
-    """Determine if tool execution should retry."
-    """
+    """Determine if tool execution should retry." """
     raise NotImplementedError("Pending implementation")
 
 

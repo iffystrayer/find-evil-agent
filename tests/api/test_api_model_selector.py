@@ -7,10 +7,9 @@ Following TDD methodology:
 4. Error Handling Tests - Invalid inputs
 """
 
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
+from fastapi.testclient import TestClient
 
 # ==============================================================================
 # SPECIFICATION TESTS (Always Pass)
@@ -63,8 +62,10 @@ class TestAnalyzeEndpointWithModelSelector:
         """Test analyze endpoint accepts provider query parameter."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.api.server.create_llm_provider') as mock_factory:
+        with (
+            patch("find_evil_agent.api.server.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.api.server.create_llm_provider") as mock_factory,
+        ):
 
             # Setup mocks
             mock_provider = Mock()
@@ -81,19 +82,16 @@ class TestAnalyzeEndpointWithModelSelector:
                         selected_tools=[Mock(model_dump=lambda: {"tool": "strings"})],
                         findings=[],
                         iocs=[],
-                        step_count=1
+                        step_count=1,
                     ),
-                    "summary": "Test summary"
-                }
+                    "summary": "Test summary",
+                },
             )
 
             client = TestClient(app)
             response = client.post(
                 "/api/v1/analyze?provider=openai&model=gpt-4-turbo",
-                json={
-                    "incident_description": "Test incident",
-                    "analysis_goal": "Test goal"
-                }
+                json={"incident_description": "Test incident", "analysis_goal": "Test goal"},
             )
 
             assert response.status_code == 200
@@ -106,7 +104,7 @@ class TestAnalyzeEndpointWithModelSelector:
         """Test analyze endpoint without provider uses default settings."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.OrchestratorAgent') as mock_orch_class:
+        with patch("find_evil_agent.api.server.OrchestratorAgent") as mock_orch_class:
 
             mock_orch = AsyncMock()
             mock_orch_class.return_value = mock_orch
@@ -119,19 +117,16 @@ class TestAnalyzeEndpointWithModelSelector:
                         selected_tools=[Mock(model_dump=lambda: {"tool": "strings"})],
                         findings=[],
                         iocs=[],
-                        step_count=1
+                        step_count=1,
                     ),
-                    "summary": "Test summary"
-                }
+                    "summary": "Test summary",
+                },
             )
 
             client = TestClient(app)
             response = client.post(
                 "/api/v1/analyze",
-                json={
-                    "incident_description": "Test incident",
-                    "analysis_goal": "Test goal"
-                }
+                json={"incident_description": "Test incident", "analysis_goal": "Test goal"},
             )
 
             assert response.status_code == 200
@@ -144,8 +139,10 @@ class TestAnalyzeEndpointWithModelSelector:
         """Test analyze endpoint with only model parameter."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.api.server.create_llm_provider') as mock_factory:
+        with (
+            patch("find_evil_agent.api.server.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.api.server.create_llm_provider") as mock_factory,
+        ):
 
             mock_provider = Mock()
             mock_factory.return_value = mock_provider
@@ -161,19 +158,16 @@ class TestAnalyzeEndpointWithModelSelector:
                         selected_tools=[Mock(model_dump=lambda: {"tool": "strings"})],
                         findings=[],
                         iocs=[],
-                        step_count=1
+                        step_count=1,
                     ),
-                    "summary": "Test summary"
-                }
+                    "summary": "Test summary",
+                },
             )
 
             client = TestClient(app)
             response = client.post(
                 "/api/v1/analyze?model=gpt-4",
-                json={
-                    "incident_description": "Test incident",
-                    "analysis_goal": "Test goal"
-                }
+                json={"incident_description": "Test incident", "analysis_goal": "Test goal"},
             )
 
             assert response.status_code == 200
@@ -188,8 +182,10 @@ class TestInvestigateEndpointWithModelSelector:
         """Test investigate endpoint accepts provider query parameter."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.api.server.create_llm_provider') as mock_factory:
+        with (
+            patch("find_evil_agent.api.server.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.api.server.create_llm_provider") as mock_factory,
+        ):
 
             mock_provider = Mock()
             mock_factory.return_value = mock_provider
@@ -204,7 +200,7 @@ class TestInvestigateEndpointWithModelSelector:
                 all_iocs={},
                 total_duration=10.5,
                 stopping_reason="Complete",
-                investigation_summary="Test summary"
+                investigation_summary="Test summary",
             )
 
             client = TestClient(app)
@@ -213,8 +209,8 @@ class TestInvestigateEndpointWithModelSelector:
                 json={
                     "incident_description": "Test incident",
                     "analysis_goal": "Test goal",
-                    "max_iterations": 3
-                }
+                    "max_iterations": 3,
+                },
             )
 
             assert response.status_code == 200
@@ -227,7 +223,7 @@ class TestInvestigateEndpointWithModelSelector:
         """Test investigate endpoint without provider uses default."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.OrchestratorAgent') as mock_orch_class:
+        with patch("find_evil_agent.api.server.OrchestratorAgent") as mock_orch_class:
 
             mock_orch = AsyncMock()
             mock_orch_class.return_value = mock_orch
@@ -239,7 +235,7 @@ class TestInvestigateEndpointWithModelSelector:
                 all_iocs={},
                 total_duration=10.5,
                 stopping_reason="Complete",
-                investigation_summary="Test summary"
+                investigation_summary="Test summary",
             )
 
             client = TestClient(app)
@@ -248,8 +244,8 @@ class TestInvestigateEndpointWithModelSelector:
                 json={
                     "incident_description": "Test incident",
                     "analysis_goal": "Test goal",
-                    "max_iterations": 3
-                }
+                    "max_iterations": 3,
+                },
             )
 
             assert response.status_code == 200
@@ -267,8 +263,10 @@ class TestAPIModelSelectorIntegration:
         """Test complete analyze workflow with Ollama provider."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.api.server.create_llm_provider') as mock_factory:
+        with (
+            patch("find_evil_agent.api.server.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.api.server.create_llm_provider") as mock_factory,
+        ):
 
             mock_provider = Mock()
             mock_factory.return_value = mock_provider
@@ -284,10 +282,10 @@ class TestAPIModelSelectorIntegration:
                         selected_tools=[Mock(model_dump=lambda: {"tool": "volatility"})],
                         findings=[],
                         iocs=[],
-                        step_count=1
+                        step_count=1,
                     ),
-                    "summary": "Integration test"
-                }
+                    "summary": "Integration test",
+                },
             )
 
             client = TestClient(app)
@@ -295,8 +293,8 @@ class TestAPIModelSelectorIntegration:
                 "/api/v1/analyze?provider=ollama&model=qwen3.5:397b-cloud",
                 json={
                     "incident_description": "Ransomware detected",
-                    "analysis_goal": "Find malicious processes"
-                }
+                    "analysis_goal": "Find malicious processes",
+                },
             )
 
             assert response.status_code == 200
@@ -308,8 +306,10 @@ class TestAPIModelSelectorIntegration:
         """Test complete investigate workflow with OpenAI provider."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.OrchestratorAgent') as mock_orch_class, \
-             patch('find_evil_agent.api.server.create_llm_provider') as mock_factory:
+        with (
+            patch("find_evil_agent.api.server.OrchestratorAgent") as mock_orch_class,
+            patch("find_evil_agent.api.server.create_llm_provider") as mock_factory,
+        ):
 
             mock_provider = Mock()
             mock_factory.return_value = mock_provider
@@ -324,7 +324,7 @@ class TestAPIModelSelectorIntegration:
                 all_iocs={},
                 total_duration=15.0,
                 stopping_reason="Max iterations",
-                investigation_summary="Complete"
+                investigation_summary="Complete",
             )
 
             client = TestClient(app)
@@ -333,8 +333,8 @@ class TestAPIModelSelectorIntegration:
                 json={
                     "incident_description": "Data breach",
                     "analysis_goal": "Reconstruct attack chain",
-                    "max_iterations": 5
-                }
+                    "max_iterations": 5,
+                },
             )
 
             assert response.status_code == 200
@@ -354,16 +354,13 @@ class TestAPIModelSelectorErrorHandling:
         """Test that invalid provider returns proper error."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.create_llm_provider') as mock_factory:
+        with patch("find_evil_agent.api.server.create_llm_provider") as mock_factory:
             mock_factory.side_effect = ValueError("Unknown provider: invalid")
 
             client = TestClient(app)
             response = client.post(
                 "/api/v1/analyze?provider=invalid&model=test",
-                json={
-                    "incident_description": "Test",
-                    "analysis_goal": "Test"
-                }
+                json={"incident_description": "Test", "analysis_goal": "Test"},
             )
 
             assert response.status_code == 500
@@ -373,16 +370,13 @@ class TestAPIModelSelectorErrorHandling:
         """Test that missing API key returns proper error."""
         from find_evil_agent.api.server import app
 
-        with patch('find_evil_agent.api.server.create_llm_provider') as mock_factory:
+        with patch("find_evil_agent.api.server.create_llm_provider") as mock_factory:
             mock_factory.side_effect = ValueError("OPENAI_API_KEY required")
 
             client = TestClient(app)
             response = client.post(
                 "/api/v1/analyze?provider=openai&model=gpt-4-turbo",
-                json={
-                    "incident_description": "Test",
-                    "analysis_goal": "Test"
-                }
+                json={"incident_description": "Test", "analysis_goal": "Test"},
             )
 
             assert response.status_code == 500

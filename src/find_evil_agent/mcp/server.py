@@ -18,16 +18,13 @@ Example:
 """
 
 import asyncio
-import sys
-from typing import Any
-import structlog
 
-from mcp.server.fastmcp import FastMCP, Context
-from mcp.types import Tool, TextContent
+import structlog
+from mcp.server.fastmcp import FastMCP
 
 from find_evil_agent.agents.orchestrator import OrchestratorAgent
-from find_evil_agent.tools.registry import ToolRegistry
 from find_evil_agent.config.settings import get_settings
+from find_evil_agent.tools.registry import ToolRegistry
 
 logger = structlog.get_logger(__name__)
 
@@ -55,15 +52,13 @@ Always:
 
 Human-in-the-loop review is critical for forensic integrity.""",
     debug=False,
-    log_level="INFO"
+    log_level="INFO",
 )
 
 
 @mcp.tool()
 async def analyze_evidence(
-    incident_description: str,
-    analysis_goal: str,
-    evidence_path: str | None = None
+    incident_description: str, analysis_goal: str, evidence_path: str | None = None
 ) -> str:
     """Run single-shot forensic analysis on SIFT VM.
 
@@ -84,20 +79,18 @@ async def analyze_evidence(
             analysis_goal="Identify malicious processes in memory"
         )
     """
-    logger.info(
-        "mcp_tool_called",
-        tool="analyze_evidence",
-        incident=incident_description[:50]
-    )
+    logger.info("mcp_tool_called", tool="analyze_evidence", incident=incident_description[:50])
 
     try:
         orchestrator = OrchestratorAgent()
 
-        result = await orchestrator.process({
-            "incident_description": incident_description,
-            "analysis_goal": analysis_goal,
-            "evidence_path": evidence_path
-        })
+        result = await orchestrator.process(
+            {
+                "incident_description": incident_description,
+                "analysis_goal": analysis_goal,
+                "evidence_path": evidence_path,
+            }
+        )
 
         if not result.success:
             return f"❌ Analysis failed: {result.error}"
@@ -148,7 +141,7 @@ async def investigate(
     incident_description: str,
     analysis_goal: str,
     max_iterations: int = 5,
-    min_lead_confidence: float = 0.6
+    min_lead_confidence: float = 0.6,
 ) -> str:
     """Run autonomous iterative investigation - follows leads automatically.
 
@@ -179,7 +172,7 @@ async def investigate(
         "mcp_tool_called",
         tool="investigate",
         incident=incident_description[:50],
-        max_iterations=max_iterations
+        max_iterations=max_iterations,
     )
 
     try:
@@ -190,7 +183,7 @@ async def investigate(
             analysis_goal=analysis_goal,
             max_iterations=max_iterations,
             auto_follow=True,
-            min_lead_confidence=min_lead_confidence
+            min_lead_confidence=min_lead_confidence,
         )
 
         # Format response
@@ -270,11 +263,7 @@ async def list_tools(category: str | None = None) -> str:
 
 
 @mcp.tool()
-async def select_tool(
-    incident_description: str,
-    analysis_goal: str,
-    top_k: int = 10
-) -> str:
+async def select_tool(incident_description: str, analysis_goal: str, top_k: int = 10) -> str:
     """Select best forensic tool using hallucination-resistant selection.
 
     Uses two-stage process:
@@ -303,10 +292,9 @@ async def select_tool(
 
         selector = ToolSelectorAgent(semantic_top_k=top_k)
 
-        result = await selector.process({
-            "incident_description": incident_description,
-            "analysis_goal": analysis_goal
-        })
+        result = await selector.process(
+            {"incident_description": incident_description, "analysis_goal": analysis_goal}
+        )
 
         if not result.success:
             return f"❌ Selection failed: {result.error}"
@@ -382,6 +370,7 @@ async def get_tool_registry() -> str:
     categories, inputs, examples, and output formats.
     """
     import json
+
     registry = ToolRegistry()
     return json.dumps(registry.tools, indent=2)
 
@@ -390,15 +379,19 @@ async def get_tool_registry() -> str:
 async def get_settings_resource() -> str:
     """Get configuration settings as JSON."""
     import json
+
     settings = get_settings()
-    return json.dumps({
-        "llm_provider": settings.llm_provider,
-        "llm_model_name": settings.llm_model_name,
-        "sift_vm_host": settings.sift_vm_host,
-        "sift_vm_port": settings.sift_vm_port,
-        "tool_confidence_threshold": settings.tool_confidence_threshold,
-        "semantic_search_top_k": settings.semantic_search_top_k
-    }, indent=2)
+    return json.dumps(
+        {
+            "llm_provider": settings.llm_provider,
+            "llm_model_name": settings.llm_model_name,
+            "sift_vm_host": settings.sift_vm_host,
+            "sift_vm_port": settings.sift_vm_port,
+            "tool_confidence_threshold": settings.tool_confidence_threshold,
+            "semantic_search_top_k": settings.semantic_search_top_k,
+        },
+        indent=2,
+    )
 
 
 # MCP Prompts
@@ -538,11 +531,10 @@ Output Format:
 
 # Additional Tools
 
+
 @mcp.tool()
 async def execute_tool(
-    tool_name: str,
-    evidence_path: str | None = None,
-    parameters: dict | None = None
+    tool_name: str, evidence_path: str | None = None, parameters: dict | None = None
 ) -> str:
     """Execute a specific SIFT forensic tool directly.
 
@@ -564,11 +556,7 @@ async def execute_tool(
             parameters={"min_length": 8, "encoding": "unicode"}
         )
     """
-    logger.info(
-        "mcp_tool_called",
-        tool="execute_tool",
-        tool_name=tool_name
-    )
+    logger.info("mcp_tool_called", tool="execute_tool", tool_name=tool_name)
 
     try:
         from find_evil_agent.agents.tool_executor import ToolExecutorAgent
@@ -633,10 +621,7 @@ async def execute_tool(
 
 @mcp.tool()
 async def register_evidence(
-    file_path: str,
-    evidence_type: str,
-    case_id: str | None = None,
-    description: str | None = None
+    file_path: str, evidence_type: str, case_id: str | None = None, description: str | None = None
 ) -> str:
     """Register evidence file for tracking and chain-of-custody.
 
@@ -660,14 +645,9 @@ async def register_evidence(
             description="File server disk image from ransomware incident"
         )
     """
-    logger.info(
-        "mcp_tool_called",
-        tool="register_evidence",
-        file_path=file_path
-    )
+    logger.info("mcp_tool_called", tool="register_evidence", file_path=file_path)
 
     try:
-        import os
         import hashlib
         from datetime import datetime
 
@@ -707,7 +687,7 @@ async def generate_report(
     case_id: str | None = None,
     format: str = "html",
     include_iocs: bool = True,
-    include_timeline: bool = True
+    include_timeline: bool = True,
 ) -> str:
     """Generate professional investigation report.
 
@@ -731,17 +711,14 @@ async def generate_report(
             include_timeline=True
         )
     """
-    logger.info(
-        "mcp_tool_called",
-        tool="generate_report",
-        case_id=case_id,
-        format=format
-    )
+    logger.info("mcp_tool_called", tool="generate_report", case_id=case_id, format=format)
 
     try:
         from datetime import datetime
 
-        report_file = f"report_{case_id or 'latest'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{format}"
+        report_file = (
+            f"report_{case_id or 'latest'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{format}"
+        )
 
         return f"""✅ Report Generated Successfully
 
@@ -792,24 +769,24 @@ async def extract_iocs(text: str) -> str:
         iocs = defaultdict(list)
 
         # IP addresses
-        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
-        iocs['ips'] = list(set(re.findall(ip_pattern, text)))
+        ip_pattern = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
+        iocs["ips"] = list(set(re.findall(ip_pattern, text)))
 
         # Domains (simplified pattern)
-        domain_pattern = r'\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b'
-        iocs['domains'] = list(set(re.findall(domain_pattern, text)))
+        domain_pattern = r"\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b"
+        iocs["domains"] = list(set(re.findall(domain_pattern, text)))
 
         # MD5/SHA256 hashes
-        hash_pattern = r'\b[a-fA-F0-9]{32}\b|\b[a-fA-F0-9]{64}\b'
-        iocs['hashes'] = list(set(re.findall(hash_pattern, text)))
+        hash_pattern = r"\b[a-fA-F0-9]{32}\b|\b[a-fA-F0-9]{64}\b"
+        iocs["hashes"] = list(set(re.findall(hash_pattern, text)))
 
         # File paths
-        path_pattern = r'(?:/[a-zA-Z0-9_.-]+)+|(?:[A-Z]:\\(?:[a-zA-Z0-9_.-]+\\)*[a-zA-Z0-9_.-]+)'
-        iocs['file_paths'] = list(set(re.findall(path_pattern, text)))
+        path_pattern = r"(?:/[a-zA-Z0-9_.-]+)+|(?:[A-Z]:\\(?:[a-zA-Z0-9_.-]+\\)*[a-zA-Z0-9_.-]+)"
+        iocs["file_paths"] = list(set(re.findall(path_pattern, text)))
 
         # Email addresses
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        iocs['emails'] = list(set(re.findall(email_pattern, text)))
+        email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+        iocs["emails"] = list(set(re.findall(email_pattern, text)))
 
         total_iocs = sum(len(v) for v in iocs.values())
 
@@ -838,11 +815,7 @@ async def extract_iocs(text: str) -> str:
 
 
 @mcp.tool()
-async def create_case(
-    case_name: str,
-    description: str,
-    analyst: str | None = None
-) -> str:
+async def create_case(case_name: str, description: str, analyst: str | None = None) -> str:
     """Create new investigation case.
 
     Initializes case with metadata, assigns case ID, and sets up workspace.
@@ -863,15 +836,11 @@ async def create_case(
             analyst="analyst@company.com"
         )
     """
-    logger.info(
-        "mcp_tool_called",
-        tool="create_case",
-        case_name=case_name
-    )
+    logger.info("mcp_tool_called", tool="create_case", case_name=case_name)
 
     try:
-        from datetime import datetime
         import uuid
+        from datetime import datetime
 
         case_id = f"case-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8]}"
 
@@ -913,11 +882,7 @@ async def list_cases(status: str | None = None) -> str:
     Example:
         list_cases(status="active")
     """
-    logger.info(
-        "mcp_tool_called",
-        tool="list_cases",
-        status=status
-    )
+    logger.info("mcp_tool_called", tool="list_cases", status=status)
 
     try:
         # Mock implementation - would query case database
@@ -929,15 +894,15 @@ async def list_cases(status: str | None = None) -> str:
                 "name": "Ransomware Investigation",
                 "status": "active",
                 "created": (datetime.utcnow() - timedelta(days=2)).isoformat(),
-                "analyst": "analyst1@company.com"
+                "analyst": "analyst1@company.com",
             },
             {
                 "case_id": "case-20240420-def456",
                 "name": "Data Exfiltration",
                 "status": "active",
                 "created": (datetime.utcnow() - timedelta(days=3)).isoformat(),
-                "analyst": "analyst2@company.com"
-            }
+                "analyst": "analyst2@company.com",
+            },
         ]
 
         # Filter by status if provided
@@ -981,11 +946,7 @@ async def get_case(case_id: str) -> str:
     Example:
         get_case(case_id="case-20240422-abc123")
     """
-    logger.info(
-        "mcp_tool_called",
-        tool="get_case",
-        case_id=case_id
-    )
+    logger.info("mcp_tool_called", tool="get_case", case_id=case_id)
 
     try:
         from datetime import datetime, timedelta
@@ -1003,7 +964,7 @@ async def get_case(case_id: str) -> str:
             "created": (datetime.utcnow() - timedelta(days=2)).isoformat(),
             "evidence_count": 3,
             "findings_count": 12,
-            "ioc_count": 47
+            "ioc_count": 47,
         }
 
         return f"""📂 Case Details
@@ -1035,6 +996,7 @@ Use generate_report to create final investigation report.
 
 # Additional Resources
 
+
 @mcp.resource("cases://list")
 async def get_cases_list() -> str:
     """Get complete list of investigation cases as JSON.
@@ -1052,7 +1014,7 @@ async def get_cases_list() -> str:
             "analyst": "analyst1@company.com",
             "created": (datetime.utcnow() - timedelta(days=2)).isoformat(),
             "evidence_count": 3,
-            "findings_count": 12
+            "findings_count": 12,
         },
         {
             "case_id": "case-20240420-def456",
@@ -1061,8 +1023,8 @@ async def get_cases_list() -> str:
             "analyst": "analyst2@company.com",
             "created": (datetime.utcnow() - timedelta(days=3)).isoformat(),
             "evidence_count": 1,
-            "findings_count": 5
-        }
+            "findings_count": 5,
+        },
     ]
 
     return json.dumps(cases, indent=2)
@@ -1085,7 +1047,7 @@ async def get_evidence_catalog() -> str:
             "case_id": "case-20240422-abc123",
             "sha256": "a1b2c3d4e5f6...",
             "size_bytes": 10737418240,
-            "registered": (datetime.utcnow() - timedelta(days=2)).isoformat()
+            "registered": (datetime.utcnow() - timedelta(days=2)).isoformat(),
         },
         {
             "evidence_id": "ev-002",
@@ -1094,8 +1056,8 @@ async def get_evidence_catalog() -> str:
             "case_id": "case-20240422-abc123",
             "sha256": "f6e5d4c3b2a1...",
             "size_bytes": 8589934592,
-            "registered": (datetime.utcnow() - timedelta(days=1)).isoformat()
-        }
+            "registered": (datetime.utcnow() - timedelta(days=1)).isoformat(),
+        },
     ]
 
     return json.dumps(evidence, indent=2)
@@ -1113,12 +1075,7 @@ async def main():
 
     if args.http:
         # Run as HTTP server (streamable-http transport)
-        logger.info(
-            "mcp_server_starting",
-            transport="http",
-            host=args.host,
-            port=args.port
-        )
+        logger.info("mcp_server_starting", transport="http", host=args.host, port=args.port)
 
         # Update FastMCP settings
         mcp.settings.host = args.host
@@ -1134,9 +1091,7 @@ async def main():
 
         async with stdio_server() as (read_stream, write_stream):
             await mcp.server.run(
-                read_stream,
-                write_stream,
-                mcp.server.create_initialization_options()
+                read_stream, write_stream, mcp.server.create_initialization_options()
             )
 
 

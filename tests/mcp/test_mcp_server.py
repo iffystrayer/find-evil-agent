@@ -9,13 +9,14 @@ This test suite follows the TDD methodology:
 Target: 10+ tools, 4+ resources, 4+ prompts for hackathon requirement compliance.
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from mcp.types import Tool, TextContent
 
 # Conditional import for TDD - MCP server components may not be complete yet
 try:
     from find_evil_agent.mcp.server import mcp
+
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -25,6 +26,7 @@ except ImportError:
 # ============================================================================
 # SPECIFICATION TESTS (Always Pass - Document Requirements)
 # ============================================================================
+
 
 class TestMCPServerSpecification:
     """Document MCP server requirements and capabilities."""
@@ -99,6 +101,7 @@ class TestMCPServerSpecification:
 # STRUCTURE TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 class TestMCPServerStructure:
     """Verify MCP server structure and protocol compliance."""
 
@@ -122,7 +125,7 @@ class TestMCPServerStructure:
             "extract_iocs",
             "create_case",
             "list_cases",
-            "get_case"
+            "get_case",
         ]
 
         for required_tool in required_tools:
@@ -142,11 +145,13 @@ class TestMCPServerStructure:
             "tools://registry",
             "config://settings",
             "cases://list",
-            "evidence://catalog"
+            "evidence://catalog",
         ]
 
         for required_resource in required_resources:
-            assert required_resource in resource_uris, f"Missing required resource: {required_resource}"
+            assert (
+                required_resource in resource_uris
+            ), f"Missing required resource: {required_resource}"
 
         # Hackathon compliance: 4+ resources
         assert len(resource_uris) >= 4, f"Need 4+ resources, got {len(resource_uris)}"
@@ -162,7 +167,7 @@ class TestMCPServerStructure:
             "memory_analysis",
             "disk_triage",
             "network_analysis",
-            "timeline_analysis"
+            "timeline_analysis",
         ]
 
         for required_prompt in required_prompts:
@@ -186,6 +191,7 @@ class TestMCPServerStructure:
 # EXECUTION TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 class TestMCPToolExecution:
     """Test MCP tool execution with real/mock inputs."""
 
@@ -197,29 +203,35 @@ class TestMCPToolExecution:
             success=True,
             data={
                 "state": Mock(
-                    selected_tools=[Mock(
-                        tool_name="strings",
-                        confidence=0.85,
-                        reasoning="Best tool for text extraction"
-                    )],
-                    execution_results=[Mock(
-                        command="strings /evidence/file.bin",
-                        status=Mock(value="success"),
-                        execution_time=2.5
-                    )],
-                    analysis_results=[Mock(
-                        findings=[
-                            Mock(
-                                severity="high",
-                                title="Suspicious string found",
-                                description="Found C2 domain in binary",
-                                confidence=0.9
-                            )
-                        ],
-                        iocs={"domains": ["evil.com"], "ips": ["1.2.3.4"]}
-                    )]
+                    selected_tools=[
+                        Mock(
+                            tool_name="strings",
+                            confidence=0.85,
+                            reasoning="Best tool for text extraction",
+                        )
+                    ],
+                    execution_results=[
+                        Mock(
+                            command="strings /evidence/file.bin",
+                            status=Mock(value="success"),
+                            execution_time=2.5,
+                        )
+                    ],
+                    analysis_results=[
+                        Mock(
+                            findings=[
+                                Mock(
+                                    severity="high",
+                                    title="Suspicious string found",
+                                    description="Found C2 domain in binary",
+                                    confidence=0.9,
+                                )
+                            ],
+                            iocs={"domains": ["evil.com"], "ips": ["1.2.3.4"]},
+                        )
+                    ],
                 )
-            }
+            },
         )
         return mock
 
@@ -227,7 +239,7 @@ class TestMCPToolExecution:
     @pytest.mark.asyncio
     async def test_execute_tool_direct_execution(self, mock_orchestrator):
         """execute_tool must run a specific tool directly on SIFT VM."""
-        with patch('find_evil_agent.agents.tool_executor.ToolExecutorAgent') as mock_executor_class:
+        with patch("find_evil_agent.agents.tool_executor.ToolExecutorAgent") as mock_executor_class:
             # Mock the executor instance and its process method
             mock_executor_instance = AsyncMock()
             mock_executor_instance.process.return_value = Mock(
@@ -238,9 +250,9 @@ class TestMCPToolExecution:
                         stderr="",
                         exit_code=0,
                         execution_time=1.5,
-                        status=Mock(value="success")
+                        status=Mock(value="success"),
                     )
-                }
+                },
             )
             mock_executor_class.return_value = mock_executor_instance
 
@@ -249,7 +261,7 @@ class TestMCPToolExecution:
             result = await execute_tool(
                 tool_name="strings",
                 evidence_path="/mnt/evidence/file.bin",
-                parameters={"min_length": 8}
+                parameters={"min_length": 8},
             )
 
             assert "✅" in result
@@ -266,7 +278,7 @@ class TestMCPToolExecution:
             file_path="/mnt/evidence/memory.dmp",
             evidence_type="memory_dump",
             case_id="case-001",
-            description="Windows 10 memory dump"
+            description="Windows 10 memory dump",
         )
 
         assert "✅" in result
@@ -280,10 +292,7 @@ class TestMCPToolExecution:
         from find_evil_agent.mcp.server import generate_report
 
         result = await generate_report(
-            case_id="case-001",
-            format="html",
-            include_iocs=True,
-            include_timeline=True
+            case_id="case-001", format="html", include_iocs=True, include_timeline=True
         )
 
         assert "✅" in result or "report" in result.lower()
@@ -317,7 +326,7 @@ class TestMCPToolExecution:
         result = await create_case(
             case_name="Ransomware Investigation",
             description="Suspected ransomware on file server",
-            analyst="analyst@company.com"
+            analyst="analyst@company.com",
         )
 
         assert "✅" in result or "created" in result.lower()
@@ -348,6 +357,7 @@ class TestMCPToolExecution:
 # RESOURCE TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 class TestMCPResources:
     """Test MCP resources for data access."""
 
@@ -361,6 +371,7 @@ class TestMCPResources:
 
         # Should be valid JSON
         import json
+
         try:
             data = json.loads(result)
             assert isinstance(data, (list, dict))
@@ -377,6 +388,7 @@ class TestMCPResources:
 
         # Should be valid JSON
         import json
+
         try:
             data = json.loads(result)
             assert isinstance(data, (list, dict))
@@ -387,6 +399,7 @@ class TestMCPResources:
 # ============================================================================
 # PROMPT TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 class TestMCPPrompts:
     """Test MCP prompt templates."""
@@ -419,6 +432,7 @@ class TestMCPPrompts:
 # INTEGRATION TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 class TestMCPServerIntegration:
     """Test MCP server end-to-end workflows."""
 
@@ -447,6 +461,7 @@ class TestMCPServerIntegration:
 # ERROR HANDLING TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 class TestMCPErrorHandling:
     """Test MCP server error handling and edge cases."""
 
@@ -457,8 +472,7 @@ class TestMCPErrorHandling:
         from find_evil_agent.mcp.server import execute_tool
 
         result = await execute_tool(
-            tool_name="nonexistent_tool",
-            evidence_path="/evidence/file.bin"
+            tool_name="nonexistent_tool", evidence_path="/evidence/file.bin"
         )
 
         assert "❌" in result or "error" in result.lower()
@@ -470,9 +484,7 @@ class TestMCPErrorHandling:
         from find_evil_agent.mcp.server import register_evidence
 
         result = await register_evidence(
-            file_path="/nonexistent/file.bin",
-            evidence_type="disk_image",
-            case_id="case-001"
+            file_path="/nonexistent/file.bin", evidence_type="disk_image", case_id="case-001"
         )
 
         # Should handle gracefully, not crash

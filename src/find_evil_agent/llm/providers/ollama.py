@@ -29,11 +29,12 @@ Example:
     >>> print(response)
 """
 
+from typing import Any
+
 import httpx
 import orjson
-from typing import Any
-from pydantic import BaseModel, ValidationError
 import structlog
+from pydantic import BaseModel, ValidationError
 
 logger = structlog.get_logger()
 
@@ -52,11 +53,7 @@ class OllamaProvider:
     """
 
     def __init__(
-        self,
-        base_url: str,
-        model_name: str,
-        temperature: float = 0.1,
-        timeout: float = 120.0
+        self, base_url: str, model_name: str, temperature: float = 0.1, timeout: float = 120.0
     ):
         """Initialize Ollama provider.
 
@@ -73,7 +70,7 @@ class OllamaProvider:
             ...     temperature=0.1
             ... )
         """
-        self._base_url = base_url.rstrip('/')
+        self._base_url = base_url.rstrip("/")
         self._model_name = model_name
         self._temperature = temperature
         self._client = httpx.AsyncClient(timeout=timeout)
@@ -126,22 +123,17 @@ class OllamaProvider:
             ...     {"role": "user", "content": "Explain volatility"}
             ... ])
         """
-        temperature = kwargs.get('temperature', self._temperature)
+        temperature = kwargs.get("temperature", self._temperature)
 
         payload = {
             "model": self._model_name,
             "messages": messages,
             "stream": False,
-            "options": {
-                "temperature": temperature
-            }
+            "options": {"temperature": temperature},
         }
 
         try:
-            response = await self._client.post(
-                f"{self._base_url}/api/chat",
-                json=payload
-            )
+            response = await self._client.post(f"{self._base_url}/api/chat", json=payload)
             response.raise_for_status()
 
             data = response.json()
@@ -152,10 +144,7 @@ class OllamaProvider:
             raise RuntimeError(f"Ollama request failed: {e}")
 
     async def generate_json(
-        self,
-        prompt: str,
-        schema: type[BaseModel] | None = None,
-        **kwargs
+        self, prompt: str, schema: type[BaseModel] | None = None, **kwargs
     ) -> dict[str, Any] | BaseModel:
         """Generate structured JSON from prompt (convenience wrapper).
 
@@ -188,22 +177,17 @@ class OllamaProvider:
             return await self.chat_with_schema(messages, schema, **kwargs)
         else:
             # Return raw JSON dict
-            temperature = kwargs.get('temperature', self._temperature)
+            temperature = kwargs.get("temperature", self._temperature)
             payload = {
                 "model": self._model_name,
                 "messages": messages,
                 "stream": False,
                 "format": "json",
-                "options": {
-                    "temperature": temperature
-                }
+                "options": {"temperature": temperature},
             }
 
             try:
-                response = await self._client.post(
-                    f"{self._base_url}/api/chat",
-                    json=payload
-                )
+                response = await self._client.post(f"{self._base_url}/api/chat", json=payload)
                 response.raise_for_status()
 
                 data = response.json()
@@ -215,10 +199,7 @@ class OllamaProvider:
                 raise RuntimeError(f"Ollama JSON request failed: {e}")
 
     async def chat_with_schema(
-        self,
-        messages: list[dict[str, str]],
-        schema: type[BaseModel],
-        **kwargs
+        self, messages: list[dict[str, str]], schema: type[BaseModel], **kwargs
     ) -> BaseModel:
         """Chat with structured output using JSON mode.
 
@@ -258,24 +239,19 @@ class OllamaProvider:
         messages_with_schema = self._inject_schema_prompt(messages, schema_prompt)
 
         # Request JSON output
-        temperature = kwargs.get('temperature', self._temperature)
+        temperature = kwargs.get("temperature", self._temperature)
         payload = {
             "model": self._model_name,
             "messages": messages_with_schema,
             "stream": False,
             "format": "json",  # Ollama JSON mode
-            "options": {
-                "temperature": temperature
-            }
+            "options": {"temperature": temperature},
         }
 
         max_retries = 2
         for attempt in range(max_retries):
             try:
-                response = await self._client.post(
-                    f"{self._base_url}/api/chat",
-                    json=payload
-                )
+                response = await self._client.post(f"{self._base_url}/api/chat", json=payload)
                 response.raise_for_status()
 
                 data = response.json()
@@ -286,9 +262,7 @@ class OllamaProvider:
                 validated = schema.model_validate(json_obj)
 
                 logger.info(
-                    "ollama_structured_output_success",
-                    schema=schema.__name__,
-                    attempt=attempt + 1
+                    "ollama_structured_output_success", schema=schema.__name__, attempt=attempt + 1
                 )
                 return validated
 
@@ -297,7 +271,7 @@ class OllamaProvider:
                     "ollama_structured_output_failed",
                     schema=schema.__name__,
                     attempt=attempt + 1,
-                    error=str(e)
+                    error=str(e),
                 )
 
                 if attempt < max_retries - 1:
@@ -306,10 +280,7 @@ class OllamaProvider:
                         f"Previous response was invalid: {e}. "
                         f"Please respond with valid JSON matching the schema exactly."
                     )
-                    messages_with_schema.append({
-                        "role": "user",
-                        "content": error_msg
-                    })
+                    messages_with_schema.append({"role": "user", "content": error_msg})
                     # Update payload for next attempt
                     payload["messages"] = messages_with_schema
                 else:
@@ -353,9 +324,7 @@ IMPORTANT:
 - Follow the exact field names and types"""
 
     def _inject_schema_prompt(
-        self,
-        messages: list[dict[str, str]],
-        schema_prompt: str
+        self, messages: list[dict[str, str]], schema_prompt: str
     ) -> list[dict[str, str]]:
         """Inject schema into system message or prepend.
 
@@ -379,10 +348,7 @@ IMPORTANT:
             messages_copy[0]["content"] += f"\n\n{schema_prompt}"
         else:
             # Prepend new system message
-            messages_copy.insert(0, {
-                "role": "system",
-                "content": schema_prompt
-            })
+            messages_copy.insert(0, {"role": "system", "content": schema_prompt})
 
         return messages_copy
 

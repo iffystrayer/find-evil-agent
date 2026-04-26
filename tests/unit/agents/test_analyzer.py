@@ -8,13 +8,19 @@ TDD Structure:
 """
 
 import pytest
-from unittest.mock import Mock
+
 from find_evil_agent.agents.base import AgentResult, AgentStatus
-from find_evil_agent.agents.schemas import ExecutionResult, ExecutionStatus, Finding, FindingSeverity
+from find_evil_agent.agents.schemas import (
+    ExecutionResult,
+    ExecutionStatus,
+    Finding,
+    FindingSeverity,
+)
 
 # Conditional import for TDD - AnalyzerAgent may not exist yet
 try:
-    from find_evil_agent.agents.analyzer import AnalyzerAgent, AnalysisResult
+    from find_evil_agent.agents.analyzer import AnalysisResult, AnalyzerAgent
+
     ANALYZER_AVAILABLE = True
 except ImportError:
     ANALYZER_AVAILABLE = False
@@ -99,7 +105,9 @@ class TestAnalyzerSpecification:
             "low": "Minor anomalies, potential false positives",
             "info": "Contextual information, baseline data",
         }
-        assert severity_guide["critical"] == "Active malware, C2 communication, privilege escalation"
+        assert (
+            severity_guide["critical"] == "Active malware, C2 communication, privilege escalation"
+        )
         assert severity_guide["info"] == "Contextual information, baseline data"
 
 
@@ -117,13 +125,13 @@ class TestAnalyzerStructure:
     def test_analyzer_has_process_method(self):
         """AnalyzerAgent should have async process() method."""
         agent = AnalyzerAgent()
-        assert hasattr(agent, 'process')
+        assert hasattr(agent, "process")
         assert callable(agent.process)
 
     def test_analyzer_has_validate_method(self):
         """AnalyzerAgent should have validate() method."""
         agent = AnalyzerAgent()
-        assert hasattr(agent, 'validate')
+        assert hasattr(agent, "validate")
         assert callable(agent.validate)
 
     def test_analyzer_name_is_analyzer(self):
@@ -138,15 +146,11 @@ class TestAnalyzerStructure:
         assert issubclass(AnalysisResult, BaseModel)
         # Check that AnalysisResult can be instantiated
         result = AnalysisResult(
-            tool_name="test",
-            findings=[],
-            iocs={},
-            raw_output="test",
-            parsed_output={}
+            tool_name="test", findings=[], iocs={}, raw_output="test", parsed_output={}
         )
-        assert hasattr(result, 'tool_name')
-        assert hasattr(result, 'findings')
-        assert hasattr(result, 'iocs')
+        assert hasattr(result, "tool_name")
+        assert hasattr(result, "findings")
+        assert hasattr(result, "iocs")
 
 
 @pytest.mark.skipif(not ANALYZER_AVAILABLE, reason="AnalyzerAgent not implemented yet")
@@ -165,15 +169,15 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         input_data = {"execution_result": exec_result}
         result = await agent.process(input_data)
 
         assert isinstance(result, AgentResult)
-        assert hasattr(result, 'success')
-        assert hasattr(result, 'data')
+        assert hasattr(result, "success")
+        assert hasattr(result, "data")
 
     @pytest.mark.asyncio
     async def test_validate_requires_execution_result(self):
@@ -194,7 +198,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
         assert await agent.validate({"execution_result": exec_result})
 
@@ -220,7 +224,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -241,7 +245,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -265,7 +269,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -286,7 +290,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -307,7 +311,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -331,7 +335,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -340,10 +344,10 @@ class TestAnalyzerExecution:
             analysis = result.data["analysis_result"]
             if len(analysis.findings) > 0:
                 finding = analysis.findings[0]
-                assert hasattr(finding, 'title')
-                assert hasattr(finding, 'description')
-                assert hasattr(finding, 'severity')
-                assert hasattr(finding, 'confidence')
+                assert hasattr(finding, "title")
+                assert hasattr(finding, "description")
+                assert hasattr(finding, "severity")
+                assert hasattr(finding, "confidence")
                 assert 0.0 <= finding.confidence <= 1.0
 
     @pytest.mark.asyncio
@@ -359,7 +363,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -380,7 +384,7 @@ class TestAnalyzerExecution:
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -400,7 +404,7 @@ class TestAnalyzerExecution:
             stderr="Command failed",
             return_code=1,
             status=ExecutionStatus.FAILED,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -441,7 +445,7 @@ Offset(V)          Name                    PID   PPID   Thds     Hnds   Sess  Wo
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=45.3
+            execution_time=45.3,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -478,7 +482,7 @@ powershell.exe -enc
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=2.1
+            execution_time=2.1,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -515,7 +519,7 @@ powershell.exe -enc
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=0.5
+            execution_time=0.5,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -541,7 +545,7 @@ powershell.exe -enc
             stderr="",
             return_code=0,
             status=ExecutionStatus.SUCCESS,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         result = await agent.process({"execution_result": exec_result})
@@ -556,6 +560,7 @@ powershell.exe -enc
     async def test_concurrent_analysis(self):
         """Test concurrent analysis of multiple tool outputs."""
         import asyncio
+
         agent = AnalyzerAgent()
 
         # Multiple execution results
@@ -567,7 +572,7 @@ powershell.exe -enc
                 stderr="",
                 return_code=0,
                 status=ExecutionStatus.SUCCESS,
-                execution_time=1.0
+                execution_time=1.0,
             )
             for i in range(3)
         ]

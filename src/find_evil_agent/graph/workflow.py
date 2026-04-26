@@ -13,7 +13,7 @@ from typing import Any
 
 def create_workflow() -> Any:
     """Create LangGraph workflow for DFIR analysis.
-    
+
     Returns:
         Compiled LangGraph workflow
     """

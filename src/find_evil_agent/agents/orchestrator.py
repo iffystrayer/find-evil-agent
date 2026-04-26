@@ -19,32 +19,33 @@ Example:
 
 from typing import Any
 from uuid import uuid4
+
 import structlog
-from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, StateGraph
 
 _global_memory_saver = MemorySaver()
 
-from .base import BaseAgent, AgentResult, AgentStatus
+import time
+
+from find_evil_agent.telemetry import log_agent_error
+
+from .analyzer import AnalyzerAgent
+from .base import AgentResult, AgentStatus, BaseAgent
+from .command_builder import DynamicCommandBuilder
 from .schemas import (
     AgentState,
-    ToolSelection,
-    ExecutionResult,
     AnalysisResult,
+    Finding,
     InvestigativeLead,
     IterationResult,
     IterativeAnalysisResult,
-    LeadType,
     LeadPriority,
-    Finding,
+    LeadType,
+    ToolSelection,
 )
-from .tool_selector import ToolSelectorAgent
 from .tool_executor import ToolExecutorAgent
-from .analyzer import AnalyzerAgent
-from .command_builder import DynamicCommandBuilder
-from find_evil_agent.telemetry import log_agent_error
-import time
-from datetime import datetime
+from .tool_selector import ToolSelectorAgent
 
 agent_logger = structlog.get_logger()
 
@@ -95,8 +96,7 @@ class OrchestratorAgent(BaseAgent):
 
         # Initialize command builder with LLM provider
         self.command_builder = DynamicCommandBuilder(
-            llm_router=llm,
-            metadata_path="tools/metadata.yaml"
+            llm_router=llm, metadata_path="tools/metadata.yaml"
         )
 
         # Build workflow
@@ -134,7 +134,7 @@ class OrchestratorAgent(BaseAgent):
                     success=False,
                     data={},
                     status=AgentStatus.FAILED,
-                    error="Invalid input: incident_description and analysis_goal required"
+                    error="Invalid input: incident_description and analysis_goal required",
                 )
 
             # Initialize state
@@ -147,22 +147,24 @@ class OrchestratorAgent(BaseAgent):
                 timeline=[],
                 iocs=[],
                 current_agent=None,
-                step_count=0
+                step_count=0,
             )
 
             agent_logger.info(
                 "workflow_started",
                 session_id=state.session_id,
                 incident=input_data["incident_description"][:50],
-                goal=input_data["analysis_goal"][:50]
+                goal=input_data["analysis_goal"][:50],
             )
 
             # Execute workflow
-            final_state = await self.workflow.ainvoke({
-                "state": state,
-                "incident_description": input_data["incident_description"],
-                "analysis_goal": input_data["analysis_goal"]
-            })
+            final_state = await self.workflow.ainvoke(
+                {
+                    "state": state,
+                    "incident_description": input_data["incident_description"],
+                    "analysis_goal": input_data["analysis_goal"],
+                }
+            )
 
             # Extract final state
             result_state = final_state.get("state", state)
@@ -175,31 +177,21 @@ class OrchestratorAgent(BaseAgent):
                 session_id=result_state.session_id,
                 steps=result_state.step_count,
                 findings=len(result_state.findings),
-                tools_used=len(result_state.selected_tools)
+                tools_used=len(result_state.selected_tools),
             )
 
             return AgentResult(
                 success=True,
-                data={
-                    "state": result_state,
-                    "summary": summary
-                },
+                data={"state": result_state, "summary": summary},
                 status=AgentStatus.SUCCESS,
-                confidence=self._calculate_confidence(result_state)
+                confidence=self._calculate_confidence(result_state),
             )
 
         except Exception as e:
-            log_agent_error(
-                agent_name=self.name,
-                error_type="workflow_error",
-                error_message=str(e)
-            )
+            log_agent_error(agent_name=self.name, error_type="workflow_error", error_message=str(e))
 
             return AgentResult(
-                success=False,
-                data={},
-                status=AgentStatus.FAILED,
-                error=f"Workflow failed: {e}"
+                success=False, data={}, status=AgentStatus.FAILED, error=f"Workflow failed: {e}"
             )
 
     async def validate(self, input_data: dict[str, Any]) -> bool:
@@ -216,7 +208,6 @@ class OrchestratorAgent(BaseAgent):
             if field not in input_data or not input_data[field]:
                 return False
         return True
-
 
     def _build_iterative_workflow(self) -> Any:
         workflow = StateGraph(dict)
@@ -241,57 +232,68 @@ class OrchestratorAgent(BaseAgent):
         workflow.add_conditional_edges(
             "extract_leads",
             check_leads,
-            {END: END, "human_approval_gateway": "human_approval_gateway", "process_iteration": "process_iteration"}
+            {
+                END: END,
+                "human_approval_gateway": "human_approval_gateway",
+                "process_iteration": "process_iteration",
+            },
         )
-        
+
         workflow.add_edge("human_approval_gateway", "process_iteration")
 
-        return workflow.compile(checkpointer=_global_memory_saver, interrupt_before=["human_approval_gateway"])
+        return workflow.compile(
+            checkpointer=_global_memory_saver, interrupt_before=["human_approval_gateway"]
+        )
 
     async def _iterative_process_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
         state = state_dict["state"]
         if isinstance(state, dict):
             state = AgentState(**state)
-        
+
         # Determine the goal for this iteration
         current_goal = state.current_goal or state.analysis_goal
-        
-        agent_logger.info("iteration_started", session_id=state.session_id, iteration=state.step_count+1)
+
+        agent_logger.info(
+            "iteration_started", session_id=state.session_id, iteration=state.step_count + 1
+        )
         start_t = time.time()
-        
+
         # Run standard process (tool selection -> execution -> analysis) as a sub-call
         # This is safe because self.process does its own self.workflow.ainvoke without memory checkpointer conflicts
-        result = await self.process({
-            "incident_description": state.incident_description,
-            "analysis_goal": current_goal
-        })
-        
+        result = await self.process(
+            {"incident_description": state.incident_description, "analysis_goal": current_goal}
+        )
+
         if not result.success:
             state.stopping_reason = f"Iteration error: {result.error}"
             state_dict["state"] = state
             return state_dict
-            
+
         inner_state = result.data["state"]
         iteration_findings = [Finding(**f) for f in inner_state.findings]
         iteration_iocs = self._merge_iocs(inner_state.iocs)
-        
+
         duration = time.time() - start_t
         state.total_duration += duration
         state.step_count += 1
-        
+
         it_res = IterationResult(
             iteration_number=state.step_count,
-            tool_used=inner_state.selected_tools[0].tool_name if inner_state.selected_tools else "none",
+            tool_used=(
+                inner_state.selected_tools[0].tool_name if inner_state.selected_tools else "none"
+            ),
             tool_selection=inner_state.selected_tools[0] if inner_state.selected_tools else None,
-            execution_result=inner_state.execution_results[0] if inner_state.execution_results else None,
+            execution_result=(
+                inner_state.execution_results[0] if inner_state.execution_results else None
+            ),
             findings=iteration_findings,
             iocs=iteration_iocs,
-            duration=duration
+            duration=duration,
         )
-        
+
         state.iterations.append(it_res.model_dump())
         state.findings.extend(inner_state.findings)
-        
+
         # Merge dicts
         merged_iocs = {}
         # load existing
@@ -299,13 +301,16 @@ class OrchestratorAgent(BaseAgent):
             typ = ioc_entry["type"]
             vals = ioc_entry["values"]
             merged_iocs.setdefault(typ, []).extend(vals)
-            
+
         for k, v in iteration_iocs.items():
             merged_iocs.setdefault(k, []).extend(v)
-            
+
         # Push back into State IOCs format
-        state.iocs = [{"type": k, "values": list(set(v)), "source_tool": "iterative"} for k, v in merged_iocs.items()]
-        
+        state.iocs = [
+            {"type": k, "values": list(set(v)), "source_tool": "iterative"}
+            for k, v in merged_iocs.items()
+        ]
+
         state_dict["state"] = state
         return state_dict
 
@@ -315,21 +320,21 @@ class OrchestratorAgent(BaseAgent):
             state = AgentState(**state)
         if state.stopping_reason:
             return state_dict
-            
+
         # Get latest iteration
         if not state.iterations:
             return state_dict
-            
+
         last_it = IterationResult(**state.iterations[-1])
-        
+
         leads = await self._extract_leads(
             findings=[f.model_dump() for f in last_it.findings],
             iocs=last_it.iocs,
-            iteration_number=state.step_count
+            iteration_number=state.step_count,
         )
         last_it.leads_discovered = leads
         state.iterations[-1] = last_it.model_dump()
-        
+
         # Check stopping criteria
         if state.step_count >= state.max_iterations:
             state.stopping_reason = "Maximum iterations reached"
@@ -339,12 +344,12 @@ class OrchestratorAgent(BaseAgent):
             # We have leads! We must follow the top one.
             next_lead = self._select_next_lead(leads)
             state.current_lead = next_lead.model_dump() if next_lead else None
-            
+
             if state.current_lead:
                 # Setup HITL required flag
                 state.awaiting_human_approval = True
                 state.human_approved = None
-        
+
         state_dict["state"] = state
         return state_dict
 
@@ -352,19 +357,19 @@ class OrchestratorAgent(BaseAgent):
         state = state_dict["state"]
         if isinstance(state, dict):
             state = AgentState(**state)
-        
+
         # We only hit this node if execution unpaused and state.human_approved is no longer None
         state.awaiting_human_approval = False
-        
+
         if state.human_approved is False:
             state.stopping_reason = "Overridden by Human Analyst"
         else:
             # Proceed
             lead = InvestigativeLead(**state.current_lead)
             state.investigation_chain.append(lead.model_dump())
-            prev_findings = [Finding(**f) for f in state.findings] # all findings
+            prev_findings = [Finding(**f) for f in state.findings]  # all findings
             state.current_goal = self._create_follow_up_goal(lead, prev_findings)
-            
+
         state_dict["state"] = state
         return state_dict
 
@@ -410,15 +415,17 @@ class OrchestratorAgent(BaseAgent):
             "workflow_step",
             session_id=state.session_id,
             step=state.step_count,
-            agent=state.current_agent
+            agent=state.current_agent,
         )
 
         try:
             # Call ToolSelectorAgent
-            result = await self.tool_selector.process({
-                "incident_description": state_dict["incident_description"],
-                "analysis_goal": state_dict["analysis_goal"]
-            })
+            result = await self.tool_selector.process(
+                {
+                    "incident_description": state_dict["incident_description"],
+                    "analysis_goal": state_dict["analysis_goal"],
+                }
+            )
 
             if result.success:
                 tool_selection = result.data["tool_selection"]
@@ -428,21 +435,15 @@ class OrchestratorAgent(BaseAgent):
                     "tool_selected",
                     session_id=state.session_id,
                     tool=tool_selection.tool_name,
-                    confidence=tool_selection.confidence
+                    confidence=tool_selection.confidence,
                 )
             else:
                 agent_logger.warning(
-                    "tool_selection_failed",
-                    session_id=state.session_id,
-                    error=result.error
+                    "tool_selection_failed", session_id=state.session_id, error=result.error
                 )
 
         except Exception as e:
-            agent_logger.error(
-                "tool_selection_error",
-                session_id=state.session_id,
-                error=str(e)
-            )
+            agent_logger.error("tool_selection_error", session_id=state.session_id, error=str(e))
 
         state_dict["state"] = state
         return state_dict
@@ -466,15 +467,12 @@ class OrchestratorAgent(BaseAgent):
             "workflow_step",
             session_id=state.session_id,
             step=state.step_count,
-            agent=state.current_agent
+            agent=state.current_agent,
         )
 
         # Check if we have a selected tool
         if not state.selected_tools:
-            agent_logger.warning(
-                "no_tools_selected",
-                session_id=state.session_id
-            )
+            agent_logger.warning("no_tools_selected", session_id=state.session_id)
             state_dict["state"] = state
             return state_dict
 
@@ -486,14 +484,13 @@ class OrchestratorAgent(BaseAgent):
             context = {
                 "incident": state.incident_description,
                 "goal": state.analysis_goal,
-                "evidence_paths": getattr(state, "evidence_paths", [])
+                "evidence_paths": getattr(state, "evidence_paths", []),
             }
             command = await self.command_builder.build_command(tool_selection, context)
 
-            result = await self.tool_executor.process({
-                "tool_name": tool_selection.tool_name,
-                "command": command
-            })
+            result = await self.tool_executor.process(
+                {"tool_name": tool_selection.tool_name, "command": command}
+            )
 
             if result.success or "execution_result" in result.data:
                 exec_result = result.data["execution_result"]
@@ -504,21 +501,15 @@ class OrchestratorAgent(BaseAgent):
                     session_id=state.session_id,
                     tool=exec_result.tool_name,
                     status=exec_result.status.value,
-                    duration=exec_result.execution_time
+                    duration=exec_result.execution_time,
                 )
             else:
                 agent_logger.warning(
-                    "tool_execution_failed",
-                    session_id=state.session_id,
-                    error=result.error
+                    "tool_execution_failed", session_id=state.session_id, error=result.error
                 )
 
         except Exception as e:
-            agent_logger.error(
-                "tool_execution_error",
-                session_id=state.session_id,
-                error=str(e)
-            )
+            agent_logger.error("tool_execution_error", session_id=state.session_id, error=str(e))
 
         state_dict["state"] = state
         return state_dict
@@ -542,24 +533,19 @@ class OrchestratorAgent(BaseAgent):
             "workflow_step",
             session_id=state.session_id,
             step=state.step_count,
-            agent=state.current_agent
+            agent=state.current_agent,
         )
 
         # Check if we have execution results
         if not state.execution_results:
-            agent_logger.warning(
-                "no_execution_results",
-                session_id=state.session_id
-            )
+            agent_logger.warning("no_execution_results", session_id=state.session_id)
             state_dict["state"] = state
             return state_dict
 
         try:
             # Analyze each execution result
             for exec_result in state.execution_results:
-                result = await self.analyzer.process({
-                    "execution_result": exec_result
-                })
+                result = await self.analyzer.process({"execution_result": exec_result})
 
                 if result.success:
                     analysis: AnalysisResult = result.data["analysis_result"]
@@ -570,32 +556,28 @@ class OrchestratorAgent(BaseAgent):
 
                     # Add IOCs to state
                     for ioc_type, values in analysis.iocs.items():
-                        state.iocs.append({
-                            "type": ioc_type,
-                            "values": values,
-                            "source_tool": exec_result.tool_name
-                        })
+                        state.iocs.append(
+                            {
+                                "type": ioc_type,
+                                "values": values,
+                                "source_tool": exec_result.tool_name,
+                            }
+                        )
 
                     agent_logger.info(
                         "analysis_completed",
                         session_id=state.session_id,
                         tool=exec_result.tool_name,
                         findings=len(analysis.findings),
-                        ioc_types=len(analysis.iocs)
+                        ioc_types=len(analysis.iocs),
                     )
                 else:
                     agent_logger.warning(
-                        "analysis_failed",
-                        session_id=state.session_id,
-                        error=result.error
+                        "analysis_failed", session_id=state.session_id, error=result.error
                     )
 
         except Exception as e:
-            agent_logger.error(
-                "analysis_error",
-                session_id=state.session_id,
-                error=str(e)
-            )
+            agent_logger.error("analysis_error", session_id=state.session_id, error=str(e))
 
         state_dict["state"] = state
         return state_dict
@@ -620,7 +602,7 @@ class OrchestratorAgent(BaseAgent):
         agent_logger.warning(
             "deprecated_method",
             method="_build_tool_command",
-            replacement="DynamicCommandBuilder.build_command"
+            replacement="DynamicCommandBuilder.build_command",
         )
 
         tool_name = tool_selection.tool_name
@@ -671,7 +653,9 @@ class OrchestratorAgent(BaseAgent):
             return 0.3
 
         # Average tool selection confidence
-        tool_confidence = sum(t.confidence for t in state.selected_tools) / len(state.selected_tools)
+        tool_confidence = sum(t.confidence for t in state.selected_tools) / len(
+            state.selected_tools
+        )
 
         # Adjust based on findings
         if state.findings:
@@ -690,9 +674,9 @@ class OrchestratorAgent(BaseAgent):
         max_iterations: int = 5,
         auto_follow: bool = True,
         min_lead_confidence: float = 0.6,
-        session_id: str | None = None
+        session_id: str | None = None,
     ) -> IterativeAnalysisResult:
-        
+
         config = {}
         if not session_id:
             session_id = str(uuid4())
@@ -701,40 +685,46 @@ class OrchestratorAgent(BaseAgent):
                 incident_description=incident_description,
                 analysis_goal=analysis_goal,
                 max_iterations=max_iterations,
-                current_goal=analysis_goal
+                current_goal=analysis_goal,
             )
             state_dict = {"state": state}
         else:
             state_dict = None
-            
+
         config = {"configurable": {"thread_id": session_id}}
-        
+
         try:
             # Step the graph
             final_state = await self.iterative_workflow.ainvoke(state_dict, config)
-            
+
             # Check if interrupted
             state_info = self.iterative_workflow.get_state(config)
-            is_interrupted = len(state_info.next) > 0 and "human_approval_gateway" in state_info.next
-            
-            result_state = final_state.get("state") if final_state else state_info.values.get("state")
+            is_interrupted = (
+                len(state_info.next) > 0 and "human_approval_gateway" in state_info.next
+            )
+
+            result_state = (
+                final_state.get("state") if final_state else state_info.values.get("state")
+            )
             if isinstance(result_state, dict):
                 result_state = AgentState(**result_state)
-            
+
             all_findings = [Finding(**f) for f in result_state.findings]
-            
+
             # Reconstruct IOCs
             all_iocs = {}
             for ioc_entry in result_state.iocs:
                 typ = ioc_entry["type"]
                 all_iocs.setdefault(typ, []).extend(ioc_entry["values"])
-                
+
             iterations = [IterationResult(**i) for i in result_state.iterations]
             chain = [InvestigativeLead(**l) for l in result_state.investigation_chain]
-            
+
             # If interrupted, set stopping_reason to indicate
-            stopping_reason = "Waiting for Human Approval" if is_interrupted else result_state.stopping_reason
-            
+            stopping_reason = (
+                "Waiting for Human Approval" if is_interrupted else result_state.stopping_reason
+            )
+
             return IterativeAnalysisResult(
                 session_id=session_id,
                 incident_description=result_state.incident_description or incident_description,
@@ -745,23 +735,20 @@ class OrchestratorAgent(BaseAgent):
                 all_iocs=all_iocs,
                 total_duration=result_state.total_duration,
                 stopping_reason=stopping_reason,
-                investigation_summary="Pending..." if is_interrupted else "Investigation complete"
+                investigation_summary="Pending..." if is_interrupted else "Investigation complete",
             )
-            
+
         except Exception as e:
             agent_logger.error("iterative_analysis_error", error=str(e))
             return IterativeAnalysisResult(
                 session_id=session_id,
                 incident_description=incident_description,
                 analysis_goal=analysis_goal,
-                stopping_reason=f"Error: {e}"
+                stopping_reason=f"Error: {e}",
             )
 
     async def _extract_leads(
-        self,
-        findings: list[dict[str, Any]],
-        iocs: dict[str, list[str]],
-        iteration_number: int
+        self, findings: list[dict[str, Any]], iocs: dict[str, list[str]], iteration_number: int
     ) -> list[InvestigativeLead]:
         """Extract investigative leads from findings and IOCs.
 
@@ -797,40 +784,33 @@ class OrchestratorAgent(BaseAgent):
             # Parse LLM response into leads
             leads = self._parse_leads_from_response(response, findings, iocs)
 
-            agent_logger.debug(
-                "leads_extracted",
-                iteration=iteration_number,
-                num_leads=len(leads)
-            )
+            agent_logger.debug("leads_extracted", iteration=iteration_number, num_leads=len(leads))
 
             return leads
 
         except Exception as e:
-            agent_logger.warning(
-                "lead_extraction_failed",
-                iteration=iteration_number,
-                error=str(e)
-            )
+            agent_logger.warning("lead_extraction_failed", iteration=iteration_number, error=str(e))
             # Fallback: simple rule-based lead extraction
             return self._extract_leads_fallback(findings, iocs)
 
     def _build_lead_extraction_prompt(
-        self,
-        findings: list[dict[str, Any]],
-        iocs: dict[str, list[str]],
-        iteration_number: int
+        self, findings: list[dict[str, Any]], iocs: dict[str, list[str]], iteration_number: int
     ) -> str:
         """Build LLM prompt for lead extraction."""
-        findings_text = "\n".join([
-            f"- {f.get('description', 'N/A')} (Severity: {f.get('severity', 'unknown')})"
-            for f in findings[:5]  # Limit to first 5
-        ])
+        findings_text = "\n".join(
+            [
+                f"- {f.get('description', 'N/A')} (Severity: {f.get('severity', 'unknown')})"
+                for f in findings[:5]  # Limit to first 5
+            ]
+        )
 
-        iocs_text = "\n".join([
-            f"- {ioc_type}: {', '.join(values[:3])}"  # First 3 of each type
-            for ioc_type, values in iocs.items()
-            if values
-        ])
+        iocs_text = "\n".join(
+            [
+                f"- {ioc_type}: {', '.join(values[:3])}"  # First 3 of each type
+                for ioc_type, values in iocs.items()
+                if values
+            ]
+        )
 
         return f"""You are a DFIR expert analyzing investigation findings. Based on the current findings and IOCs, identify the next investigative steps.
 
@@ -864,39 +844,41 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
 """
 
     def _parse_leads_from_response(
-        self,
-        response: str,
-        findings: list[dict[str, Any]],
-        iocs: dict[str, list[str]]
+        self, response: str, findings: list[dict[str, Any]], iocs: dict[str, list[str]]
     ) -> list[InvestigativeLead]:
         """Parse LLM response into InvestigativeLead objects."""
         leads = []
 
-        for line in response.split('\n'):
-            if not line.strip().startswith('LEAD:'):
+        for line in response.split("\n"):
+            if not line.strip().startswith("LEAD:"):
                 continue
 
             try:
                 # Parse: LEAD: <type> | <priority> | <confidence> | <tool> | <description>
-                parts = line.replace('LEAD:', '').split('|')
+                parts = line.replace("LEAD:", "").split("|")
                 if len(parts) < 5:
                     continue
 
                 lead_type_str = parts[0].strip().lower()
                 priority_str = parts[1].strip().lower()
                 confidence = float(parts[2].strip())
-                suggested_tool = parts[3].strip() if parts[3].strip() != 'none' else None
+                suggested_tool = parts[3].strip() if parts[3].strip() != "none" else None
                 description = parts[4].strip()
 
                 # Map strings to enums
-                lead_type = LeadType(lead_type_str) if lead_type_str in [t.value for t in LeadType] else LeadType.PROCESS
-                priority = LeadPriority(priority_str) if priority_str in [p.value for p in LeadPriority] else LeadPriority.MEDIUM
+                lead_type = (
+                    LeadType(lead_type_str)
+                    if lead_type_str in [t.value for t in LeadType]
+                    else LeadType.PROCESS
+                )
+                priority = (
+                    LeadPriority(priority_str)
+                    if priority_str in [p.value for p in LeadPriority]
+                    else LeadPriority.MEDIUM
+                )
 
                 # Build context from IOCs
-                context = {
-                    "findings_count": len(findings),
-                    "ioc_types": list(iocs.keys())
-                }
+                context = {"findings_count": len(findings), "ioc_types": list(iocs.keys())}
 
                 lead = InvestigativeLead(
                     lead_type=lead_type,
@@ -905,7 +887,7 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
                     suggested_tool=suggested_tool,
                     context=context,
                     confidence=confidence,
-                    reasoning="LLM-generated lead based on current findings"
+                    reasoning="LLM-generated lead based on current findings",
                 )
 
                 leads.append(lead)
@@ -915,44 +897,52 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
                 continue
 
         # Sort by priority and confidence
-        leads.sort(key=lambda l: (
-            0 if l.priority == LeadPriority.HIGH else 1 if l.priority == LeadPriority.MEDIUM else 2,
-            -l.confidence
-        ))
+        leads.sort(
+            key=lambda l: (
+                (
+                    0
+                    if l.priority == LeadPriority.HIGH
+                    else 1 if l.priority == LeadPriority.MEDIUM else 2
+                ),
+                -l.confidence,
+            )
+        )
 
         return leads
 
     def _extract_leads_fallback(
-        self,
-        findings: list[dict[str, Any]],
-        iocs: dict[str, list[str]]
+        self, findings: list[dict[str, Any]], iocs: dict[str, list[str]]
     ) -> list[InvestigativeLead]:
         """Fallback rule-based lead extraction when LLM fails."""
         leads = []
 
         # If we found processes, suggest network analysis
         if iocs.get("processes"):
-            leads.append(InvestigativeLead(
-                lead_type=LeadType.NETWORK,
-                description="Analyze network activity for suspicious processes",
-                priority=LeadPriority.HIGH,
-                suggested_tool="bulk_extractor",
-                context={"processes": iocs["processes"][:3]},
-                confidence=0.75,
-                reasoning="Processes found, network analysis is logical next step"
-            ))
+            leads.append(
+                InvestigativeLead(
+                    lead_type=LeadType.NETWORK,
+                    description="Analyze network activity for suspicious processes",
+                    priority=LeadPriority.HIGH,
+                    suggested_tool="bulk_extractor",
+                    context={"processes": iocs["processes"][:3]},
+                    confidence=0.75,
+                    reasoning="Processes found, network analysis is logical next step",
+                )
+            )
 
         # If we found IPs/domains, suggest timeline
         if iocs.get("ips") or iocs.get("domains"):
-            leads.append(InvestigativeLead(
-                lead_type=LeadType.TIMELINE,
-                description="Build timeline to identify when IOCs first appeared",
-                priority=LeadPriority.MEDIUM,
-                suggested_tool="log2timeline",
-                context={"iocs": {k: v for k, v in iocs.items() if v}},
-                confidence=0.7,
-                reasoning="IOCs found, timeline helps establish attack sequence"
-            ))
+            leads.append(
+                InvestigativeLead(
+                    lead_type=LeadType.TIMELINE,
+                    description="Build timeline to identify when IOCs first appeared",
+                    priority=LeadPriority.MEDIUM,
+                    suggested_tool="log2timeline",
+                    context={"iocs": {k: v for k, v in iocs.items() if v}},
+                    confidence=0.7,
+                    reasoning="IOCs found, timeline helps establish attack sequence",
+                )
+            )
 
         return leads
 
@@ -971,10 +961,17 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
             return None
 
         # Sort by priority (high first) then by confidence (high first)
-        sorted_leads = sorted(leads, key=lambda l: (
-            0 if l.priority == LeadPriority.HIGH else 1 if l.priority == LeadPriority.MEDIUM else 2,
-            -l.confidence  # Negative for descending order
-        ))
+        sorted_leads = sorted(
+            leads,
+            key=lambda l: (
+                (
+                    0
+                    if l.priority == LeadPriority.HIGH
+                    else 1 if l.priority == LeadPriority.MEDIUM else 2
+                ),
+                -l.confidence,  # Negative for descending order
+            ),
+        )
 
         # Return the first (highest priority, highest confidence)
         return sorted_leads[0]
@@ -985,7 +982,7 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
         max_iterations: int,
         auto_follow: bool,
         leads: list[InvestigativeLead],
-        min_confidence: float
+        min_confidence: float,
     ) -> bool:
         """Determine if investigation should continue.
 
@@ -1022,7 +1019,7 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
         iteration_num: int,
         max_iterations: int,
         leads: list[InvestigativeLead],
-        auto_follow: bool
+        auto_follow: bool,
     ) -> str:
         """Get human-readable stopping reason."""
         if iteration_num >= max_iterations:
@@ -1035,9 +1032,7 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
             return "All leads below confidence threshold"
 
     def _create_follow_up_goal(
-        self,
-        lead: InvestigativeLead,
-        previous_findings: list[Finding]
+        self, lead: InvestigativeLead, previous_findings: list[Finding]
     ) -> str:
         """Create analysis goal for following a lead.
 
@@ -1068,7 +1063,7 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
         investigation_chain: list[InvestigativeLead],
         all_findings: list[Finding],
         all_iocs: dict[str, list[str]],
-        total_duration: float
+        total_duration: float,
     ) -> IterativeAnalysisResult:
         """Synthesize complete investigation results.
 
@@ -1121,7 +1116,7 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
             all_iocs=all_iocs,
             total_duration=total_duration,
             stopping_reason=stopping_reason,
-            investigation_summary=investigation_summary
+            investigation_summary=investigation_summary,
         )
 
     def _merge_iocs(self, ioc_list: list[dict[str, Any]]) -> dict[str, list[str]]:
@@ -1148,9 +1143,7 @@ LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identif
         return merged
 
     def _merge_iocs_dict(
-        self,
-        dict1: dict[str, list[str]],
-        dict2: dict[str, list[str]]
+        self, dict1: dict[str, list[str]], dict2: dict[str, list[str]]
     ) -> dict[str, list[str]]:
         """Merge two IOC dictionaries.
 

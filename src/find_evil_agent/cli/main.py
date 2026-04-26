@@ -10,27 +10,32 @@ Usage:
 
 import asyncio
 from pathlib import Path
-from typing import Optional
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.markdown import Markdown
+from rich.table import Table
 
 from find_evil_agent.agents.orchestrator import OrchestratorAgent
-from find_evil_agent.agents.reporter import ReporterAgent
 from find_evil_agent.agents.report_schemas import ReportFormat
+from find_evil_agent.agents.reporter import ReporterAgent
 from find_evil_agent.agents.schemas import (
-    Finding, FindingSeverity, AnalysisResult, IterativeAnalysisResult,
-    IterationResult, InvestigativeLead, LeadType, LeadPriority, ToolSelection
+    AnalysisResult,
+    Finding,
+    FindingSeverity,
+    InvestigativeLead,
+    IterationResult,
+    IterativeAnalysisResult,
+    LeadPriority,
+    LeadType,
 )
 from find_evil_agent.config.settings import get_settings
 
 app = typer.Typer(
     name="find-evil",
     help="Find Evil Agent - Autonomous AI incident response for SANS SIFT Workstation",
-    add_completion=False
+    add_completion=False,
 )
 
 console = Console()
@@ -38,38 +43,21 @@ console = Console()
 
 @app.command()
 def analyze(
-    incident_description: str = typer.Argument(
-        ...,
-        help="Description of the security incident"
+    incident_description: str = typer.Argument(..., help="Description of the security incident"),
+    analysis_goal: str = typer.Argument(..., help="What you want to analyze or discover"),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Output file for results (markdown format)"
     ),
-    analysis_goal: str = typer.Argument(
-        ...,
-        help="What you want to analyze or discover"
+    provider: str | None = typer.Option(
+        None, "--provider", "-p", help="LLM provider (ollama, openai, anthropic)"
     ),
-    output: Optional[Path] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output file for results (markdown format)"
-    ),
-    provider: Optional[str] = typer.Option(
-        None,
-        "--provider",
-        "-p",
-        help="LLM provider (ollama, openai, anthropic)"
-    ),
-    model: Optional[str] = typer.Option(
+    model: str | None = typer.Option(
         None,
         "--model",
         "-m",
-        help="Model name (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)"
+        help="Model name (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)",
     ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Enable verbose output"
-    )
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
 ):
     """Analyze a security incident using SIFT tools.
 
@@ -80,11 +68,12 @@ def analyze(
         find-evil analyze "APT activity" "Find persistence" -p anthropic -m claude-sonnet-4
     """
     console.print()
-    console.print(Panel.fit(
-        "[bold cyan]Find Evil Agent[/bold cyan]\n"
-        "[dim]Autonomous AI Incident Response[/dim]",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]Find Evil Agent[/bold cyan]\n" "[dim]Autonomous AI Incident Response[/dim]",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     # Display input
@@ -98,15 +87,15 @@ def analyze(
 
     # Run analysis
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
     ) as progress:
         task = progress.add_task("Analyzing incident...", total=None)
 
         try:
             # Run workflow
-            result = asyncio.run(_run_analysis(incident_description, analysis_goal, verbose, provider, model))
+            result = asyncio.run(
+                _run_analysis(incident_description, analysis_goal, verbose, provider, model)
+            )
 
             progress.update(task, completed=True)
 
@@ -131,44 +120,26 @@ def analyze(
 
 @app.command()
 def investigate(
-    incident_description: str = typer.Argument(
-        ...,
-        help="Description of the security incident"
-    ),
+    incident_description: str = typer.Argument(..., help="Description of the security incident"),
     analysis_goal: str = typer.Argument(
-        ...,
-        help="Investigation goal (e.g., 'Reconstruct complete attack chain')"
+        ..., help="Investigation goal (e.g., 'Reconstruct complete attack chain')"
     ),
     max_iterations: int = typer.Option(
-        5,
-        "--max-iterations",
-        "-n",
-        help="Maximum number of analysis iterations"
+        5, "--max-iterations", "-n", help="Maximum number of analysis iterations"
     ),
-    output: Optional[Path] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output file for investigation report (markdown format)"
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Output file for investigation report (markdown format)"
     ),
-    provider: Optional[str] = typer.Option(
-        None,
-        "--provider",
-        "-p",
-        help="LLM provider (ollama, openai, anthropic)"
+    provider: str | None = typer.Option(
+        None, "--provider", "-p", help="LLM provider (ollama, openai, anthropic)"
     ),
-    model: Optional[str] = typer.Option(
+    model: str | None = typer.Option(
         None,
         "--model",
         "-m",
-        help="Model name (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)"
+        help="Model name (e.g., gpt-4-turbo, claude-sonnet-4, gemma4:31b-cloud)",
     ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Enable verbose output"
-    )
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
 ):
     """Autonomous iterative investigation - follows leads automatically.
 
@@ -188,11 +159,13 @@ def investigate(
         find-evil investigate "Breach" "Complete IR" -p anthropic -m claude-opus-4 -n 10
     """
     console.print()
-    console.print(Panel.fit(
-        "[bold cyan]Find Evil Agent - Autonomous Investigation[/bold cyan]\n"
-        "[dim]Automatically follows investigative leads[/dim]",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]Find Evil Agent - Autonomous Investigation[/bold cyan]\n"
+            "[dim]Automatically follows investigative leads[/dim]",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     # Display input
@@ -207,22 +180,17 @@ def investigate(
 
     # Run investigation
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
     ) as progress:
         task = progress.add_task("Starting investigation...", total=None)
 
         try:
             # Run iterative workflow
-            result = asyncio.run(_run_investigation(
-                incident_description,
-                analysis_goal,
-                max_iterations,
-                verbose,
-                provider,
-                model
-            ))
+            result = asyncio.run(
+                _run_investigation(
+                    incident_description, analysis_goal, max_iterations, verbose, provider, model
+                )
+            )
 
             progress.update(task, completed=True)
 
@@ -280,28 +248,10 @@ def config():
 
 @app.command()
 def web(
-    host: str = typer.Option(
-        "0.0.0.0",
-        "--host",
-        "-h",
-        help="Host to bind to"
-    ),
-    port: int = typer.Option(
-        17000,
-        "--port",
-        "-p",
-        help="Port to run on (5-digit required)"
-    ),
-    share: bool = typer.Option(
-        False,
-        "--share",
-        help="Create a public share link"
-    ),
-    debug: bool = typer.Option(
-        False,
-        "--debug",
-        help="Enable debug mode"
-    )
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to"),  # nosec B104
+    port: int = typer.Option(17000, "--port", "-p", help="Port to run on (5-digit required)"),
+    share: bool = typer.Option(False, "--share", help="Create a public share link"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode"),
 ):
     """Launch the Gradio web interface.
 
@@ -317,20 +267,17 @@ def web(
     try:
         from find_evil_agent.web.gradio_app import launch_app
 
-        console.print(Panel.fit(
-            "[bold cyan]🌐 Find Evil Agent - Web Interface[/bold cyan]\n\n"
-            f"[green]Starting server at:[/green] http://{host}:{port}\n"
-            f"[dim]Press Ctrl+C to stop[/dim]",
-            title="Web UI",
-            border_style="cyan"
-        ))
-
-        launch_app(
-            server_name=host,
-            server_port=port,
-            share=share,
-            debug=debug
+        console.print(
+            Panel.fit(
+                "[bold cyan]🌐 Find Evil Agent - Web Interface[/bold cyan]\n\n"
+                f"[green]Starting server at:[/green] http://{host}:{port}\n"
+                f"[dim]Press Ctrl+C to stop[/dim]",
+                title="Web UI",
+                border_style="cyan",
+            )
         )
+
+        launch_app(server_name=host, server_port=port, share=share, debug=debug)
 
     except ImportError as e:
         console.print(f"[red]✗ Failed to import Gradio:[/red] {e}")
@@ -345,8 +292,8 @@ async def _run_analysis(
     incident_description: str,
     analysis_goal: str,
     verbose: bool = False,
-    provider: Optional[str] = None,
-    model: Optional[str] = None
+    provider: str | None = None,
+    model: str | None = None,
 ) -> dict:
     """Run the analysis workflow.
 
@@ -365,6 +312,7 @@ async def _run_analysis(
         llm_provider = None
         if provider or model:
             from find_evil_agent.llm.factory import create_llm_provider
+
             settings = get_settings()
             llm_provider = create_llm_provider(settings, provider, model)
 
@@ -372,10 +320,9 @@ async def _run_analysis(
         orchestrator = OrchestratorAgent(llm_provider=llm_provider)
 
         # Run workflow
-        result = await orchestrator.process({
-            "incident_description": incident_description,
-            "analysis_goal": analysis_goal
-        })
+        result = await orchestrator.process(
+            {"incident_description": incident_description, "analysis_goal": analysis_goal}
+        )
 
         # Format results
         if result.success:
@@ -392,19 +339,13 @@ async def _run_analysis(
                 "findings": state.findings,
                 "iocs": state.iocs,
                 "step_count": state.step_count,
-                "confidence": result.confidence
+                "confidence": result.confidence,
             }
         else:
-            return {
-                "success": False,
-                "error": result.error
-            }
+            return {"success": False, "error": result.error}
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 async def _run_investigation(
@@ -412,8 +353,8 @@ async def _run_investigation(
     analysis_goal: str,
     max_iterations: int = 5,
     verbose: bool = False,
-    provider: Optional[str] = None,
-    model: Optional[str] = None
+    provider: str | None = None,
+    model: str | None = None,
 ) -> dict:
     """Run the iterative investigation workflow.
 
@@ -433,14 +374,16 @@ async def _run_investigation(
         llm_provider = None
         if provider or model:
             from find_evil_agent.llm.factory import create_llm_provider
+
             settings = get_settings()
             llm_provider = create_llm_provider(settings, provider, model)
 
         # Create orchestrator
         orchestrator = OrchestratorAgent(llm_provider=llm_provider)
-        
-        from rich.prompt import Confirm
+
         from rich.console import Console
+        from rich.prompt import Confirm
+
         console = Console()
         session_id = None
 
@@ -451,25 +394,33 @@ async def _run_investigation(
                 analysis_goal=analysis_goal,
                 max_iterations=max_iterations,
                 auto_follow=True,
-                session_id=session_id
+                session_id=session_id,
             )
-            
+
             session_id = result.session_id
-            
+
             if result.stopping_reason == "Waiting for Human Approval":
-                console.print("\n[bold red]🛑 Human-In-The-Loop (HITL) Approval Required[/bold red]")
-                
+                console.print(
+                    "\n[bold red]🛑 Human-In-The-Loop (HITL) Approval Required[/bold red]"
+                )
+
                 last_iteration = result.iterations[-1] if result.iterations else None
                 if last_iteration and last_iteration.leads_discovered:
                     # The orchestrator sorts leads; the top one is selected
                     proposed_lead = last_iteration.leads_discovered[0]
-                    console.print(f"[yellow]Analyst Override Needed:[/yellow] The agent wants to natively follow a lead.")
-                    console.print(f"[cyan]Target ({proposed_lead.lead_type.value}):[/cyan] {proposed_lead.description}")
-                    
-                    approved = Confirm.ask("Cryptographically sign and approve this execution path?")
-                    
+                    console.print(
+                        "[yellow]Analyst Override Needed:[/yellow] The agent wants to natively follow a lead."
+                    )
+                    console.print(
+                        f"[cyan]Target ({proposed_lead.lead_type.value}):[/cyan] {proposed_lead.description}"
+                    )
+
+                    approved = Confirm.ask(
+                        "Cryptographically sign and approve this execution path?"
+                    )
+
                     config = {"configurable": {"thread_id": session_id}}
-                    
+
                     # Get current state to avoid overwriting nested dict
                     current_state_info = orchestrator.iterative_workflow.get_state(config)
                     current_state_dict = current_state_info.values.get("state", {})
@@ -477,15 +428,14 @@ async def _run_investigation(
                         current_state_dict = current_state_dict.model_dump()
                     elif hasattr(current_state_dict, "__dict__"):
                         current_state_dict = vars(current_state_dict)
-                    
-                    if hasattr(request, "approved") if 'request' in locals() else False:
+
+                    if hasattr(request, "approved") if "request" in locals() else False:
                         current_state_dict["human_approved"] = request.approved
                     else:
                         current_state_dict["human_approved"] = approved
-                    
+
                     orchestrator.iterative_workflow.update_state(
-                        config,
-                        {"state": current_state_dict}
+                        config, {"state": current_state_dict}
                     )
                 else:
                     break
@@ -506,7 +456,7 @@ async def _run_investigation(
                     "iocs_count": sum(len(v) for v in it.iocs.values()),
                     "leads_count": len(it.leads_discovered),
                     "duration": it.duration,
-                    "lead_followed": it.lead_followed.description if it.lead_followed else None
+                    "lead_followed": it.lead_followed.description if it.lead_followed else None,
                 }
                 for it in result.iterations
             ],
@@ -515,22 +465,20 @@ async def _run_investigation(
                     "type": lead.lead_type.value,
                     "description": lead.description,
                     "priority": lead.priority.value,
-                    "confidence": lead.confidence
+                    "confidence": lead.confidence,
                 }
-                for lead in result.investigation_chain if lead
+                for lead in result.investigation_chain
+                if lead
             ],
             "all_findings": [f.model_dump() for f in result.all_findings],
             "all_iocs": result.all_iocs,
             "total_duration": result.total_duration,
             "stopping_reason": result.stopping_reason,
-            "summary": result.investigation_summary
+            "summary": result.investigation_summary,
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 def _display_results(result: dict, console: Console):
@@ -551,7 +499,9 @@ def _display_results(result: dict, console: Console):
         console.print("[bold cyan]Tools Used:[/bold cyan]")
         for tool in result["tools_used"]:
             confidence_color = "green" if tool["confidence"] >= 0.8 else "yellow"
-            console.print(f"  • {tool['tool_name']} ([{confidence_color}]{tool['confidence']:.2f}[/{confidence_color}])")
+            console.print(
+                f"  • {tool['tool_name']} ([{confidence_color}]{tool['confidence']:.2f}[/{confidence_color}])"
+            )
             console.print(f"    {tool['reason'][:100]}...")
         console.print()
 
@@ -566,7 +516,7 @@ def _display_results(result: dict, console: Console):
                 "high": "yellow",
                 "medium": "blue",
                 "low": "dim",
-                "info": "dim"
+                "info": "dim",
             }
             color = severity_colors.get(severity, "white")
 
@@ -581,7 +531,7 @@ def _display_results(result: dict, console: Console):
 
     # IOCs
     if result["iocs"]:
-        console.print(f"[bold magenta]Indicators of Compromise:[/bold magenta]")
+        console.print("[bold magenta]Indicators of Compromise:[/bold magenta]")
 
         ioc_counts = {}
         for ioc in result["iocs"]:
@@ -618,7 +568,7 @@ def _save_results(result: dict, output_path: Path, console: Console):
                 severity=FindingSeverity(f.get("severity", "info")),
                 confidence=f.get("confidence", 0.5),
                 evidence=f.get("evidence", []),
-                tool_references=f.get("tool_references", [])
+                tool_references=f.get("tool_references", []),
             )
             for f in result.get("findings", [])
         ]
@@ -643,27 +593,29 @@ def _save_results(result: dict, output_path: Path, console: Console):
             findings=findings,
             iocs=iocs,
             raw_output=result.get("summary", ""),
-            analysis_summary=result.get("summary", "")
+            analysis_summary=result.get("summary", ""),
         )
 
         # Determine format from file extension
         format_map = {
             ".md": ReportFormat.MARKDOWN,
             ".html": ReportFormat.HTML,
-            ".pdf": ReportFormat.PDF
+            ".pdf": ReportFormat.PDF,
         }
         report_format = format_map.get(output_path.suffix.lower(), ReportFormat.MARKDOWN)
 
         # Generate professional report
         reporter = ReporterAgent()
-        report = asyncio.run(reporter.generate_report(
-            analysis_result=analysis_result,
-            format=report_format,
-            session_id=result.get("session_id", "unknown"),
-            incident_description=result.get("incident_description", ""),
-            analysis_goal=result.get("analysis_goal", ""),
-            output_path=output_path if report_format == ReportFormat.PDF else None
-        ))
+        report = asyncio.run(
+            reporter.generate_report(
+                analysis_result=analysis_result,
+                format=report_format,
+                session_id=result.get("session_id", "unknown"),
+                incident_description=result.get("incident_description", ""),
+                analysis_goal=result.get("analysis_goal", ""),
+                output_path=output_path if report_format == ReportFormat.PDF else None,
+            )
+        )
 
         # Write report (unless PDF which writes itself)
         if report_format != ReportFormat.PDF:
@@ -696,8 +648,14 @@ def _display_investigation_results(result: dict, console: Console):
     if result["investigation_chain"]:
         console.print("[bold cyan]Investigation Chain:[/bold cyan]")
         for i, lead in enumerate(result["investigation_chain"], 1):
-            priority_color = "red" if lead["priority"] == "high" else "yellow" if lead["priority"] == "medium" else "dim"
-            console.print(f"  {i}. [{priority_color}]{lead['type']}[/{priority_color}]: {lead['description'][:80]}...")
+            priority_color = (
+                "red"
+                if lead["priority"] == "high"
+                else "yellow" if lead["priority"] == "medium" else "dim"
+            )
+            console.print(
+                f"  {i}. [{priority_color}]{lead['type']}[/{priority_color}]: {lead['description'][:80]}..."
+            )
             console.print(f"     [dim]Confidence: {lead['confidence']:.2f}[/dim]")
         console.print()
 
@@ -705,7 +663,9 @@ def _display_investigation_results(result: dict, console: Console):
     console.print(f"[bold yellow]Iterations ({len(result['iterations'])}):[/bold yellow]")
     for iteration in result["iterations"]:
         console.print(f"\n  Iteration {iteration['number']}: {iteration['tool']}")
-        console.print(f"    Findings: {iteration['findings_count']}, IOCs: {iteration['iocs_count']}, Leads: {iteration['leads_count']}")
+        console.print(
+            f"    Findings: {iteration['findings_count']}, IOCs: {iteration['iocs_count']}, Leads: {iteration['leads_count']}"
+        )
         console.print(f"    Duration: {iteration['duration']:.1f}s")
         if iteration.get("lead_followed"):
             console.print(f"    [dim]→ Followed: {iteration['lead_followed'][:60]}...[/dim]")
@@ -722,13 +682,21 @@ def _display_investigation_results(result: dict, console: Console):
 
         for severity in ["critical", "high", "medium", "low", "info"]:
             if severity in severity_counts:
-                color = {"critical": "red", "high": "yellow", "medium": "blue", "low": "dim", "info": "dim"}[severity]
-                console.print(f"  [{color}]{severity.upper()}: {severity_counts[severity]}[/{color}]")
+                color = {
+                    "critical": "red",
+                    "high": "yellow",
+                    "medium": "blue",
+                    "low": "dim",
+                    "info": "dim",
+                }[severity]
+                console.print(
+                    f"  [{color}]{severity.upper()}: {severity_counts[severity]}[/{color}]"
+                )
         console.print()
 
     # All IOCs Summary
     if result["all_iocs"]:
-        console.print(f"[bold cyan]Total IOCs:[/bold cyan]")
+        console.print("[bold cyan]Total IOCs:[/bold cyan]")
         for ioc_type, values in result["all_iocs"].items():
             console.print(f"  • {ioc_type}: {len(values)}")
         console.print()
@@ -756,7 +724,7 @@ def _save_investigation_results(result: dict, output_path: Path, console: Consol
                 severity=FindingSeverity(f.get("severity", "info")),
                 confidence=f.get("confidence", 0.5),
                 evidence=f.get("evidence", []),
-                tool_references=f.get("tool_references", [])
+                tool_references=f.get("tool_references", []),
             )
             for f in result.get("all_findings", [])
         ]
@@ -765,25 +733,29 @@ def _save_investigation_results(result: dict, output_path: Path, console: Consol
         investigation_chain = []
         for lead_data in result.get("investigation_chain", []):
             if lead_data:  # Can be None
-                investigation_chain.append(InvestigativeLead(
-                    lead_type=LeadType(lead_data.get("type", "process")),
-                    description=lead_data.get("description", ""),
-                    priority=LeadPriority(lead_data.get("priority", "medium")),
-                    confidence=lead_data.get("confidence", 0.7)
-                ))
+                investigation_chain.append(
+                    InvestigativeLead(
+                        lead_type=LeadType(lead_data.get("type", "process")),
+                        description=lead_data.get("description", ""),
+                        priority=LeadPriority(lead_data.get("priority", "medium")),
+                        confidence=lead_data.get("confidence", 0.7),
+                    )
+                )
             else:
                 investigation_chain.append(None)
 
         # Reconstruct iterations (simplified - reporter doesn't use full iteration details)
         iterations = []
         for it in result.get("iterations", []):
-            iterations.append(IterationResult(
-                iteration_number=it.get("number", 1),
-                tool_used=it.get("tool", "unknown"),
-                findings=[],  # Already in all_findings
-                iocs={},  # Already in all_iocs
-                duration=it.get("duration", 0.0)
-            ))
+            iterations.append(
+                IterationResult(
+                    iteration_number=it.get("number", 1),
+                    tool_used=it.get("tool", "unknown"),
+                    findings=[],  # Already in all_findings
+                    iocs={},  # Already in all_iocs
+                    duration=it.get("duration", 0.0),
+                )
+            )
 
         # Create IterativeAnalysisResult object
         iterative_result = IterativeAnalysisResult(
@@ -796,27 +768,29 @@ def _save_investigation_results(result: dict, output_path: Path, console: Consol
             all_iocs=result.get("all_iocs", {}),
             total_duration=result.get("total_duration", 0.0),
             stopping_reason=result.get("stopping_reason", ""),
-            investigation_summary=result.get("summary", "")
+            investigation_summary=result.get("summary", ""),
         )
 
         # Determine format from file extension
         format_map = {
             ".md": ReportFormat.MARKDOWN,
             ".html": ReportFormat.HTML,
-            ".pdf": ReportFormat.PDF
+            ".pdf": ReportFormat.PDF,
         }
         report_format = format_map.get(output_path.suffix.lower(), ReportFormat.MARKDOWN)
 
         # Generate professional report
         reporter = ReporterAgent()
-        report = asyncio.run(reporter.generate_report(
-            iterative_result=iterative_result,
-            format=report_format,
-            session_id=result.get("session_id", "unknown"),
-            incident_description=result.get("incident_description", ""),
-            analysis_goal=result.get("analysis_goal", ""),
-            output_path=output_path if report_format == ReportFormat.PDF else None
-        ))
+        report = asyncio.run(
+            reporter.generate_report(
+                iterative_result=iterative_result,
+                format=report_format,
+                session_id=result.get("session_id", "unknown"),
+                incident_description=result.get("incident_description", ""),
+                analysis_goal=result.get("analysis_goal", ""),
+                output_path=output_path if report_format == ReportFormat.PDF else None,
+            )
+        )
 
         # Write report (unless PDF which writes itself)
         if report_format != ReportFormat.PDF:
@@ -824,7 +798,9 @@ def _save_investigation_results(result: dict, output_path: Path, console: Consol
                 f.write(report)
 
         console.print(f"[green]✓ Professional investigation report saved to:[/green] {output_path}")
-        console.print(f"[dim]Format: {report_format.value}, MITRE ATT&CK mapping included, {len(result['iterations'])} iterations analyzed[/dim]")
+        console.print(
+            f"[dim]Format: {report_format.value}, MITRE ATT&CK mapping included, {len(result['iterations'])} iterations analyzed[/dim]"
+        )
 
     except Exception as e:
         console.print(f"[red]✗ Failed to generate investigation report:[/red] {e}")

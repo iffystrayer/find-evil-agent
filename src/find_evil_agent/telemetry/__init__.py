@@ -43,14 +43,16 @@ Configuration:
     - LANGFUSE_ENABLED (default: true)
 """
 
-import structlog
-from prometheus_client import Counter, Histogram, Gauge
-from typing import Optional, Any
 from contextlib import asynccontextmanager
+from typing import Any, Optional
+
+import structlog
+from prometheus_client import Counter, Gauge, Histogram
 
 # Lazy import Langfuse (optional dependency)
 try:
     from langfuse import Langfuse
+
     LANGFUSE_AVAILABLE = True
 except ImportError:
     LANGFUSE_AVAILABLE = False
@@ -65,7 +67,7 @@ structlog.configure(
         structlog.stdlib.add_log_level,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -79,57 +81,44 @@ logger = structlog.get_logger()
 # =============================================================================
 
 tool_executions_total = Counter(
-    'tool_executions_total',
-    'Total number of SIFT tool executions',
-    ['tool_name', 'status']
+    "tool_executions_total", "Total number of SIFT tool executions", ["tool_name", "status"]
 )
 
 tool_execution_duration_seconds = Histogram(
-    'tool_execution_duration_seconds',
-    'SIFT tool execution duration in seconds',
-    ['tool_name'],
-    buckets=[1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600]
+    "tool_execution_duration_seconds",
+    "SIFT tool execution duration in seconds",
+    ["tool_name"],
+    buckets=[1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600],
 )
 
-llm_calls_total = Counter(
-    'llm_calls_total',
-    'Total LLM API calls',
-    ['provider', 'model', 'status']
-)
+llm_calls_total = Counter("llm_calls_total", "Total LLM API calls", ["provider", "model", "status"])
 
 llm_call_duration_seconds = Histogram(
-    'llm_call_duration_seconds',
-    'LLM call duration in seconds',
-    ['provider', 'model'],
-    buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60]
+    "llm_call_duration_seconds",
+    "LLM call duration in seconds",
+    ["provider", "model"],
+    buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60],
 )
 
 tool_selection_confidence = Gauge(
-    'tool_selection_confidence',
-    'Confidence score for tool selection',
-    ['tool_name']
+    "tool_selection_confidence", "Confidence score for tool selection", ["tool_name"]
 )
 
 agent_errors_total = Counter(
-    'agent_errors_total',
-    'Total agent errors',
-    ['agent_name', 'error_type']
+    "agent_errors_total", "Total agent errors", ["agent_name", "error_type"]
 )
 
-active_incidents = Gauge(
-    'active_incidents',
-    'Number of active incident analysis sessions'
-)
+active_incidents = Gauge("active_incidents", "Number of active incident analysis sessions")
 
 # =============================================================================
 # Langfuse Integration
 # =============================================================================
 
 # Global Langfuse client (initialized lazily)
-_langfuse_client: Optional[Any] = None
+_langfuse_client: Any | None = None
 
 
-def get_langfuse_client() -> Optional[Any]:
+def get_langfuse_client() -> Any | None:
     """Get Langfuse client (lazy initialization).
 
     Returns None if Langfuse is not configured or disabled.
@@ -150,6 +139,7 @@ def get_langfuse_client() -> Optional[Any]:
     if _langfuse_client is None:
         try:
             from find_evil_agent.config.settings import get_settings
+
             settings = get_settings()
 
             if not settings.langfuse_enabled:
@@ -159,17 +149,11 @@ def get_langfuse_client() -> Optional[Any]:
                 _langfuse_client = Langfuse(
                     secret_key=settings.langfuse_secret_key,
                     public_key=settings.langfuse_public_key,
-                    host=settings.langfuse_base_url
+                    host=settings.langfuse_base_url,
                 )
-                logger.info(
-                    "langfuse_initialized",
-                    host=settings.langfuse_base_url
-                )
+                logger.info("langfuse_initialized", host=settings.langfuse_base_url)
         except Exception as e:
-            logger.warning(
-                "langfuse_init_failed",
-                error=str(e)
-            )
+            logger.warning("langfuse_init_failed", error=str(e))
             return None
 
     return _langfuse_client
@@ -201,16 +185,10 @@ async def trace_agent_execution(agent_name: str, input_data: dict):
     if langfuse:
         try:
             trace = langfuse.trace(
-                name=f"agent_{agent_name}",
-                input=input_data,
-                metadata={"agent": agent_name}
+                name=f"agent_{agent_name}", input=input_data, metadata={"agent": agent_name}
             )
         except Exception as e:
-            logger.warning(
-                "langfuse_trace_creation_failed",
-                agent=agent_name,
-                error=str(e)
-            )
+            logger.warning("langfuse_trace_creation_failed", agent=agent_name, error=str(e))
 
     try:
         yield trace
@@ -219,22 +197,16 @@ async def trace_agent_execution(agent_name: str, input_data: dict):
             try:
                 langfuse.flush()
             except Exception as e:
-                logger.warning(
-                    "langfuse_flush_failed",
-                    error=str(e)
-                )
+                logger.warning("langfuse_flush_failed", error=str(e))
 
 
 # =============================================================================
 # Logging Functions
 # =============================================================================
 
+
 def log_tool_execution(
-    tool_name: str,
-    duration: float,
-    status: str,
-    confidence: float | None = None,
-    **kwargs
+    tool_name: str, duration: float, status: str, confidence: float | None = None, **kwargs
 ):
     """Log tool execution with metrics and structured logging.
 
@@ -269,17 +241,11 @@ def log_tool_execution(
         duration=duration,
         status=status,
         confidence=confidence,
-        **kwargs
+        **kwargs,
     )
 
 
-def log_llm_call(
-    provider: str,
-    model: str,
-    duration: float,
-    status: str,
-    **kwargs
-):
+def log_llm_call(provider: str, model: str, duration: float, status: str, **kwargs):
     """Log LLM API call with metrics.
 
     Updates Prometheus metrics and writes structured log entry.
@@ -305,12 +271,7 @@ def log_llm_call(
     llm_call_duration_seconds.labels(provider=provider, model=model).observe(duration)
 
     logger.info(
-        "llm_call",
-        provider=provider,
-        model=model,
-        duration=duration,
-        status=status,
-        **kwargs
+        "llm_call", provider=provider, model=model, duration=duration, status=status, **kwargs
     )
 
 
@@ -337,11 +298,7 @@ def log_agent_error(agent_name: str, error_type: str, error_message: str, **kwar
     agent_errors_total.labels(agent_name=agent_name, error_type=error_type).inc()
 
     logger.error(
-        "agent_error",
-        agent=agent_name,
-        error_type=error_type,
-        error=error_message,
-        **kwargs
+        "agent_error", agent=agent_name, error_type=error_type, error=error_message, **kwargs
     )
 
 

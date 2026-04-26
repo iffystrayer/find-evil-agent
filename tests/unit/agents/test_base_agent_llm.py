@@ -7,7 +7,8 @@ TDD Structure:
 """
 
 import pytest
-from find_evil_agent.agents.base import BaseAgent, AgentResult
+
+from find_evil_agent.agents.base import AgentResult, BaseAgent
 from find_evil_agent.llm.providers.ollama import OllamaProvider
 
 
@@ -17,11 +18,7 @@ class TestAgent(BaseAgent):
 
     async def process(self, input_data: dict) -> AgentResult:
         """Simple test implementation."""
-        return AgentResult(
-            success=True,
-            data={"processed": True},
-            confidence=1.0
-        )
+        return AgentResult(success=True, data={"processed": True}, confidence=1.0)
 
 
 class TestBaseAgentLLMSpecification:
@@ -63,22 +60,16 @@ class TestBaseAgentLLMStructure:
 
     def test_base_agent_accepts_llm_provider_parameter(self):
         """BaseAgent __init__ should accept optional llm_provider."""
-        mock_provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        mock_provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
-        agent = TestAgent(
-            name="test",
-            llm_provider=mock_provider
-        )
+        agent = TestAgent(name="test", llm_provider=mock_provider)
 
         assert agent._llm_provider is mock_provider
 
     def test_base_agent_has_llm_property(self):
         """BaseAgent should have llm property."""
         agent = TestAgent(name="test")
-        assert hasattr(agent, 'llm')
+        assert hasattr(agent, "llm")
 
     def test_llm_property_is_property_not_method(self):
         """llm should be a property, not a method."""
@@ -94,15 +85,9 @@ class TestBaseAgentLLMExecution:
 
     def test_llm_property_returns_provider_when_injected(self):
         """llm property should return injected provider."""
-        mock_provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        mock_provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
-        agent = TestAgent(
-            name="test",
-            llm_provider=mock_provider
-        )
+        agent = TestAgent(name="test", llm_provider=mock_provider)
 
         assert agent.llm is mock_provider
 
@@ -114,8 +99,8 @@ class TestBaseAgentLLMExecution:
         provider = agent.llm
 
         assert provider is not None
-        assert hasattr(provider, 'chat')
-        assert hasattr(provider, 'chat_with_schema')
+        assert hasattr(provider, "chat")
+        assert hasattr(provider, "chat_with_schema")
 
     def test_llm_property_caches_provider(self):
         """llm property should cache provider instance."""
@@ -148,15 +133,9 @@ class TestBaseAgentLLMExecution:
 
     def test_agent_with_injected_provider_does_not_create_new_one(self):
         """Agent with injected provider should not create another."""
-        mock_provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        mock_provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
-        agent = TestAgent(
-            name="test",
-            llm_provider=mock_provider
-        )
+        agent = TestAgent(name="test", llm_provider=mock_provider)
 
         # Access multiple times
         p1 = agent.llm
@@ -178,10 +157,7 @@ class TestBaseAgentLLMExecution:
                 llm = self.llm
                 assert llm is not None
 
-                return AgentResult(
-                    success=True,
-                    data={"llm_available": True}
-                )
+                return AgentResult(success=True, data={"llm_available": True})
 
         agent = LLMUsingAgent(name="llm_user")
         result = await agent.process({})
@@ -197,6 +173,7 @@ class TestBaseAgentLLMExecution:
         # Skip if Ollama not available
         try:
             import httpx
+
             response = httpx.get("http://192.168.12.124:11434/api/tags", timeout=2.0)
             if response.status_code != 200:
                 pytest.skip("Ollama not available")
@@ -207,14 +184,9 @@ class TestBaseAgentLLMExecution:
             """Agent that calls LLM chat."""
 
             async def process(self, input_data: dict) -> AgentResult:
-                response = await self.llm.chat([
-                    {"role": "user", "content": "Say 'test'"}
-                ])
+                response = await self.llm.chat([{"role": "user", "content": "Say 'test'"}])
 
-                return AgentResult(
-                    success=True,
-                    data={"response": response}
-                )
+                return AgentResult(success=True, data={"response": response})
 
         agent = ChatAgent(name="chat_agent")
         result = await agent.process({})
@@ -232,16 +204,9 @@ class TestBaseAgentLLMExecution:
 
     def test_agent_with_config_and_llm_provider(self):
         """Agent should accept both config and llm_provider."""
-        mock_provider = OllamaProvider(
-            base_url="http://test:11434",
-            model_name="test-model"
-        )
+        mock_provider = OllamaProvider(base_url="http://test:11434", model_name="test-model")
 
-        agent = TestAgent(
-            name="test",
-            config={"setting": "value"},
-            llm_provider=mock_provider
-        )
+        agent = TestAgent(name="test", config={"setting": "value"}, llm_provider=mock_provider)
 
         assert agent.config == {"setting": "value"}
         assert agent.llm is mock_provider

@@ -7,8 +7,8 @@ TDD Structure:
 """
 
 import pytest
-import os
-from find_evil_agent.config.settings import Settings, LLMProviderEnum
+
+from find_evil_agent.config.settings import LLMProviderEnum, Settings
 
 
 class TestSettingsLLMSpecification:
@@ -62,34 +62,34 @@ class TestSettingsLLMStructure:
     def test_settings_has_llm_provider_field(self):
         """Settings must have llm_provider field."""
         settings = Settings()
-        assert hasattr(settings, 'llm_provider')
+        assert hasattr(settings, "llm_provider")
         assert isinstance(settings.llm_provider, LLMProviderEnum)
 
     def test_settings_has_llm_model_name_field(self):
         """Settings must have llm_model_name field."""
         settings = Settings()
-        assert hasattr(settings, 'llm_model_name')
+        assert hasattr(settings, "llm_model_name")
         assert isinstance(settings.llm_model_name, str)
 
     def test_settings_has_ollama_base_url_field(self):
         """Settings must have ollama_base_url field."""
         settings = Settings()
-        assert hasattr(settings, 'ollama_base_url')
-        assert settings.ollama_base_url.startswith('http')
+        assert hasattr(settings, "ollama_base_url")
+        assert settings.ollama_base_url.startswith("http")
 
     def test_settings_has_langfuse_fields(self):
         """Settings must have Langfuse configuration fields."""
         settings = Settings()
-        assert hasattr(settings, 'langfuse_secret_key')
-        assert hasattr(settings, 'langfuse_public_key')
-        assert hasattr(settings, 'langfuse_base_url')
-        assert hasattr(settings, 'langfuse_enabled')
+        assert hasattr(settings, "langfuse_secret_key")
+        assert hasattr(settings, "langfuse_public_key")
+        assert hasattr(settings, "langfuse_base_url")
+        assert hasattr(settings, "langfuse_enabled")
 
     def test_settings_has_port_fields(self):
         """Settings must have port configuration fields."""
         settings = Settings()
-        assert hasattr(settings, 'sift_vm_port')
-        assert hasattr(settings, 'mcp_server_port')
+        assert hasattr(settings, "sift_vm_port")
+        assert hasattr(settings, "mcp_server_port")
 
 
 class TestSettingsLLMExecution:

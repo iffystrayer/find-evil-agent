@@ -15,19 +15,19 @@ Test Coverage:
 """
 
 import pytest
-from unittest.mock import Mock
 
 # Conditional imports for TDD - Parsers may not exist yet
 try:
     from find_evil_agent.parsers import (
         BaseParser,
+        GrepParser,
         ParserResult,
-        VolatilityParser,
+        StringsParser,
         TimelineParser,
         TSKParser,
-        StringsParser,
-        GrepParser,
+        VolatilityParser,
     )
+
     PARSERS_AVAILABLE = True
 except ImportError:
     PARSERS_AVAILABLE = False
@@ -58,6 +58,7 @@ except ImportError:
 # =============================================================================
 # Test Specification (ALWAYS PASSING)
 # =============================================================================
+
 
 class TestParsersSpecification:
     """Requirements and specifications for parsers module."""
@@ -112,6 +113,7 @@ class TestParsersSpecification:
 # Base Parser Tests
 # =============================================================================
 
+
 class TestBaseParserStructure:
     """Test BaseParser interface compliance."""
 
@@ -119,26 +121,24 @@ class TestBaseParserStructure:
     def test_base_parser_is_abstract(self):
         """BaseParser should be abstract with required methods."""
         from abc import ABC
+
         assert issubclass(BaseParser, ABC)
 
     @pytest.mark.skipif(not PARSERS_AVAILABLE, reason="Parsers not implemented yet")
     def test_base_parser_has_parse_method(self):
         """BaseParser must define parse() abstract method."""
-        assert hasattr(BaseParser, 'parse')
+        assert hasattr(BaseParser, "parse")
 
     @pytest.mark.skipif(not PARSERS_AVAILABLE, reason="Parsers not implemented yet")
     def test_base_parser_has_supports_tool_method(self):
         """BaseParser must define supports_tool() abstract method."""
-        assert hasattr(BaseParser, 'supports_tool')
+        assert hasattr(BaseParser, "supports_tool")
 
     @pytest.mark.skipif(not PARSERS_AVAILABLE, reason="Parsers not implemented yet")
     def test_parser_result_structure(self):
         """ParserResult should have required fields."""
         result = ParserResult(
-            success=True,
-            data={"test": "data"},
-            raw_output="test output",
-            tool_name="test_tool"
+            success=True, data={"test": "data"}, raw_output="test output", tool_name="test_tool"
         )
         assert result.success is True
         assert result.data == {"test": "data"}
@@ -149,6 +149,7 @@ class TestBaseParserStructure:
 # =============================================================================
 # Volatility Parser Tests
 # =============================================================================
+
 
 class TestVolatilityParserStructure:
     """Test VolatilityParser interface compliance."""
@@ -260,6 +261,7 @@ Offset(P)          Proto    Local Address                  Foreign Address      
 # Timeline Parser Tests
 # =============================================================================
 
+
 class TestTimelineParserStructure:
     """Test TimelineParser interface compliance."""
 
@@ -318,6 +320,7 @@ class TestTimelineParserExecution:
 # =============================================================================
 # TSK Parser Tests
 # =============================================================================
+
 
 class TestTSKParserStructure:
     """Test TSKParser interface compliance."""
@@ -407,6 +410,7 @@ Units are in 512-byte sectors
 # Strings Parser Tests
 # =============================================================================
 
+
 class TestStringsParserStructure:
     """Test StringsParser interface compliance."""
 
@@ -476,6 +480,7 @@ Mozilla/5.0
 # =============================================================================
 # Grep Parser Tests
 # =============================================================================
+
 
 class TestGrepParserStructure:
     """Test GrepParser interface compliance."""

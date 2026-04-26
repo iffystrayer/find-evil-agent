@@ -18,49 +18,68 @@ The ReporterAgent must generate professional IR reports meeting Valhuntir qualit
 - Multiple output formats: Markdown, HTML, PDF
 """
 
-import pytest
 from datetime import datetime
 from uuid import uuid4
 
+import pytest
+
 # Conditional import for TDD - Component may not exist yet
 try:
-    from find_evil_agent.agents.reporter import ReporterAgent
     from find_evil_agent.agents.report_schemas import (
-        ReportSchema, ReportFormat, ExecutiveSummary, MITREMapping,
-        IOCTableEntry, TimelineEntry, Recommendation
+        ExecutiveSummary,
+        IOCTableEntry,
+        MITREMapping,
+        Recommendation,
+        ReportFormat,
+        ReportSchema,
+        TimelineEntry,
     )
+    from find_evil_agent.agents.reporter import ReporterAgent
+
     REPORTER_AVAILABLE = True
 except ImportError:
     REPORTER_AVAILABLE = False
+
     # Placeholder classes for testing structure
     class ReporterAgent:
         pass
+
     class ReportSchema:
         pass
+
     class ReportFormat:
         MARKDOWN = "markdown"
         HTML = "html"
         PDF = "pdf"
+
     class ExecutiveSummary:
         pass
+
     class MITREMapping:
         pass
+
     class IOCTableEntry:
         pass
+
     class TimelineEntry:
         pass
+
     class Recommendation:
         pass
 
+
 from find_evil_agent.agents.base import BaseAgent
 from find_evil_agent.agents.schemas import (
-    Finding, FindingSeverity, AnalysisResult, IterativeAnalysisResult
+    AnalysisResult,
+    Finding,
+    FindingSeverity,
+    IterativeAnalysisResult,
 )
-
 
 # ============================================================================
 # TEST FIXTURES
 # ============================================================================
+
 
 @pytest.fixture
 def sample_findings():
@@ -73,7 +92,7 @@ def sample_findings():
             confidence=0.85,
             evidence=["Process: powershell.exe", "Parent: winword.exe"],
             tool_references=["volatility", "pslist"],
-            timestamp=datetime(2026, 4, 17, 10, 30, 0)
+            timestamp=datetime(2026, 4, 17, 10, 30, 0),
         ),
         Finding(
             title="Outbound Connection to Suspicious IP",
@@ -82,7 +101,7 @@ def sample_findings():
             confidence=0.95,
             evidence=["IP: 192.168.100.50", "Port: 443", "Process: powershell.exe"],
             tool_references=["volatility", "netscan"],
-            timestamp=datetime(2026, 4, 17, 10, 31, 0)
+            timestamp=datetime(2026, 4, 17, 10, 31, 0),
         ),
         Finding(
             title="File Modification in System32",
@@ -91,7 +110,7 @@ def sample_findings():
             confidence=0.80,
             evidence=["Path: C:\\Windows\\System32\\evil.dll", "Hash: a1b2c3d4e5..."],
             tool_references=["fls"],
-            timestamp=datetime(2026, 4, 17, 10, 32, 0)
+            timestamp=datetime(2026, 4, 17, 10, 32, 0),
         ),
         Finding(
             title="Registry Persistence Mechanism",
@@ -100,7 +119,7 @@ def sample_findings():
             confidence=0.75,
             evidence=["Key: HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"],
             tool_references=["volatility"],
-            timestamp=datetime(2026, 4, 17, 10, 33, 0)
+            timestamp=datetime(2026, 4, 17, 10, 33, 0),
         ),
         Finding(
             title="Normal System Activity",
@@ -109,7 +128,7 @@ def sample_findings():
             confidence=0.60,
             evidence=["Service: svchost.exe"],
             tool_references=["pslist"],
-            timestamp=datetime(2026, 4, 17, 10, 34, 0)
+            timestamp=datetime(2026, 4, 17, 10, 34, 0),
         ),
     ]
 
@@ -137,7 +156,7 @@ def sample_analysis_result(sample_findings, sample_iocs):
         iocs=sample_iocs,
         raw_output="[Volatility output truncated]",
         parsed_output={"processes": 42, "connections": 8},
-        analysis_summary="Analysis completed successfully"
+        analysis_summary="Analysis completed successfully",
     )
 
 
@@ -155,13 +174,14 @@ def sample_iterative_result(sample_findings, sample_iocs):
         total_duration=45.6,
         stopping_reason="Max iterations reached",
         investigation_summary="Complete attack chain reconstructed",
-        timestamp=datetime(2026, 4, 17, 10, 35, 0)
+        timestamp=datetime(2026, 4, 17, 10, 35, 0),
     )
 
 
 # ============================================================================
 # SPECIFICATION TESTS (Always Pass - Document Requirements)
 # ============================================================================
+
 
 class TestSpecification:
     """Test specification and requirements documentation.
@@ -265,6 +285,7 @@ class TestSpecification:
 # STRUCTURE TESTS (Skipped Until Implementation)
 # ============================================================================
 
+
 class TestStructure:
     """Test ReporterAgent interface compliance and structure.
 
@@ -304,17 +325,14 @@ class TestStructure:
                 incident_overview="This is a test incident overview that provides sufficient detail about what happened during the incident and when it occurred for validation purposes.",
                 key_findings="These are the test key findings with enough detail to pass validation requirements.",
                 impact_assessment="This is the test impact assessment with sufficient information about the impact.",
-                recommendations_summary="These are the test recommendations summary with adequate detail for validation."
+                recommendations_summary="These are the test recommendations summary with adequate detail for validation.",
             ),
             findings=[],
             ioc_tables={},
             timeline=[],
             mitre_mappings=[],
             recommendations=[],
-            metadata=ReportMetadata(
-                session_id="test-session",
-                format=ReportFormat.MARKDOWN
-            )
+            metadata=ReportMetadata(session_id="test-session", format=ReportFormat.MARKDOWN),
         )
 
         assert hasattr(schema, "session_id")
@@ -331,6 +349,7 @@ class TestStructure:
 # ============================================================================
 # EXECUTION TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 class TestExecution:
     """Test ReporterAgent core functionality.
@@ -349,7 +368,7 @@ class TestExecution:
             analysis_result=sample_analysis_result,
             format=ReportFormat.MARKDOWN,
             session_id="test-session-001",
-            incident_description="Ransomware attack on endpoint"
+            incident_description="Ransomware attack on endpoint",
         )
 
         assert report is not None
@@ -372,7 +391,7 @@ class TestExecution:
         report = await agent.generate_report(
             analysis_result=sample_analysis_result,
             format=ReportFormat.HTML,
-            session_id="test-session-002"
+            session_id="test-session-002",
         )
 
         assert report is not None
@@ -381,8 +400,8 @@ class TestExecution:
         assert "<head>" in report
         assert "<style>" in report  # Should include CSS
         assert "<body>" in report
-        assert "class=\"severity-critical\"" in report  # Check severity styling
-        assert "class=\"ioc-table\"" in report  # Check IOC table styling
+        assert 'class="severity-critical"' in report  # Check severity styling
+        assert 'class="ioc-table"' in report  # Check IOC table styling
 
     @pytest.mark.skipif(not REPORTER_AVAILABLE, reason="ReporterAgent not implemented yet")
     @pytest.mark.asyncio
@@ -396,7 +415,7 @@ class TestExecution:
             analysis_result=sample_analysis_result,
             format=ReportFormat.PDF,
             output_path=output_path,
-            session_id="test-session-003"
+            session_id="test-session-003",
         )
 
         assert output_path.exists()
@@ -416,7 +435,7 @@ class TestExecution:
         summary = await agent.create_executive_summary(
             findings=sample_findings,
             incident_description="Ransomware detected on Windows endpoint",
-            analysis_goal="Identify malware and C2 infrastructure"
+            analysis_goal="Identify malware and C2 infrastructure",
         )
 
         assert summary is not None
@@ -444,7 +463,9 @@ class TestExecution:
 
         # Check for expected techniques based on findings
         techniques = [m.technique_id for m in mappings]
-        assert any("T1059" in t for t in techniques)  # Command and Scripting Interpreter (PowerShell)
+        assert any(
+            "T1059" in t for t in techniques
+        )  # Command and Scripting Interpreter (PowerShell)
         assert any("T1071" in t for t in techniques)  # Application Layer Protocol (C2)
 
         # Verify mapping structure
@@ -524,7 +545,8 @@ class TestExecution:
 
         # Should prioritize based on severity
         critical_high_count = sum(
-            1 for f in sample_findings
+            1
+            for f in sample_findings
             if f.severity in [FindingSeverity.CRITICAL, FindingSeverity.HIGH]
         )
         assert len(recommendations) >= critical_high_count  # At least one per critical/high finding
@@ -551,7 +573,7 @@ class TestExecution:
                 raw_output="",
             ),
             format=ReportFormat.MARKDOWN,
-            session_id="test"
+            session_id="test",
         )
 
         # Find severity section positions
@@ -578,7 +600,7 @@ class TestExecution:
                 raw_output="",
             ),
             format=ReportFormat.MARKDOWN,
-            session_id="test"
+            session_id="test",
         )
 
         # Verify evidence citations
@@ -597,7 +619,7 @@ class TestExecution:
             analysis_result=sample_analysis_result,
             format=ReportFormat.MARKDOWN,
             session_id="test-session-123",
-            incident_description="Test incident"
+            incident_description="Test incident",
         )
 
         # Verify metadata sections
@@ -610,6 +632,7 @@ class TestExecution:
 # ============================================================================
 # INTEGRATION TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 class TestIntegration:
     """Test ReporterAgent integration with system components.
@@ -625,8 +648,7 @@ class TestIntegration:
         agent = ReporterAgent()
 
         report = await agent.generate_report(
-            iterative_result=sample_iterative_result,
-            format=ReportFormat.MARKDOWN
+            iterative_result=sample_iterative_result, format=ReportFormat.MARKDOWN
         )
 
         assert report is not None
@@ -640,11 +662,13 @@ class TestIntegration:
         """Test process() method follows BaseAgent interface."""
         agent = ReporterAgent()
 
-        result = await agent.process({
-            "analysis_result": sample_analysis_result,
-            "format": "markdown",
-            "session_id": "test",
-        })
+        result = await agent.process(
+            {
+                "analysis_result": sample_analysis_result,
+                "format": "markdown",
+                "session_id": "test",
+            }
+        )
 
         assert result is not None
         assert hasattr(result, "status")
@@ -669,7 +693,7 @@ class TestIntegration:
                 analysis_result=sample_analysis_result,
                 format=format_type,
                 output_path=output_path,
-                session_id="test"
+                session_id="test",
             )
 
             assert output_path.exists()
@@ -679,6 +703,7 @@ class TestIntegration:
 # ============================================================================
 # ERROR HANDLING TESTS (Skipped Until Implementation)
 # ============================================================================
+
 
 class TestErrorHandling:
     """Test ReporterAgent error handling and edge cases."""
@@ -690,16 +715,11 @@ class TestErrorHandling:
         agent = ReporterAgent()
 
         result = AnalysisResult(
-            tool_name="test",
-            findings=[],
-            iocs={},
-            raw_output="No suspicious activity detected"
+            tool_name="test", findings=[], iocs={}, raw_output="No suspicious activity detected"
         )
 
         report = await agent.generate_report(
-            analysis_result=result,
-            format=ReportFormat.MARKDOWN,
-            session_id="test"
+            analysis_result=result, format=ReportFormat.MARKDOWN, session_id="test"
         )
 
         assert report is not None
@@ -712,16 +732,11 @@ class TestErrorHandling:
         agent = ReporterAgent()
 
         result = AnalysisResult(
-            tool_name="test",
-            findings=sample_findings,
-            iocs={},  # No IOCs
-            raw_output="Test output"
+            tool_name="test", findings=sample_findings, iocs={}, raw_output="Test output"  # No IOCs
         )
 
         report = await agent.generate_report(
-            analysis_result=result,
-            format=ReportFormat.MARKDOWN,
-            session_id="test"
+            analysis_result=result, format=ReportFormat.MARKDOWN, session_id="test"
         )
 
         assert report is not None
@@ -738,7 +753,7 @@ class TestErrorHandling:
             analysis_result=sample_analysis_result,
             format=ReportFormat.PDF,
             session_id="test",
-            fallback_to_html=True
+            fallback_to_html=True,
         )
 
         # Should get HTML if PDF fails
@@ -756,5 +771,5 @@ class TestErrorHandling:
                 analysis_result=sample_analysis_result,
                 format=ReportFormat.PDF,
                 output_path="/nonexistent/directory/report.pdf",
-                session_id="test"
+                session_id="test",
             )

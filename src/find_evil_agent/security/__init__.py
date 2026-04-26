@@ -1,8 +1,8 @@
 """Security validation for Find Evil Agent."""
 
 from find_evil_agent.security.validators import (
-    PathValidator,
     CommandValidator,
+    PathValidator,
     SecurityValidationError,
 )
 

@@ -32,18 +32,19 @@ Example:
     >>> print(response)
 """
 
-import orjson
 from typing import Any
-from pydantic import BaseModel, ValidationError
+
+import orjson
 import structlog
-from anthropic import AsyncAnthropic
 from anthropic import (
+    APIConnectionError,
     APIError,
     APITimeoutError,
-    RateLimitError,
+    AsyncAnthropic,
     AuthenticationError,
-    APIConnectionError
+    RateLimitError,
 )
+from pydantic import BaseModel, ValidationError
 
 logger = structlog.get_logger()
 
@@ -69,7 +70,7 @@ class AnthropicProvider:
         model_name: str,
         temperature: float = 0.1,
         timeout: float = 120.0,
-        max_tokens: int = 4096
+        max_tokens: int = 4096,
     ):
         """Initialize Anthropic provider.
 
@@ -92,10 +93,7 @@ class AnthropicProvider:
         self._temperature = temperature
         self._timeout = timeout
         self._max_tokens = max_tokens
-        self._client = AsyncAnthropic(
-            api_key=api_key,
-            timeout=timeout
-        )
+        self._client = AsyncAnthropic(api_key=api_key, timeout=timeout)
 
     async def generate(self, prompt: str, **kwargs) -> str:
         """Generate text from simple prompt (convenience wrapper).
@@ -146,8 +144,8 @@ class AnthropicProvider:
             ...     {"role": "user", "content": "Explain volatility"}
             ... ])
         """
-        temperature = kwargs.get('temperature', self._temperature)
-        max_tokens = kwargs.get('max_tokens', self._max_tokens)
+        temperature = kwargs.get("temperature", self._temperature)
+        max_tokens = kwargs.get("max_tokens", self._max_tokens)
 
         # Extract system message if present (Anthropic requires separate parameter)
         system_message, filtered_messages = self._extract_system_message(messages)
@@ -158,21 +156,24 @@ class AnthropicProvider:
                 messages=filtered_messages,
                 system=system_message,
                 temperature=temperature,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
             )
 
             # Extract text from first content block
             return response.content[0].text
 
-        except (APIError, APITimeoutError, RateLimitError, AuthenticationError, APIConnectionError) as e:
+        except (
+            APIError,
+            APITimeoutError,
+            RateLimitError,
+            AuthenticationError,
+            APIConnectionError,
+        ) as e:
             logger.error("anthropic_request_failed", error=str(e), model=self._model_name)
             raise RuntimeError(f"Anthropic request failed: {e}")
 
     async def generate_json(
-        self,
-        prompt: str,
-        schema: type[BaseModel] | None = None,
-        **kwargs
+        self, prompt: str, schema: type[BaseModel] | None = None, **kwargs
     ) -> dict[str, Any] | BaseModel:
         """Generate structured JSON from prompt (convenience wrapper).
 
@@ -221,10 +222,7 @@ class AnthropicProvider:
                 raise RuntimeError(f"Failed to parse JSON from Anthropic response: {e}")
 
     async def chat_with_schema(
-        self,
-        messages: list[dict[str, str]],
-        schema: type[BaseModel],
-        **kwargs
+        self, messages: list[dict[str, str]], schema: type[BaseModel], **kwargs
     ) -> BaseModel:
         """Chat with structured output using tool calling.
 
@@ -260,8 +258,8 @@ class AnthropicProvider:
             >>> print(selection.confidence)
             0.85
         """
-        temperature = kwargs.get('temperature', self._temperature)
-        max_tokens = kwargs.get('max_tokens', self._max_tokens)
+        temperature = kwargs.get("temperature", self._temperature)
+        max_tokens = kwargs.get("max_tokens", self._max_tokens)
 
         # Build tool definition from schema
         tool_def = self._build_tool_definition(schema)
@@ -283,7 +281,7 @@ class AnthropicProvider:
                     temperature=temperature,
                     max_tokens=max_tokens,
                     tools=[tool_def],
-                    tool_choice={"type": "tool", "name": tool_def["name"]}
+                    tool_choice={"type": "tool", "name": tool_def["name"]},
                 )
 
                 # Find tool_use content block
@@ -302,7 +300,7 @@ class AnthropicProvider:
                 logger.info(
                     "anthropic_structured_output_success",
                     schema=schema.__name__,
-                    attempt=attempt + 1
+                    attempt=attempt + 1,
                 )
                 return validated
 
@@ -311,7 +309,7 @@ class AnthropicProvider:
                     "anthropic_structured_output_failed",
                     schema=schema.__name__,
                     attempt=attempt + 1,
-                    error=str(e)
+                    error=str(e),
                 )
 
                 if attempt < max_retries - 1:
@@ -320,23 +318,25 @@ class AnthropicProvider:
                         f"Previous response was invalid: {e}. "
                         f"Please provide a response matching the exact schema structure."
                     )
-                    filtered_messages.append({
-                        "role": "user",
-                        "content": error_msg
-                    })
+                    filtered_messages.append({"role": "user", "content": error_msg})
                 else:
                     raise RuntimeError(
                         f"Failed to get valid structured output from {self._model_name} "
                         f"after {max_retries} attempts: {e}"
                     )
 
-            except (APIError, APITimeoutError, RateLimitError, AuthenticationError, APIConnectionError) as e:
+            except (
+                APIError,
+                APITimeoutError,
+                RateLimitError,
+                AuthenticationError,
+                APIConnectionError,
+            ) as e:
                 logger.error("anthropic_structured_request_failed", error=str(e))
                 raise RuntimeError(f"Anthropic structured request failed: {e}")
 
     def _extract_system_message(
-        self,
-        messages: list[dict[str, str]]
+        self, messages: list[dict[str, str]]
     ) -> tuple[str | None, list[dict[str, str]]]:
         """Extract system message from messages list.
 
@@ -388,7 +388,7 @@ class AnthropicProvider:
         return {
             "name": "provide_structured_response",
             "description": f"Provide a structured response matching the {schema.__name__} schema",
-            "input_schema": schema_json
+            "input_schema": schema_json,
         }
 
     def _build_schema_instructions(self, schema: type[BaseModel]) -> str:
@@ -411,9 +411,7 @@ The response must match the {schema.__name__} schema exactly.
 Ensure all required fields are present with appropriate values."""
 
     def _inject_schema_instructions(
-        self,
-        messages: list[dict[str, str]],
-        instructions: str
+        self, messages: list[dict[str, str]], instructions: str
     ) -> list[dict[str, str]]:
         """Inject schema instructions into system message.
 
@@ -437,10 +435,7 @@ Ensure all required fields are present with appropriate values."""
             messages_copy[0]["content"] += f"\n\n{instructions}"
         else:
             # Prepend new system message
-            messages_copy.insert(0, {
-                "role": "system",
-                "content": instructions
-            })
+            messages_copy.insert(0, {"role": "system", "content": instructions})
 
         return messages_copy
 

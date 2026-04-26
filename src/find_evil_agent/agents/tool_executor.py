@@ -20,17 +20,19 @@ Example:
     'Volatility Foundation Volatility Framework...'
 """
 
-import time
 import asyncio
+import time
 from typing import Any
+
 import asyncssh
 import structlog
 
-from .base import BaseAgent, AgentResult, AgentStatus
-from .schemas import ExecutionResult, ExecutionStatus
 from find_evil_agent.config.settings import get_settings
-from find_evil_agent.telemetry import log_agent_error
 from find_evil_agent.parsers.factory import get_parser_factory
+from find_evil_agent.telemetry import log_agent_error
+
+from .base import AgentResult, AgentStatus, BaseAgent
+from .schemas import ExecutionResult, ExecutionStatus
 
 agent_logger = structlog.get_logger()
 
@@ -80,7 +82,7 @@ class ToolExecutorAgent(BaseAgent):
         ssh_key_path: str | None = None,
         default_timeout: int = 60,
         max_timeout: int = 3600,
-        **kwargs
+        **kwargs,
     ):
         """Initialize Tool Executor Agent.
 
@@ -109,7 +111,7 @@ class ToolExecutorAgent(BaseAgent):
             ssh_host=self.ssh_host,
             ssh_port=self.ssh_port,
             ssh_user=self.ssh_user,
-            default_timeout=self.default_timeout
+            default_timeout=self.default_timeout,
         )
 
     async def process(self, input_data: dict[str, Any]) -> AgentResult:
@@ -145,7 +147,7 @@ class ToolExecutorAgent(BaseAgent):
                     success=False,
                     data={},
                     status=AgentStatus.FAILED,
-                    error="Invalid input: tool_name and command are required"
+                    error="Invalid input: tool_name and command are required",
                 )
 
             tool_name = input_data["tool_name"]
@@ -160,7 +162,7 @@ class ToolExecutorAgent(BaseAgent):
                 agent=self.name,
                 tool=tool_name,
                 command=command[:100],  # Truncate for logging
-                timeout=timeout
+                timeout=timeout,
             )
 
             # Validate command security
@@ -169,21 +171,19 @@ class ToolExecutorAgent(BaseAgent):
                     agent_name=self.name,
                     error_type="security_validation",
                     error_message=f"Command blocked by security rules: {command}",
-                    tool=tool_name
+                    tool=tool_name,
                 )
 
                 return AgentResult(
                     success=False,
                     data={},
                     status=AgentStatus.FAILED,
-                    error=f"Command blocked by security validation: contains dangerous patterns"
+                    error="Command blocked by security validation: contains dangerous patterns",
                 )
 
             # Execute command via SSH
             exec_result = await self._execute_ssh_command(
-                tool_name=tool_name,
-                command=command,
-                timeout=timeout
+                tool_name=tool_name, command=command, timeout=timeout
             )
 
             # Determine overall status
@@ -210,28 +210,26 @@ class ToolExecutorAgent(BaseAgent):
                 execution_time=exec_result.execution_time,
                 stdout_length=len(exec_result.stdout or ""),
                 stderr_length=len(exec_result.stderr or ""),
-                parsed=exec_result.parsed_output is not None
+                parsed=exec_result.parsed_output is not None,
             )
 
             return AgentResult(
                 success=success,
                 data={"execution_result": exec_result},
                 status=status,
-                error=None if success else f"Command failed with code {exec_result.return_code}"
+                error=None if success else f"Command failed with code {exec_result.return_code}",
             )
 
         except Exception as e:
             log_agent_error(
-                agent_name=self.name,
-                error_type="execution_error",
-                error_message=str(e)
+                agent_name=self.name, error_type="execution_error", error_message=str(e)
             )
 
             return AgentResult(
                 success=False,
                 data={},
                 status=AgentStatus.FAILED,
-                error=f"Tool execution failed: {e}"
+                error=f"Tool execution failed: {e}",
             )
 
     async def validate(self, input_data: dict[str, Any]) -> bool:
@@ -263,20 +261,13 @@ class ToolExecutorAgent(BaseAgent):
         # Check blocked patterns
         for pattern in BLOCKED_PATTERNS:
             if pattern in command_lower:
-                agent_logger.warning(
-                    "command_blocked",
-                    pattern=pattern,
-                    command=command[:100]
-                )
+                agent_logger.warning("command_blocked", pattern=pattern, command=command[:100])
                 return False
 
         return True
 
     async def _execute_ssh_command(
-        self,
-        tool_name: str,
-        command: str,
-        timeout: int
+        self, tool_name: str, command: str, timeout: int
     ) -> ExecutionResult:
         """Execute command via SSH with timeout.
 
@@ -293,8 +284,7 @@ class ToolExecutorAgent(BaseAgent):
         try:
             # Execute with timeout
             result = await asyncio.wait_for(
-                self._run_ssh_command(tool_name, command),
-                timeout=timeout
+                self._run_ssh_command(tool_name, command), timeout=timeout
             )
 
             execution_time = time.time() - start_time
@@ -302,14 +292,11 @@ class ToolExecutorAgent(BaseAgent):
 
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             execution_time = time.time() - start_time
 
             agent_logger.warning(
-                "command_timeout",
-                tool=tool_name,
-                timeout=timeout,
-                execution_time=execution_time
+                "command_timeout", tool=tool_name, timeout=timeout, execution_time=execution_time
             )
 
             return ExecutionResult(
@@ -319,17 +306,14 @@ class ToolExecutorAgent(BaseAgent):
                 stderr=f"Command timed out after {timeout} seconds",
                 return_code=-1,
                 status=ExecutionStatus.TIMEOUT,
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
         except Exception as e:
             execution_time = time.time() - start_time
 
             agent_logger.error(
-                "ssh_execution_error",
-                tool=tool_name,
-                error=str(e),
-                execution_time=execution_time
+                "ssh_execution_error", tool=tool_name, error=str(e), execution_time=execution_time
             )
 
             return ExecutionResult(
@@ -339,14 +323,10 @@ class ToolExecutorAgent(BaseAgent):
                 stderr=f"SSH execution error: {e}",
                 return_code=-1,
                 status=ExecutionStatus.FAILED,
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
-    async def _run_ssh_command(
-        self,
-        tool_name: str,
-        command: str
-    ) -> ExecutionResult:
+    async def _run_ssh_command(self, tool_name: str, command: str) -> ExecutionResult:
         """Run command via SSH connection.
 
         Args:
@@ -361,10 +341,7 @@ class ToolExecutorAgent(BaseAgent):
         try:
             # Establish SSH connection
             agent_logger.debug(
-                "ssh_connecting",
-                host=self.ssh_host,
-                port=self.ssh_port,
-                user=self.ssh_user
+                "ssh_connecting", host=self.ssh_host, port=self.ssh_port, user=self.ssh_user
             )
 
             # Build connection kwargs
@@ -403,7 +380,7 @@ class ToolExecutorAgent(BaseAgent):
                 tool=tool_name,
                 return_code=return_code,
                 stdout_length=len(stdout),
-                stderr_length=len(stderr)
+                stderr_length=len(stderr),
             )
 
             return ExecutionResult(
@@ -413,15 +390,12 @@ class ToolExecutorAgent(BaseAgent):
                 stderr=stderr,
                 return_code=return_code,
                 status=status,
-                execution_time=0.0  # Will be set by caller
+                execution_time=0.0,  # Will be set by caller
             )
 
         except asyncssh.Error as e:
             agent_logger.error(
-                "ssh_error",
-                tool=tool_name,
-                error=str(e),
-                error_type=type(e).__name__
+                "ssh_error", tool=tool_name, error=str(e), error_type=type(e).__name__
             )
 
             return ExecutionResult(
@@ -431,7 +405,7 @@ class ToolExecutorAgent(BaseAgent):
                 stderr=f"SSH error: {e}",
                 return_code=-1,
                 status=ExecutionStatus.FAILED,
-                execution_time=0.0
+                execution_time=0.0,
             )
 
         finally:
@@ -491,29 +465,21 @@ class ToolExecutorAgent(BaseAgent):
 
             if parse_result and parse_result.success:
                 # Convert parsed data to dict for ExecutionResult
-                if hasattr(parse_result.data, '__dict__'):
+                if hasattr(parse_result.data, "__dict__"):
                     exec_result.parsed_output = parse_result.data.__dict__
                 else:
                     exec_result.parsed_output = {"data": parse_result.data}
 
-                agent_logger.debug(
-                    "output_parsed",
-                    tool=tool_name,
-                    parser_kwargs=parser_kwargs
-                )
+                agent_logger.debug("output_parsed", tool=tool_name, parser_kwargs=parser_kwargs)
             else:
                 agent_logger.debug(
                     "parsing_failed_or_unavailable",
                     tool=tool_name,
-                    has_parser=factory.supports_tool(tool_name)
+                    has_parser=factory.supports_tool(tool_name),
                 )
 
         except Exception as e:
-            agent_logger.warning(
-                "parse_error",
-                tool=exec_result.tool_name,
-                error=str(e)
-            )
+            agent_logger.warning("parse_error", tool=exec_result.tool_name, error=str(e))
             # Don't fail execution if parsing fails
             pass
 
