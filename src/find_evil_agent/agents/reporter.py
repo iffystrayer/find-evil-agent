@@ -16,6 +16,8 @@ from html import escape as _html_escape
 from pathlib import Path
 from typing import Any, Optional
 from collections import defaultdict
+
+import aiofiles
 import structlog
 
 from .base import BaseAgent, AgentResult, AgentStatus
@@ -229,8 +231,8 @@ class ReporterAgent(BaseAgent):
             output_path = Path(output_path)
             if not output_path.parent.exists():
                 raise ValueError(f"Invalid output path: {output_path.parent} does not exist")
-            with open(output_path, "w") as f:
-                f.write(content)
+            async with aiofiles.open(output_path, "w") as f:
+                await f.write(content)
             logger.info("report_written", path=str(output_path), format=format.value)
             return str(output_path)
 
@@ -631,8 +633,8 @@ Detailed recommendations are provided in the Recommendations section of this rep
         template_path = Path(__file__).parent.parent.parent.parent / "templates" / "report_graph_template.html"
 
         try:
-            with open(template_path, 'r') as f:
-                template_html = f.read()
+            async with aiofiles.open(template_path, "r") as f:
+                template_html = await f.read()
 
             # Inject graph data into template
             graph_html = template_html.replace(
@@ -1126,8 +1128,8 @@ Detailed recommendations are provided in the Recommendations section of this rep
             logger.warning("weasyprint_not_available", fallback="html")
             # Fallback: save as HTML with .pdf extension warning
             html_path = output_path.with_suffix(".html")
-            with open(html_path, "w") as f:
-                f.write(html_content)
+            async with aiofiles.open(html_path, "w") as f:
+                await f.write(html_content)
             raise ImportError(
                 "weasyprint not installed. Install with: pip install weasyprint\n"
                 f"HTML report saved to: {html_path}"

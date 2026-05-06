@@ -57,6 +57,7 @@ dependencies = [
     
     # Async Support
     "anyio>=4.0.0",
+    "aiofiles>=23.0.0",
 
     # SSH for SIFT VM connection
     "asyncssh>=2.14.0",

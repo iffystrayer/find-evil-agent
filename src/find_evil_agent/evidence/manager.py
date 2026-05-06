@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
+import aiofiles
 import asyncssh
 import structlog
 
@@ -91,7 +92,7 @@ class EvidenceManager:
         )
 
         # Save evidence metadata
-        self._save_evidence(evidence)
+        await self._save_evidence(evidence)
 
         logger.info(
             "evidence_registered",
@@ -132,7 +133,7 @@ class EvidenceManager:
                     details=f"Evidence integrity verified (hash match)",
                     location=evidence.file_path,
                 )
-                self._save_evidence(evidence)
+                await self._save_evidence(evidence)
                 logger.info("evidence_validated", evidence_id=str(evidence.evidence_id))
             else:
                 logger.error(
@@ -252,20 +253,21 @@ class EvidenceManager:
 
         return EvidenceType.UNKNOWN
 
-    def _save_evidence(self, evidence: Evidence) -> None:
-        """Save evidence metadata to disk.
+    async def _save_evidence(self, evidence: Evidence) -> None:
+        """Save evidence metadata to disk asynchronously.
 
         Args:
             evidence: Evidence object to save
         """
         evidence_file = self.storage_path / f"{evidence.evidence_id}.json"
-        with open(evidence_file, "w") as f:
-            json.dump(evidence.model_dump(mode="json"), f, indent=2, default=str)
+        payload = json.dumps(evidence.model_dump(mode="json"), indent=2, default=str)
+        async with aiofiles.open(evidence_file, "w") as f:
+            await f.write(payload)
 
         logger.debug("evidence_saved", evidence_id=str(evidence.evidence_id))
 
-    def load_evidence(self, evidence_id: UUID) -> Optional[Evidence]:
-        """Load evidence metadata from disk.
+    async def load_evidence(self, evidence_id: UUID) -> Optional[Evidence]:
+        """Load evidence metadata from disk asynchronously.
 
         Args:
             evidence_id: UUID of evidence to load
@@ -279,15 +281,16 @@ class EvidenceManager:
             logger.warning("evidence_not_found", evidence_id=str(evidence_id))
             return None
 
-        with open(evidence_file, "r") as f:
-            data = json.load(f)
-            evidence = Evidence(**data)
+        async with aiofiles.open(evidence_file, "r") as f:
+            raw = await f.read()
+        data = json.loads(raw)
+        evidence = Evidence(**data)
 
         logger.debug("evidence_loaded", evidence_id=str(evidence_id))
         return evidence
 
-    def list_evidence(self) -> list[Evidence]:
-        """List all registered evidence.
+    async def list_evidence(self) -> list[Evidence]:
+        """List all registered evidence asynchronously.
 
         Returns:
             List of all evidence objects
@@ -295,15 +298,15 @@ class EvidenceManager:
         evidence_list = []
 
         for evidence_file in self.storage_path.glob("*.json"):
-            with open(evidence_file, "r") as f:
-                data = json.load(f)
-                evidence = Evidence(**data)
-                evidence_list.append(evidence)
+            async with aiofiles.open(evidence_file, "r") as f:
+                raw = await f.read()
+            data = json.loads(raw)
+            evidence_list.append(Evidence(**data))
 
         logger.debug("evidence_listed", count=len(evidence_list))
         return sorted(evidence_list, key=lambda e: e.registered_at, reverse=True)
 
-    def add_custody_entry(
+    async def add_custody_entry(
         self,
         evidence_id: UUID,
         action: str,
@@ -311,7 +314,7 @@ class EvidenceManager:
         details: str,
         location: Optional[str] = None,
     ) -> Optional[Evidence]:
-        """Add chain-of-custody entry to evidence.
+        """Add chain-of-custody entry to evidence asynchronously.
 
         Args:
             evidence_id: UUID of evidence
@@ -323,7 +326,7 @@ class EvidenceManager:
         Returns:
             Updated evidence object if found, None otherwise
         """
-        evidence = self.load_evidence(evidence_id)
+        evidence = await self.load_evidence(evidence_id)
 
         if evidence is None:
             return None
@@ -332,7 +335,7 @@ class EvidenceManager:
             action=action, actor=actor, details=details, location=location
         )
 
-        self._save_evidence(evidence)
+        await self._save_evidence(evidence)
 
         logger.info(
             "custody_entry_added",
