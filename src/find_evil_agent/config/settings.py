@@ -75,6 +75,16 @@ class Settings(BaseSettings):
     # Tool Selector
     tool_confidence_threshold: float = 0.7
     semantic_search_top_k: int = 10
+
+    # Analyzer
+    analyzer_min_confidence: float = 0.5
+
+    # Orchestrator
+    orchestrator_max_iterations: int = 5
+    orchestrator_min_lead_confidence: float = 0.6
+
+    # LLM provider retry policy
+    llm_max_retries: int = 2
     
     # MCP
     mcp_server_host: str = "localhost"

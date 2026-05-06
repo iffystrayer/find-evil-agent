@@ -25,6 +25,7 @@ Example:
 from typing import Any
 from .base import BaseAgent, AgentResult, AgentStatus
 from .schemas import ToolSelection
+from find_evil_agent.config.settings import get_settings
 from find_evil_agent.tools.registry import ToolRegistry
 from find_evil_agent.telemetry import log_agent_error, logger
 import structlog
@@ -80,22 +81,35 @@ class ToolSelectorAgent(BaseAgent):
     def __init__(
         self,
         registry: ToolRegistry | None = None,
-        confidence_threshold: float = 0.7,
-        semantic_top_k: int = 10,
+        confidence_threshold: float | None = None,
+        semantic_top_k: int | None = None,
         **kwargs
     ):
         """Initialize Tool Selector Agent.
 
         Args:
             registry: ToolRegistry instance (created if None)
-            confidence_threshold: Minimum confidence to accept (default: 0.7)
-            semantic_top_k: Number of candidates from semantic search (default: 10)
+            confidence_threshold: Minimum confidence to accept. When
+                ``None`` (default), sourced from
+                ``settings.tool_confidence_threshold``.
+            semantic_top_k: Number of candidates from semantic search. When
+                ``None`` (default), sourced from
+                ``settings.semantic_search_top_k``.
             **kwargs: Passed to BaseAgent
         """
         super().__init__(name="tool_selector", **kwargs)
         self.registry = registry or ToolRegistry()
-        self.confidence_threshold = confidence_threshold
-        self.semantic_top_k = semantic_top_k
+        settings = get_settings()
+        self.confidence_threshold = (
+            confidence_threshold
+            if confidence_threshold is not None
+            else settings.tool_confidence_threshold
+        )
+        self.semantic_top_k = (
+            semantic_top_k
+            if semantic_top_k is not None
+            else settings.semantic_search_top_k
+        )
 
     async def process(self, input_data: dict[str, Any]) -> AgentResult:
         """Select appropriate SIFT tool for the given incident.

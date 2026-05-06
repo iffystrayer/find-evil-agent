@@ -23,6 +23,7 @@ import structlog
 
 from .base import BaseAgent, AgentResult, AgentStatus
 from .schemas import ExecutionResult, ExecutionStatus, Finding, FindingSeverity, AnalysisResult
+from find_evil_agent.config.settings import get_settings
 from find_evil_agent.telemetry import log_agent_error
 
 agent_logger = structlog.get_logger()
@@ -96,17 +97,21 @@ class AnalyzerAgent(BaseAgent):
 
     def __init__(
         self,
-        min_confidence: float = 0.5,
+        min_confidence: float | None = None,
         **kwargs
     ):
         """Initialize Analyzer Agent.
 
         Args:
-            min_confidence: Minimum confidence to include findings (default: 0.5)
+            min_confidence: Minimum confidence to include findings. When
+                ``None`` (default), the value is sourced from
+                ``settings.analyzer_min_confidence``.
             **kwargs: Passed to BaseAgent
         """
         super().__init__(name="analyzer", **kwargs)
         self.ioc_patterns = IOC_PATTERNS
+        if min_confidence is None:
+            min_confidence = get_settings().analyzer_min_confidence
         self.min_confidence = min_confidence
 
         agent_logger.info(

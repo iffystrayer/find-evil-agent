@@ -80,8 +80,8 @@ class ToolExecutorAgent(BaseAgent):
         ssh_port: int | None = None,
         ssh_user: str | None = None,
         ssh_key_path: str | None = None,
-        default_timeout: int = 60,
-        max_timeout: int = 3600,
+        default_timeout: int | None = None,
+        max_timeout: int | None = None,
         allowed_binaries: set[str] | None = None,
         **kwargs
     ):
@@ -116,8 +116,12 @@ class ToolExecutorAgent(BaseAgent):
         # A2: host-key verification settings (default: secure)
         self.ssh_known_hosts_path = settings.ssh_known_hosts_path
         self.ssh_strict_host_key_checking = settings.ssh_strict_host_key_checking
-        self.default_timeout = default_timeout
-        self.max_timeout = max_timeout
+        self.default_timeout = (
+            default_timeout if default_timeout is not None else settings.default_tool_timeout
+        )
+        self.max_timeout = (
+            max_timeout if max_timeout is not None else settings.max_tool_timeout
+        )
 
         if not self.ssh_strict_host_key_checking:
             agent_logger.warning(

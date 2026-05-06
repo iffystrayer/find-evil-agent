@@ -42,6 +42,7 @@ from .tool_selector import ToolSelectorAgent
 from .tool_executor import ToolExecutorAgent
 from .analyzer import AnalyzerAgent
 from .command_builder import DynamicCommandBuilder
+from find_evil_agent.config.settings import get_settings
 from find_evil_agent.telemetry import log_agent_error
 import time
 from datetime import datetime
@@ -687,12 +688,18 @@ class OrchestratorAgent(BaseAgent):
         self,
         incident_description: str,
         analysis_goal: str,
-        max_iterations: int = 5,
+        max_iterations: int | None = None,
         auto_follow: bool = True,
-        min_lead_confidence: float = 0.6,
+        min_lead_confidence: float | None = None,
         session_id: str | None = None
     ) -> IterativeAnalysisResult:
-        
+
+        settings = get_settings()
+        if max_iterations is None:
+            max_iterations = settings.orchestrator_max_iterations
+        if min_lead_confidence is None:
+            min_lead_confidence = settings.orchestrator_min_lead_confidence
+
         config = {}
         if not session_id:
             session_id = str(uuid4())

@@ -269,7 +269,8 @@ class OllamaProvider:
             }
         }
 
-        max_retries = 2
+        from find_evil_agent.config.settings import get_settings
+        max_retries = get_settings().llm_max_retries
         for attempt in range(max_retries):
             try:
                 response = await self._client.post(
