@@ -28,8 +28,39 @@ from mcp.types import Tool, TextContent
 from find_evil_agent.agents.orchestrator import OrchestratorAgent
 from find_evil_agent.tools.registry import ToolRegistry
 from find_evil_agent.config.settings import get_settings
+from find_evil_agent.security import PathValidator, SecurityValidationError
 
 logger = structlog.get_logger(__name__)
+
+
+def _validate_evidence_path(evidence_path: str | None) -> str | None:
+    """Validate a user-supplied evidence path against the allowlist.
+
+    Returns a formatted MCP error string if validation fails, or None if the
+    path is safe (or absent). Callers MUST short-circuit on a non-None return.
+
+    The error is prefixed with "❌ Evidence path rejected" so callers and
+    operators can distinguish a validation failure from a downstream error.
+    """
+    if not evidence_path:
+        return None
+
+    settings = get_settings()
+    validator = PathValidator(whitelist=settings.allowed_evidence_paths)
+    try:
+        validator.validate_path(evidence_path)
+    except SecurityValidationError as exc:
+        logger.warning(
+            "evidence_path_rejected",
+            path=evidence_path,
+            reason=str(exc),
+        )
+        return (
+            f"❌ Evidence path rejected: {evidence_path}\n"
+            f"\n**Reason:** {exc}\n"
+            f"**Allowed prefixes:** {', '.join(settings.allowed_evidence_paths)}\n"
+        )
+    return None
 
 
 # Initialize FastMCP server
@@ -89,6 +120,12 @@ async def analyze_evidence(
         tool="analyze_evidence",
         incident=incident_description[:50]
     )
+
+    # A1: Reject unsafe evidence paths at the MCP boundary, before invoking
+    # the orchestrator (which would otherwise spin up an LLM call).
+    rejection = _validate_evidence_path(evidence_path)
+    if rejection is not None:
+        return rejection
 
     try:
         orchestrator = OrchestratorAgent()
@@ -569,6 +606,14 @@ async def execute_tool(
         tool="execute_tool",
         tool_name=tool_name
     )
+
+    # A1: Reject unsafe evidence paths at the MCP boundary, before any
+    # registry lookup or command construction. Validation runs first so a
+    # request with both a bad path and a bad tool name surfaces the path
+    # error (which is the security-relevant one).
+    rejection = _validate_evidence_path(evidence_path)
+    if rejection is not None:
+        return rejection
 
     try:
         from find_evil_agent.agents.tool_executor import ToolExecutorAgent
