@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     orchestrator_max_iterations: int = 5
     orchestrator_min_lead_confidence: float = 0.6
 
+    # Orchestrator session checkpointer (C1).
+    # An idle thread is evicted after this many minutes of no checkpoint
+    # writes so a long-running process does not leak HITL session state.
+    session_ttl_minutes: int = 60
+    # Hard cap on concurrent threads kept in the in-memory checkpointer.
+    # When exceeded, the least-recently-written thread is evicted (LRU).
+    max_active_sessions: int = 100
+
     # LLM provider retry policy
     llm_max_retries: int = 2
     

@@ -21,10 +21,8 @@ from typing import Any
 from uuid import uuid4
 import structlog
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 
-_global_memory_saver = MemorySaver()
-
+from .checkpointer import get_checkpointer
 from .base import BaseAgent, AgentResult, AgentStatus
 from .schemas import (
     AgentState,
@@ -247,7 +245,7 @@ class OrchestratorAgent(BaseAgent):
         
         workflow.add_edge("human_approval_gateway", "process_iteration")
 
-        return workflow.compile(checkpointer=_global_memory_saver, interrupt_before=["human_approval_gateway"])
+        return workflow.compile(checkpointer=get_checkpointer(), interrupt_before=["human_approval_gateway"])
 
     async def _iterative_process_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
         state = state_dict["state"]
