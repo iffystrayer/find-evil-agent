@@ -7,10 +7,20 @@ TDD Structure:
 4. TestAnalyzerIntegration - Tests with real LLM analysis
 """
 
+import os
+
 import pytest
 from unittest.mock import Mock
 from find_evil_agent.agents.base import AgentResult, AgentStatus
 from find_evil_agent.agents.schemas import ExecutionResult, ExecutionStatus, Finding, FindingSeverity
+
+# C6.1 — tests that exercise a real LLM call have historically flaked under
+# load (Ollama queueing past the 60s pytest-timeout). Gate them behind
+# ``FEA_OLLAMA_AVAILABLE=1`` so the default fast lane is deterministic.
+_REQUIRES_OLLAMA = pytest.mark.skipif(
+    not os.environ.get("FEA_OLLAMA_AVAILABLE"),
+    reason="Set FEA_OLLAMA_AVAILABLE=1 to run tests that drive a live LLM",
+)
 
 # Conditional import for TDD - AnalyzerAgent may not exist yet
 try:
@@ -209,6 +219,8 @@ class TestAnalyzerExecution:
         assert "execution_result" in result.error.lower() or "required" in result.error.lower()
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     async def test_process_includes_analysis_result_in_data(self):
         """process() should include AnalysisResult in data."""
         agent = AnalyzerAgent()
@@ -230,6 +242,8 @@ class TestAnalyzerExecution:
             assert isinstance(result.data["analysis_result"], AnalysisResult)
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     async def test_extract_ipv4_addresses(self):
         """Should extract IPv4 addresses from output."""
         agent = AnalyzerAgent()
@@ -320,6 +334,8 @@ class TestAnalyzerExecution:
                 assert isinstance(analysis.findings[0], Finding)
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     async def test_finding_has_required_attributes(self):
         """Finding should have title, description, severity, confidence."""
         agent = AnalyzerAgent()

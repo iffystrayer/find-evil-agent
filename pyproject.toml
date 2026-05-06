@@ -198,6 +198,7 @@ markers = [
     "security: marks tests related to security features",
     "mcp: marks tests related to MCP protocol",
     "requires_sift_vm: requires a live SIFT VM at $SIFT_VM_HOST:$SIFT_VM_PORT and FEA_SIFT_VM_AVAILABLE=1",
+    "requires_ollama: requires a reachable LLM provider (Ollama by default) and FEA_OLLAMA_AVAILABLE=1",
 ]
 asyncio_mode = "auto"
 timeout = 60

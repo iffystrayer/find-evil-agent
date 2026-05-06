@@ -6,11 +6,19 @@ TDD Structure:
 3. TestToolSelectorExecution - Tests actual agent behavior
 """
 
+import os
+
 import pytest
 from find_evil_agent.agents.tool_selector import ToolSelectorAgent
 from find_evil_agent.agents.base import AgentResult, AgentStatus
 from find_evil_agent.agents.schemas import ToolSelection
 from find_evil_agent.tools.registry import ToolRegistry
+
+# C6.1 — gate live-LLM tests so the fast lane is deterministic.
+_REQUIRES_OLLAMA = pytest.mark.skipif(
+    not os.environ.get("FEA_OLLAMA_AVAILABLE"),
+    reason="Set FEA_OLLAMA_AVAILABLE=1 to run tests that drive a live LLM",
+)
 
 
 class TestToolSelectorSpecification:
@@ -239,6 +247,8 @@ class TestToolSelectorExecution:
             assert len(result.data["candidates"]) > 0
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     async def test_process_uses_llm_for_selection(self):
         """process() should use LLM to select tool from candidates."""
         agent = ToolSelectorAgent()
@@ -254,6 +264,8 @@ class TestToolSelectorExecution:
             assert isinstance(result.data["tool_selection"], ToolSelection)
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     async def test_successful_selection_includes_tool_metadata(self):
         """Successful selection should include tool metadata from registry."""
         agent = ToolSelectorAgent()

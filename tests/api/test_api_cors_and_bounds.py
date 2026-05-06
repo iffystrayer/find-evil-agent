@@ -16,8 +16,17 @@ No mocks. Drives the real FastAPI app via TestClient.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
+
+# C6.1 — gate the lone happy-path bounds test that drives a real
+# orchestrator (and therefore an LLM call) so the fast lane is deterministic.
+_REQUIRES_OLLAMA = pytest.mark.skipif(
+    not os.environ.get("FEA_OLLAMA_AVAILABLE"),
+    reason="Set FEA_OLLAMA_AVAILABLE=1 to run tests that drive a live LLM",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -185,11 +194,17 @@ class TestAnalyzeRequestBounds:
         )
         assert resp.status_code == 422
 
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     def test_valid_request_is_not_blocked_by_validators(self):
         """Length/control-char checks must not regress the happy path. We
         accept any non-422 response — the request likely fails downstream
         because the test environment has no SIFT VM, but the framework
         boundary should not reject the payload itself.
+
+        Gated behind ``FEA_OLLAMA_AVAILABLE`` (C6.1) because the request
+        path runs a real ``OrchestratorAgent`` which hits the configured
+        LLM and would otherwise time out under suite load.
         """
         client = _build_app()
         resp = client.post(
