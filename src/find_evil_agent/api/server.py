@@ -260,7 +260,8 @@ def create_app() -> FastAPI:
             })
 
             if not result.success:
-                raise HTTPException(status_code=500, detail=result.error)
+                logger.error(f"Analysis returned failure: {result.error}")
+                raise HTTPException(status_code=500, detail="Analysis failed")
 
             state = result.data["state"]
             return AnalyzeResponse(
@@ -274,9 +275,11 @@ def create_app() -> FastAPI:
                 confidence=result.confidence
             )
 
-        except Exception as e:
-            logger.error(f"Analysis failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Unhandled exception in /api/v1/analyze")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     # Autonomous iterative investigation
     @app.post(
@@ -355,9 +358,11 @@ def create_app() -> FastAPI:
                 summary=result.investigation_summary
             )
 
-        except Exception as e:
-            logger.error(f"Investigation failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Unhandled exception in /api/v1/investigate")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     # Autonomous iterative investigation resume hook
     @app.post(
@@ -426,9 +431,11 @@ def create_app() -> FastAPI:
                 summary=result.investigation_summary
             )
 
-        except Exception as e:
-            logger.error(f"Investigation resume failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("Unhandled exception in /api/v1/investigate/{session_id}/resume")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     return app
 
