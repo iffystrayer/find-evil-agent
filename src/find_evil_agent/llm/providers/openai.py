@@ -307,72 +307,30 @@ class OpenAIProvider:
                 raise RuntimeError(f"OpenAI structured request failed: {e}")
 
     def _build_schema_prompt(self, schema: type[BaseModel]) -> str:
-        """Build JSON schema prompt from Pydantic model.
+        """Build JSON schema prompt from a Pydantic model.
 
-        Args:
-            schema: Pydantic model class
-
-        Returns:
-            Formatted prompt with JSON schema
-
-        Example:
-            >>> from find_evil_agent.agents.schemas import ToolSelection
-            >>> prompt = provider._build_schema_prompt(ToolSelection)
-            >>> print(prompt)
-            You must respond with valid JSON matching this schema:
-            {
-              "properties": {
-                "tool_name": {"type": "string"},
-                ...
-              }
-            }
-            ...
+        Thin wrapper around :func:`llm.schema_utils.build_schema_prompt`
+        kept for backward compatibility with tests that probe this
+        method directly. New code should call the shared utility.
         """
-        schema_json = schema.model_json_schema()
-        return f"""You must respond with valid JSON matching this schema:
+        from find_evil_agent.llm.schema_utils import build_schema_prompt
 
-{orjson.dumps(schema_json, option=orjson.OPT_INDENT_2).decode()}
-
-IMPORTANT:
-- Respond ONLY with the JSON object
-- Do NOT include markdown code fences (```json)
-- Do NOT include any explanatory text
-- Ensure all required fields are present
-- Follow the exact field names and types"""
+        return build_schema_prompt(schema)
 
     def _inject_schema_prompt(
         self,
         messages: list[dict[str, str]],
-        schema_prompt: str
+        schema_prompt: str,
     ) -> list[dict[str, str]]:
-        """Inject schema into system message or prepend.
+        """Inject schema into the message list.
 
-        Args:
-            messages: Original messages
-            schema_prompt: Schema prompt to inject
-
-        Returns:
-            Messages with schema injected
-
-        Example:
-            >>> messages = [{"role": "user", "content": "Help"}]
-            >>> result = provider._inject_schema_prompt(messages, "Schema: ...")
-            >>> len(result)
-            2  # System message prepended
+        Thin wrapper around :func:`llm.schema_utils.inject_schema_prompt`
+        kept for backward compatibility with tests that probe this
+        method directly. New code should call the shared utility.
         """
-        messages_copy = messages.copy()
+        from find_evil_agent.llm.schema_utils import inject_schema_prompt
 
-        if messages_copy and messages_copy[0]["role"] == "system":
-            # Append to existing system message
-            messages_copy[0]["content"] += f"\n\n{schema_prompt}"
-        else:
-            # Prepend new system message
-            messages_copy.insert(0, {
-                "role": "system",
-                "content": schema_prompt
-            })
-
-        return messages_copy
+        return inject_schema_prompt(messages, schema_prompt)
 
     def get_model_name(self) -> str:
         """Return configured model name.
