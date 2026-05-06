@@ -12,6 +12,7 @@ Generates professional IR reports meeting Valhuntir quality standards:
 """
 
 from datetime import datetime, timezone
+from html import escape as _html_escape
 from pathlib import Path
 from typing import Any, Optional
 from collections import defaultdict
@@ -654,7 +655,7 @@ Detailed recommendations are provided in the Recommendations section of this rep
             return f"""
     <div class="section">
         <h2>🕸️ Attack Chain Graph</h2>
-        <p style="color: #dc3545;">Graph visualization unavailable: {str(e)}</p>
+        <p style="color: #dc3545;">Graph visualization unavailable: {_html_escape(str(e))}</p>
         <p>Nodes: {len(attack_graph.nodes)}, Edges: {len(attack_graph.edges)}</p>
     </div>
 """
@@ -974,9 +975,9 @@ Detailed recommendations are provided in the Recommendations section of this rep
     <div class="header">
         <h1>🔍 Find Evil Agent - Incident Response Report</h1>
         <div class="metadata">
-            <strong>Session ID:</strong> {report.session_id}<br>
+            <strong>Session ID:</strong> {_html_escape(str(report.session_id))}<br>
             <strong>Generated:</strong> {report.metadata.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}<br>
-            <strong>Incident:</strong> {report.incident_description}
+            <strong>Incident:</strong> {_html_escape(report.incident_description)}
         </div>
     </div>
 """)
@@ -986,13 +987,16 @@ Detailed recommendations are provided in the Recommendations section of this rep
     <div class="section">
         <h2>📋 Executive Summary</h2>
 """)
-        html.append(f"<p>{report.executive_summary.incident_overview}</p>")
+        html.append(f"<p>{_html_escape(report.executive_summary.incident_overview)}</p>")
         html.append("<h3>Key Findings</h3>")
-        html.append(f"<p>{report.executive_summary.key_findings.replace('- ', '<br>• ')}</p>")
+        # Escape user input first, then translate the literal '- ' bullet
+        # marker into <br>• so the intentional formatting still renders.
+        _key_findings_escaped = _html_escape(report.executive_summary.key_findings)
+        html.append(f"<p>{_key_findings_escaped.replace('- ', '<br>• ')}</p>")
         html.append("<h3>Impact Assessment</h3>")
-        html.append(f"<p>{report.executive_summary.impact_assessment}</p>")
+        html.append(f"<p>{_html_escape(report.executive_summary.impact_assessment)}</p>")
         html.append("<h3>Recommendations Summary</h3>")
-        html.append(f"<p>{report.executive_summary.recommendations_summary}</p>")
+        html.append(f"<p>{_html_escape(report.executive_summary.recommendations_summary)}</p>")
         html.append("</div>\n")
 
         # MITRE ATT&CK
@@ -1004,9 +1008,16 @@ Detailed recommendations are provided in the Recommendations section of this rep
             html.append('<table class="ioc-table">')
             html.append("<tr><th>Technique ID</th><th>Technique Name</th><th>Tactic</th><th>Related Findings</th></tr>")
             for mapping in report.mitre_mappings:
-                findings_str = ", ".join(mapping.finding_references[:3])
-                html.append(f"<tr><td><code>{mapping.technique_id}</code></td><td>{mapping.technique_name}</td>")
-                html.append(f"<td>{mapping.tactic}</td><td>{findings_str}</td></tr>")
+                findings_str = ", ".join(
+                    _html_escape(ref) for ref in mapping.finding_references[:3]
+                )
+                html.append(
+                    f"<tr><td><code>{_html_escape(mapping.technique_id)}</code></td>"
+                    f"<td>{_html_escape(mapping.technique_name)}</td>"
+                )
+                html.append(
+                    f"<td>{_html_escape(mapping.tactic)}</td><td>{findings_str}</td></tr>"
+                )
             html.append("</table>")
         else:
             html.append("<p><em>No MITRE ATT&CK techniques mapped.</em></p>")
@@ -1019,12 +1030,16 @@ Detailed recommendations are provided in the Recommendations section of this rep
 """)
         if report.ioc_tables:
             for ioc_type, entries in sorted(report.ioc_tables.items()):
-                html.append(f"<h3>{ioc_type.upper()}</h3>")
+                html.append(f"<h3>{_html_escape(ioc_type.upper())}</h3>")
                 html.append('<table class="ioc-table">')
                 html.append("<tr><th>IOC Value</th><th>Occurrences</th><th>Context</th></tr>")
                 for entry in entries:
-                    html.append(f'<tr><td><span class="ioc-value">{entry.value}</span></td>')
-                    html.append(f"<td>{entry.occurrences}</td><td>{entry.context}</td></tr>")
+                    html.append(
+                        f'<tr><td><span class="ioc-value">{_html_escape(entry.value)}</span></td>'
+                    )
+                    html.append(
+                        f"<td>{entry.occurrences}</td><td>{_html_escape(entry.context)}</td></tr>"
+                    )
                 html.append("</table>")
         else:
             html.append("<p><em>No IOCs extracted during analysis.</em></p>")
@@ -1040,13 +1055,13 @@ Detailed recommendations are provided in the Recommendations section of this rep
             if severity_findings:
                 for finding in severity_findings:
                     html.append(f'<div class="severity-{severity.value}">')
-                    html.append(f"<h3>{finding.title}</h3>")
-                    html.append(f"<p>{finding.description}</p>")
+                    html.append(f"<h3>{_html_escape(finding.title)}</h3>")
+                    html.append(f"<p>{_html_escape(finding.description)}</p>")
                     html.append(f"<p><strong>Confidence:</strong> {finding.confidence:.2f}</p>")
                     if finding.evidence:
                         html.append("<p><strong>Evidence:</strong></p><ul>")
                         for evidence in finding.evidence:
-                            html.append(f"<li>{evidence}</li>")
+                            html.append(f"<li>{_html_escape(str(evidence))}</li>")
                         html.append("</ul>")
                     html.append("</div>")
         html.append("</div>\n")
@@ -1060,9 +1075,11 @@ Detailed recommendations are provided in the Recommendations section of this rep
             for rec in report.recommendations:
                 html.append('<div class="recommendation">')
                 html.append(f'<span class="recommendation-priority">Priority {rec.priority}</span>')
-                html.append(f"<strong>{rec.title}</strong>")
-                html.append(f"<p>{rec.description}</p>")
-                html.append(f"<p><small><strong>Urgency:</strong> {rec.urgency}</small></p>")
+                html.append(f"<strong>{_html_escape(rec.title)}</strong>")
+                html.append(f"<p>{_html_escape(rec.description)}</p>")
+                html.append(
+                    f"<p><small><strong>Urgency:</strong> {_html_escape(rec.urgency)}</small></p>"
+                )
                 html.append("</div>")
         html.append("</div>\n")
 
