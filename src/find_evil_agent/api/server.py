@@ -18,6 +18,8 @@ Example:
 import secrets
 from contextlib import asynccontextmanager
 from typing import Optional
+from uuid import UUID
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
@@ -429,16 +431,22 @@ def create_app() -> FastAPI:
         tags=["Investigation"],
         dependencies=[Depends(verify_api_key)],
     )
-    async def resume_investigation(session_id: str, request: ResumeRequest):
-        """Resume a paused investigation after a human analyst reviews the lead."""
+    async def resume_investigation(session_id: UUID, request: ResumeRequest):
+        """Resume a paused investigation after a human analyst reviews the lead.
+
+        ``session_id`` is typed as UUID so FastAPI rejects malformed values at
+        the framework boundary with 422 — this prevents path-traversal and
+        control-character probes from reaching the orchestrator.
+        """
         try:
-            logger.info(f"Resuming investigation {session_id} - Approved: {request.approved}")
+            session_id_str = str(session_id)
+            logger.info(f"Resuming investigation {session_id_str} - Approved: {request.approved}")
 
             orchestrator = OrchestratorAgent()
-            config = {"configurable": {"thread_id": session_id}}
-            
+            config = {"configurable": {"thread_id": session_id_str}}
+
             # Update the state internally
-                        # Get current state to avoid overwriting nested dict
+            # Get current state to avoid overwriting nested dict
             current_state_info = orchestrator.iterative_workflow.get_state(config)
             current_state_dict = current_state_info.values.get("state", {})
             if hasattr(current_state_dict, "model_dump"):
@@ -446,17 +454,17 @@ def create_app() -> FastAPI:
             elif hasattr(current_state_dict, "__dict__"):
                 current_state_dict = vars(current_state_dict)
             current_state_dict["human_approved"] = request.approved
-            
+
             orchestrator.iterative_workflow.update_state(
                 config,
                 {"state": current_state_dict}
             )
-            
+
             # Re-trigger process_iterative to proceed
             result = await orchestrator.process_iterative(
                 incident_description="",
                 analysis_goal="",
-                session_id=session_id
+                session_id=session_id_str
             )
 
             return InvestigateResponse(
