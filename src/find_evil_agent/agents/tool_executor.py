@@ -101,8 +101,18 @@ class ToolExecutorAgent(BaseAgent):
         self.ssh_port = ssh_port or settings.sift_vm_port
         self.ssh_user = ssh_user or settings.sift_ssh_user
         self.ssh_key_path = ssh_key_path or settings.sift_ssh_key_path
+        # A2: host-key verification settings (default: secure)
+        self.ssh_known_hosts_path = settings.ssh_known_hosts_path
+        self.ssh_strict_host_key_checking = settings.ssh_strict_host_key_checking
         self.default_timeout = default_timeout
         self.max_timeout = max_timeout
+
+        if not self.ssh_strict_host_key_checking:
+            agent_logger.warning(
+                "ssh_host_key_verification_disabled",
+                reason="FEA_SSH_STRICT_HOST_KEY_CHECKING=false",
+                impact="connection is vulnerable to MITM attacks",
+            )
 
         agent_logger.info(
             "tool_executor_initialized",
@@ -342,6 +352,33 @@ class ToolExecutorAgent(BaseAgent):
                 execution_time=execution_time
             )
 
+    def _build_ssh_connect_kwargs(self) -> dict[str, Any]:
+        """Build asyncssh.connect() kwargs honoring host-key settings.
+
+        A2 — host-key verification rules:
+        - `ssh_strict_host_key_checking=False`: explicitly pass
+          `known_hosts=None` (disables verification — opt-in only).
+        - `ssh_known_hosts_path` set: use that file as the trust store.
+        - Otherwise: omit `known_hosts` so asyncssh falls back to
+          ~/.ssh/known_hosts (its secure default).
+        """
+        kwargs: dict[str, Any] = {
+            "host": self.ssh_host,
+            "port": self.ssh_port,
+            "username": self.ssh_user,
+        }
+
+        if not self.ssh_strict_host_key_checking:
+            kwargs["known_hosts"] = None
+        elif self.ssh_known_hosts_path:
+            kwargs["known_hosts"] = self.ssh_known_hosts_path
+        # else: leave unset, asyncssh uses ~/.ssh/known_hosts
+
+        if self.ssh_key_path:
+            kwargs["client_keys"] = [self.ssh_key_path]
+
+        return kwargs
+
     async def _run_ssh_command(
         self,
         tool_name: str,
@@ -367,19 +404,7 @@ class ToolExecutorAgent(BaseAgent):
                 user=self.ssh_user
             )
 
-            # Build connection kwargs
-            connect_kwargs = {
-                "host": self.ssh_host,
-                "port": self.ssh_port,
-                "username": self.ssh_user,
-                "known_hosts": None,  # Disable strict host key checking for now
-            }
-
-            # Add SSH key if provided
-            if self.ssh_key_path:
-                connect_kwargs["client_keys"] = [self.ssh_key_path]
-
-            # Connect
+            connect_kwargs = self._build_ssh_connect_kwargs()
             conn = await asyncssh.connect(**connect_kwargs)
 
             agent_logger.debug("ssh_connected", host=self.ssh_host)

@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     sift_vm_port: int = 16789
     sift_ssh_user: Optional[str] = "sansforensics"
     sift_ssh_key_path: Optional[str] = None
+    # SSH host-key verification (A2 — defends against MITM).
+    # When None, asyncssh falls back to ~/.ssh/known_hosts.
+    ssh_known_hosts_path: Optional[str] = None
+    # Set to False ONLY in transitional dev environments. When False,
+    # asyncssh's host-key check is disabled — the connection is vulnerable
+    # to MITM attacks. Default True (secure).
+    ssh_strict_host_key_checking: bool = True
     
     # Security
     allowed_evidence_paths: list[str] = Field(
