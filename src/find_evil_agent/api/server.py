@@ -382,7 +382,7 @@ def create_app() -> FastAPI:
                 current_state_dict = current_state_dict.model_dump()
             elif hasattr(current_state_dict, "__dict__"):
                 current_state_dict = vars(current_state_dict)
-            current_state_dict["human_approved"] = request.approved if hasattr(request, "approved") else approved
+            current_state_dict["human_approved"] = request.approved
             
             orchestrator.iterative_workflow.update_state(
                 config,
