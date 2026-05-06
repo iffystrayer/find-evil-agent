@@ -14,10 +14,19 @@ services:
       - SIFT_VM_HOST=${SIFT_VM_HOST}
       - SIFT_VM_PORT=${SIFT_VM_PORT:-22}
       - SIFT_SSH_USER=${SIFT_SSH_USER:-sansforensics}
+      # A5: forward host SSH agent into container so the private key never
+      # enters the image. Operator runs `ssh-add ~/.ssh/sift_vm_key` before
+      # `docker compose up`. We explicitly clear SIFT_SSH_KEY_PATH so any
+      # value in `.env` is overridden (asyncssh then uses the agent).
+      - SSH_AUTH_SOCK=/ssh-agent
+      - SIFT_SSH_KEY_PATH=
     env_file:
       - .env
     volumes:
-      - ${HOME}/.ssh/sift_vm_key:/root/.ssh/sift_vm_key:ro
+      # A5: agent socket replaces the previous private-key bind-mount.
+      - ${SSH_AUTH_SOCK}:/ssh-agent
+      # A2: host-key verification needs a known_hosts file inside the container.
+      - ${HOME}/.ssh/known_hosts:/root/.ssh/known_hosts:ro
     command: python -m find_evil_agent.cli.main web --host 0.0.0.0 --port 17000
     restart: unless-stopped
 
@@ -34,10 +43,19 @@ services:
       - SIFT_VM_HOST=${SIFT_VM_HOST}
       - SIFT_VM_PORT=${SIFT_VM_PORT:-22}
       - SIFT_SSH_USER=${SIFT_SSH_USER:-sansforensics}
+      # A5: forward host SSH agent into container so the private key never
+      # enters the image. Operator runs `ssh-add ~/.ssh/sift_vm_key` before
+      # `docker compose up`. We explicitly clear SIFT_SSH_KEY_PATH so any
+      # value in `.env` is overridden (asyncssh then uses the agent).
+      - SSH_AUTH_SOCK=/ssh-agent
+      - SIFT_SSH_KEY_PATH=
     env_file:
       - .env
     volumes:
-      - ${HOME}/.ssh/sift_vm_key:/root/.ssh/sift_vm_key:ro
+      # A5: agent socket replaces the previous private-key bind-mount.
+      - ${SSH_AUTH_SOCK}:/ssh-agent
+      # A2: host-key verification needs a known_hosts file inside the container.
+      - ${HOME}/.ssh/known_hosts:/root/.ssh/known_hosts:ro
     command: uvicorn find_evil_agent.api.server:app --host 0.0.0.0 --port 18000
     restart: unless-stopped
 

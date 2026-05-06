@@ -159,8 +159,17 @@ cp .env.example .env
 Quick start with all services (API, React UI, Gradio Web):
 
 ```bash
+# (One-time) seed the SIFT host key so MITM attacks are detected
+ssh-keyscan -p $SIFT_VM_PORT $SIFT_VM_HOST >> ~/.ssh/known_hosts
+
+# (Each shell) load your SIFT key into the SSH agent — the compose stack
+# forwards SSH_AUTH_SOCK into the containers so the private key never
+# enters the image.
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/sift_vm_key
+
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Check health
 curl http://localhost:18000/health
@@ -171,6 +180,14 @@ curl http://localhost:18000/health
 # - FastAPI Backend:              http://localhost:18000
 # - API Docs (OpenAPI):           http://localhost:18000/docs
 ```
+
+**Hardening notes (internal-LAN deployment):**
+- `API_KEYS=key1,key2` in `.env` enables `X-API-Key` auth on every
+  `/api/v1/*` endpoint. Generate a key with
+  `python -c 'import secrets; print(secrets.token_urlsafe(32))'`.
+- `SSH_STRICT_HOST_KEY_CHECKING=true` (default) requires a populated
+  `~/.ssh/known_hosts`. If you set it to `false` you accept silent MITM —
+  document the reason and turn it back on as soon as possible.
 
 **What's Included:**
 - `find-evil-api` - FastAPI backend with LLM integration (port 18000)
