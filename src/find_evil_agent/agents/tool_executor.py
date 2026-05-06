@@ -20,8 +20,10 @@ Example:
     'Volatility Foundation Volatility Framework...'
 """
 
+import shlex
 import time
 import asyncio
+from pathlib import Path
 from typing import Any
 import asyncssh
 import structlog
@@ -80,6 +82,7 @@ class ToolExecutorAgent(BaseAgent):
         ssh_key_path: str | None = None,
         default_timeout: int = 60,
         max_timeout: int = 3600,
+        allowed_binaries: set[str] | None = None,
         **kwargs
     ):
         """Initialize Tool Executor Agent.
@@ -91,9 +94,18 @@ class ToolExecutorAgent(BaseAgent):
             ssh_key_path: Path to SSH private key (optional)
             default_timeout: Default timeout in seconds
             max_timeout: Maximum allowed timeout in seconds
+            allowed_binaries: Optional explicit allowlist of tool binaries
+                (lowercase basenames). When None (default), the allowlist
+                is loaded from ToolRegistry on first use. (A3)
             **kwargs: Passed to BaseAgent
         """
         super().__init__(name="tool_executor", **kwargs)
+
+        # A3: command allowlist (binary basenames). Loaded lazily from the
+        # ToolRegistry on first validation if not explicitly provided.
+        self._allowed_binaries: set[str] | None = (
+            {b.lower() for b in allowed_binaries} if allowed_binaries else None
+        )
 
         settings = get_settings()
 
@@ -259,24 +271,84 @@ class ToolExecutorAgent(BaseAgent):
                 return False
         return True
 
-    def _validate_command_security(self, command: str) -> bool:
-        """Validate command against security patterns.
+    def _get_allowed_binaries(self) -> set[str]:
+        """Return the lowercase set of allowed binary basenames.
 
-        Args:
-            command: Command to validate
-
-        Returns:
-            True if safe, False if blocked
+        Lazily loads from ToolRegistry on first call. Subclasses or tests
+        can pre-populate via the ``allowed_binaries`` constructor arg.
         """
-        command_lower = command.lower()
+        if self._allowed_binaries is None:
+            from find_evil_agent.tools.registry import ToolRegistry
+            try:
+                registry = ToolRegistry()
+                tools = registry.list_tools()
+            except Exception as exc:  # pragma: no cover — degraded mode
+                agent_logger.error(
+                    "allowlist_registry_load_failed",
+                    error=str(exc),
+                )
+                # Fail closed: empty allowlist rejects everything.
+                self._allowed_binaries = set()
+                return self._allowed_binaries
 
-        # Check blocked patterns
+            binaries: set[str] = set()
+            for tool in tools:
+                cmd = tool.get("command") or tool.get("name")
+                if not cmd:
+                    continue
+                binaries.add(Path(cmd.split()[0]).name.lower())
+            self._allowed_binaries = binaries
+        return self._allowed_binaries
+
+    def _validate_command_security(self, command: str) -> bool:
+        """Validate command against allowlist + blocklist (A3).
+
+        Rules:
+        1. Reject empty / whitespace-only / malformed (unbalanced quotes).
+        2. The basename of the first shell token MUST be in the allowlist.
+        3. The full command MUST NOT contain any pattern in BLOCKED_PATTERNS
+           (defense-in-depth against chained / substituted commands).
+        """
+        if not command or not command.strip():
+            agent_logger.warning("command_blocked", reason="empty")
+            return False
+
+        try:
+            tokens = shlex.split(command)
+        except ValueError as exc:
+            agent_logger.warning(
+                "command_blocked",
+                reason="malformed",
+                error=str(exc),
+                command=command[:100],
+            )
+            return False
+
+        if not tokens:
+            agent_logger.warning("command_blocked", reason="empty_tokens")
+            return False
+
+        binary = Path(tokens[0]).name.lower()
+        allowed = self._get_allowed_binaries()
+        if binary not in allowed:
+            agent_logger.warning(
+                "command_blocked",
+                reason="binary_not_in_allowlist",
+                binary=binary,
+                command=command[:100],
+            )
+            return False
+
+        # Defense-in-depth: even an allowlisted binary cannot chain into a
+        # blocked pattern (e.g., `strings /tmp/x; rm /tmp/x`).
+        command_lower = command.lower()
         for pattern in BLOCKED_PATTERNS:
             if pattern in command_lower:
                 agent_logger.warning(
                     "command_blocked",
+                    reason="blocklist_match",
                     pattern=pattern,
-                    command=command[:100]
+                    command=command[:100],
                 )
                 return False
 
