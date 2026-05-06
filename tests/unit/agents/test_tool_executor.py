@@ -7,6 +7,7 @@ TDD Structure:
 4. TestToolExecutorIntegration - Tests with real SIFT VM SSH
 """
 
+import os
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
@@ -366,6 +367,16 @@ class TestToolExecutorIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(30)
+    @pytest.mark.requires_sift_vm
+    @pytest.mark.skipif(
+        not os.environ.get("FEA_SIFT_VM_AVAILABLE"),
+        reason="Set FEA_SIFT_VM_AVAILABLE=1 to enable live SIFT VM tests",
+    )
+    @pytest.mark.xfail(
+        reason="`hostname` is not in the A3 allowlist (not a registered forensic tool). "
+               "Superseded by tests/integration/test_sift_vm_smoke.py — P0.2.",
+        strict=False,
+    )
     async def test_real_ssh_connection_to_sift_vm(self):
         """Test actual SSH connection to SIFT VM."""
         agent = ToolExecutorAgent()
