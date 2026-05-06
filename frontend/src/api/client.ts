@@ -4,6 +4,17 @@
 // In production, set VITE_API_BASE_URL to your backend URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:18000';
 
+// A4: API key authentication. Empty string = backend has auth disabled.
+const API_KEY = (import.meta.env.VITE_API_KEY ?? '') as string;
+
+function jsonHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+  return headers;
+}
+
 export interface AnalysisRequest {
   incident: string;
   goal: string;
@@ -46,7 +57,7 @@ export const api = {
   analyze: async (data: AnalysisRequest): Promise<AnalysisResponse> => {
     const response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       body: JSON.stringify({
         incident_description: data.incident,
         analysis_goal: data.goal,
@@ -59,7 +70,7 @@ export const api = {
   investigate: async (data: InvestigationRequest): Promise<InvestigationResponse> => {
     const response = await fetch(`${API_BASE_URL}/api/v1/investigate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       body: JSON.stringify({
         incident_description: data.incident,
         analysis_goal: data.goal,
@@ -73,7 +84,7 @@ export const api = {
   resume: async (sessionId: string, approved: boolean): Promise<InvestigationResponse> => {
     const response = await fetch(`${API_BASE_URL}/api/v1/investigate/${sessionId}/resume`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       body: JSON.stringify({ approved }),
     });
     return response.json();

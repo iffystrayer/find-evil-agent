@@ -15,16 +15,50 @@ Example:
       -d '{"incident_description": "Ransomware detected", "analysis_goal": "Find process"}'
 """
 
+import secrets
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 import logging
 
 from find_evil_agent.agents.orchestrator import OrchestratorAgent
 from find_evil_agent.config.settings import get_settings
 from find_evil_agent.llm.factory import create_llm_provider
+
+
+# A4: API key authentication.
+#
+# `auto_error=False` so we can produce a uniform 401 message on missing /
+# invalid keys (FastAPI's default would give 403 on a missing header).
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def verify_api_key(api_key: Optional[str] = Depends(_api_key_header)) -> None:
+    """Reject requests missing or carrying an invalid X-API-Key.
+
+    When `settings.api_keys` is empty (default), auth is disabled — the
+    request is allowed through. Operators must explicitly enable auth by
+    setting `API_KEYS=k1,k2,...` in the environment.
+
+    Comparison uses `secrets.compare_digest` to avoid timing attacks.
+    """
+    settings = get_settings()
+    configured = settings.api_keys
+    if not configured:
+        # Dev mode — auth disabled. Caller is allowed.
+        return
+
+    if api_key is None or api_key == "":
+        raise HTTPException(status_code=401, detail="Missing API key")
+
+    for valid in configured:
+        if secrets.compare_digest(api_key, valid):
+            return
+
+    raise HTTPException(status_code=401, detail="Invalid API key")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -121,6 +155,14 @@ class ConfigResponse(BaseModel):
 async def lifespan(app: FastAPI):
     """Manage application lifespan."""
     logger.info("Find Evil Agent API starting up...")
+    settings = get_settings()
+    if not settings.api_keys:
+        logger.warning(
+            "API key authentication DISABLED — set API_KEYS=k1,k2,... in env "
+            "to enable. Do not run this configuration on a shared network."
+        )
+    else:
+        logger.info(f"API key authentication enabled ({len(settings.api_keys)} keys configured)")
     yield
     logger.info("Find Evil Agent API shutting down...")
 
@@ -162,7 +204,12 @@ def create_app() -> FastAPI:
         )
 
     # Configuration
-    @app.get("/api/v1/config", response_model=ConfigResponse, tags=["Configuration"])
+    @app.get(
+        "/api/v1/config",
+        response_model=ConfigResponse,
+        tags=["Configuration"],
+        dependencies=[Depends(verify_api_key)],
+    )
     async def get_config():
         """Get current configuration."""
         settings = get_settings()
@@ -175,7 +222,12 @@ def create_app() -> FastAPI:
         )
 
     # Single-shot analysis
-    @app.post("/api/v1/analyze", response_model=AnalyzeResponse, tags=["Analysis"])
+    @app.post(
+        "/api/v1/analyze",
+        response_model=AnalyzeResponse,
+        tags=["Analysis"],
+        dependencies=[Depends(verify_api_key)],
+    )
     async def analyze(
         request: AnalyzeRequest,
         provider: Optional[str] = Query(None, description="LLM provider override (ollama, openai, anthropic)"),
@@ -227,7 +279,12 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     # Autonomous iterative investigation
-    @app.post("/api/v1/investigate", response_model=InvestigateResponse, tags=["Investigation"])
+    @app.post(
+        "/api/v1/investigate",
+        response_model=InvestigateResponse,
+        tags=["Investigation"],
+        dependencies=[Depends(verify_api_key)],
+    )
     async def investigate(
         request: InvestigateRequest,
         provider: Optional[str] = Query(None, description="LLM provider override (ollama, openai, anthropic)"),
@@ -303,7 +360,12 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     # Autonomous iterative investigation resume hook
-    @app.post("/api/v1/investigate/{session_id}/resume", response_model=InvestigateResponse, tags=["Investigation"])
+    @app.post(
+        "/api/v1/investigate/{session_id}/resume",
+        response_model=InvestigateResponse,
+        tags=["Investigation"],
+        dependencies=[Depends(verify_api_key)],
+    )
     async def resume_investigation(session_id: str, request: ResumeRequest):
         """Resume a paused investigation after a human analyst reviews the lead."""
         try:

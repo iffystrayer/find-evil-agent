@@ -7,9 +7,9 @@ Configuration is loaded from:
 """
 
 from enum import Enum
-from typing import Optional
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated, Any, Optional
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class LLMProviderEnum(str, Enum):
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     ssh_strict_host_key_checking: bool = True
     
     # Security
-    allowed_evidence_paths: list[str] = Field(
+    allowed_evidence_paths: Annotated[list[str], NoDecode] = Field(
         default=["/mnt/evidence/", "/workspace/", "/tmp/sift-workspace/"]
     )
     max_tool_timeout: int = 3600  # 1 hour for intensive tools
@@ -85,15 +85,31 @@ class Settings(BaseSettings):
     report_output_dir: str = "./reports"
 
     # API Server
-    api_cors_origins: list[str] = Field(
+    api_cors_origins: Annotated[list[str], NoDecode] = Field(
         default=["http://localhost:15173", "http://127.0.0.1:15173"]
     )
+    # API key authentication (A4). Comma-separated list via API_KEYS env.
+    # Empty list disables auth — for local dev only. Production deployments
+    # must set at least one key.
+    api_keys: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     # Observability - Langfuse
     langfuse_secret_key: Optional[str] = None
     langfuse_public_key: Optional[str] = None
     langfuse_base_url: Optional[str] = None
     langfuse_enabled: bool = True  # Can disable for testing
+
+    @field_validator("api_keys", "api_cors_origins", "allowed_evidence_paths", mode="before")
+    @classmethod
+    def _split_csv_list(cls, v: Any) -> Any:
+        """Accept comma-separated strings for list-typed env vars.
+
+        Without this, pydantic-settings v2 expects JSON-encoded lists, which
+        is unfriendly for shell `.env` files and breaks `API_KEYS=k1,k2`.
+        """
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v
 
     @model_validator(mode='after')
     def validate_provider_config(self) -> 'Settings':
