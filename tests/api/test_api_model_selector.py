@@ -361,8 +361,8 @@ class TestAPIModelSelectorErrorHandling:
             response = client.post(
                 "/api/v1/analyze?provider=invalid&model=test",
                 json={
-                    "incident_description": "Test",
-                    "analysis_goal": "Test"
+                    "incident_description": "Suspicious activity on host 10.0.0.5",
+                    "analysis_goal": "Investigate the malicious process",
                 }
             )
 
@@ -380,8 +380,8 @@ class TestAPIModelSelectorErrorHandling:
             response = client.post(
                 "/api/v1/analyze?provider=openai&model=gpt-4-turbo",
                 json={
-                    "incident_description": "Test",
-                    "analysis_goal": "Test"
+                    "incident_description": "Suspicious activity on host 10.0.0.5",
+                    "analysis_goal": "Investigate the malicious process",
                 }
             )
 

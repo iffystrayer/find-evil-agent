@@ -21,7 +21,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import logging
 
 from find_evil_agent.agents.orchestrator import OrchestratorAgent
@@ -65,11 +65,48 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# B4 — bounds for free-text user input on /analyze and /investigate.
+#
+# Length bounds prevent trivial DoS via 10-MB JSON bodies; the control-char
+# check rejects \x00..\x1f and \x7f, which never appear in legitimate
+# incident text but are common in prompt-injection / log-poisoning probes.
+# Tab (\t), newline (\n), and carriage return (\r) are kept whitelisted so
+# multi-line incident descriptions still flow through.
+_MIN_TEXT_LEN = 5
+_MAX_TEXT_LEN = 10_000
+_DISALLOWED_CONTROL_CHARS = {chr(c) for c in range(0x00, 0x20) if c not in (0x09, 0x0A, 0x0D)}
+_DISALLOWED_CONTROL_CHARS.add("\x7f")
+
+
+def _reject_control_chars(value: str) -> str:
+    """Pydantic validator: reject ASCII control characters in free text."""
+    leaked = sorted(c for c in _DISALLOWED_CONTROL_CHARS if c in value)
+    if leaked:
+        codepoints = ", ".join(f"0x{ord(c):02x}" for c in leaked)
+        raise ValueError(f"control characters not allowed: {codepoints}")
+    return value
+
+
 # Request/Response Models
 class AnalyzeRequest(BaseModel):
     """Request for single-shot analysis."""
-    incident_description: str = Field(..., description="Description of the security incident")
-    analysis_goal: str = Field(..., description="What to analyze or discover")
+    incident_description: str = Field(
+        ...,
+        min_length=_MIN_TEXT_LEN,
+        max_length=_MAX_TEXT_LEN,
+        description="Description of the security incident",
+    )
+    analysis_goal: str = Field(
+        ...,
+        min_length=_MIN_TEXT_LEN,
+        max_length=_MAX_TEXT_LEN,
+        description="What to analyze or discover",
+    )
+
+    @field_validator("incident_description", "analysis_goal")
+    @classmethod
+    def _no_control_chars(cls, v: str) -> str:
+        return _reject_control_chars(v)
 
     class Config:
         json_schema_extra = {
@@ -82,9 +119,24 @@ class AnalyzeRequest(BaseModel):
 
 class InvestigateRequest(BaseModel):
     """Request for autonomous iterative investigation."""
-    incident_description: str = Field(..., description="Description of the security incident")
-    analysis_goal: str = Field(..., description="Investigation goal")
+    incident_description: str = Field(
+        ...,
+        min_length=_MIN_TEXT_LEN,
+        max_length=_MAX_TEXT_LEN,
+        description="Description of the security incident",
+    )
+    analysis_goal: str = Field(
+        ...,
+        min_length=_MIN_TEXT_LEN,
+        max_length=_MAX_TEXT_LEN,
+        description="Investigation goal",
+    )
     max_iterations: int = Field(default=5, ge=1, le=10, description="Maximum analysis iterations")
+
+    @field_validator("incident_description", "analysis_goal")
+    @classmethod
+    def _no_control_chars(cls, v: str) -> str:
+        return _reject_control_chars(v)
 
     class Config:
         json_schema_extra = {
@@ -181,14 +233,20 @@ def create_app() -> FastAPI:
     )
 
     # CORS middleware for React frontend
-    # Configure origins via API_CORS_ORIGINS env var (comma-separated)
+    # Configure origins via API_CORS_ORIGINS env var (comma-separated).
+    #
+    # B4 — Drop wildcard methods/headers. With ``allow_credentials=True`` the
+    # CORS spec forbids the client from sending credentials when the server
+    # advertises ``*`` for methods/headers, but Starlette silently expands
+    # ``*`` to every HTTP verb (DELETE, PATCH, PUT, ...) including ones we
+    # don't serve. Be explicit about both methods and headers.
     settings = get_settings()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.api_cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key", "Authorization"],
     )
 
     # Health check
