@@ -265,11 +265,17 @@ class AnalyzerAgent(BaseAgent):
         """Extract IOCs from text using regex patterns.
 
         Args:
-            text: Text to extract IOCs from
+            text: Text to extract IOCs from. Tolerates ``bytes`` defensively
+                — some tool parsers occasionally hand us raw stdout that
+                hasn't been decoded; this guard prevents a TypeError on
+                ``re.findall`` from crashing an active investigation.
 
         Returns:
             Dict mapping IOC type to list of extracted values
         """
+        if isinstance(text, (bytes, bytearray)):
+            text = bytes(text).decode("utf-8", errors="replace")
+
         iocs: dict[str, list[str]] = {}
 
         # Extract each IOC type
