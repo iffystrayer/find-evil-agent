@@ -163,6 +163,12 @@ class TestAnalyzerStructure:
 class TestAnalyzerExecution:
     """Execution tests - Test actual agent behavior."""
 
+    # C6.2 — gated as live-LLM. ``agent.process()`` reaches the analysis
+    # chain which ultimately invokes the LLM provider. Observed flaking under
+    # full-suite load (Ollama queue past pytest-timeout). Mirrors the C6
+    # gating already applied to the analyzer tests below.
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     @pytest.mark.asyncio
     async def test_process_returns_agent_result(self):
         """process() should return AgentResult."""

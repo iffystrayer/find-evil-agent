@@ -10,9 +10,19 @@ Test Structure:
 4. TestIterativeOrchestrationIntegration - End-to-end workflows
 """
 
+import os
+
 import pytest
 from datetime import datetime
 from uuid import uuid4
+
+# C6.2 — tests that drive a live LLM via ``orchestrator.process_iterative()``
+# have flaked under full-suite load (Ollama queue past pytest-timeout).
+# Mirrors the C6 gating in test_analyzer.py / test_tool_selector.py.
+_REQUIRES_OLLAMA = pytest.mark.skipif(
+    not os.environ.get("FEA_OLLAMA_AVAILABLE"),
+    reason="Set FEA_OLLAMA_AVAILABLE=1 to run tests that drive a live LLM",
+)
 
 # Conditional import for TDD - Components may not exist yet
 try:
@@ -185,6 +195,8 @@ class TestIterativeOrchestrationStructure:
 class TestIterativeOrchestrationExecution:
     """Test execution - validates actual behavior."""
 
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     @pytest.mark.skipif(not SCHEMAS_AVAILABLE, reason="Schemas not implemented yet")
     @pytest.mark.asyncio
     async def test_single_iteration_creates_iteration_result(self):
@@ -265,6 +277,8 @@ class TestIterativeOrchestrationExecution:
         timeline_leads = [l for l in leads if l.lead_type == LeadType.TIMELINE]
         assert len(timeline_leads) > 0
 
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     @pytest.mark.skipif(not SCHEMAS_AVAILABLE, reason="Schemas not implemented yet")
     @pytest.mark.asyncio
     async def test_max_iterations_stops_investigation(self):
@@ -281,6 +295,8 @@ class TestIterativeOrchestrationExecution:
         # Should not exceed max_iterations even if leads exist
         assert len(result.iterations) <= 3
 
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     @pytest.mark.skipif(not SCHEMAS_AVAILABLE, reason="Schemas not implemented yet")
     @pytest.mark.asyncio
     async def test_no_leads_stops_investigation(self):
@@ -298,6 +314,8 @@ class TestIterativeOrchestrationExecution:
         # (Actual number depends on when LLM stops finding leads)
         assert len(result.iterations) >= 1
 
+    @pytest.mark.requires_ollama
+    @_REQUIRES_OLLAMA
     @pytest.mark.skipif(not SCHEMAS_AVAILABLE, reason="Schemas not implemented yet")
     @pytest.mark.asyncio
     async def test_auto_follow_disabled_stops_after_first(self):
