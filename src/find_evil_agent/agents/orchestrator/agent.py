@@ -6,6 +6,9 @@ This agent coordinates the entire DFIR workflow using LangGraph:
 3. Analysis (AnalyzerAgent)
 4. State aggregation and return
 
+Workflow building extracted to orchestrator/workflows.py (C3c refactor).
+Prompting logic extracted to orchestrator/prompting.py (C3c refactor).
+
 Example:
     >>> agent = OrchestratorAgent()
     >>> result = await agent.process({
@@ -20,30 +23,30 @@ Example:
 from typing import Any
 from uuid import uuid4
 import structlog
-from langgraph.graph import StateGraph, END
 
-from .checkpointer import get_checkpointer
-from .base import BaseAgent, AgentResult, AgentStatus
-from .schemas import (
+from ..base import BaseAgent, AgentResult, AgentStatus
+from ..schemas import (
     AgentState,
     ToolSelection,
-    ExecutionResult,
-    AnalysisResult,
     InvestigativeLead,
     IterationResult,
     IterativeAnalysisResult,
-    LeadType,
-    LeadPriority,
     Finding,
 )
-from .tool_selector import ToolSelectorAgent
-from .tool_executor import ToolExecutorAgent
-from .analyzer import AnalyzerAgent
-from .command_builder import DynamicCommandBuilder
+from ..tool_selector import ToolSelectorAgent
+from ..tool_executor import ToolExecutorAgent
+from ..analyzer import AnalyzerAgent
+from ..command_builder import DynamicCommandBuilder
 from find_evil_agent.config.settings import get_settings
 from find_evil_agent.telemetry import log_agent_error
-import time
-from datetime import datetime
+
+# Import workflow builders and prompting helpers (C3c refactor)
+from .workflows import build_workflow, build_iterative_workflow
+from .prompting import (
+    build_lead_extraction_prompt,
+    parse_leads_from_response,
+    extract_leads_fallback
+)
 
 agent_logger = structlog.get_logger()
 
@@ -98,9 +101,20 @@ class OrchestratorAgent(BaseAgent):
             metadata_path="tools/metadata.yaml"
         )
 
-        # Build workflow
-        self.workflow = self._build_workflow()
-        self.iterative_workflow = self._build_iterative_workflow()
+        # Build workflows using extracted builders (C3c refactor)
+        self.workflow = build_workflow(
+            tool_selector=self.tool_selector,
+            tool_executor=self.tool_executor,
+            analyzer=self.analyzer,
+            command_builder=self.command_builder
+        )
+        self.iterative_workflow = build_iterative_workflow(
+            orchestrator_process_method=self.process,
+            extract_leads_method=self._extract_leads,
+            select_next_lead_method=self._select_next_lead,
+            create_follow_up_goal_method=self._create_follow_up_goal,
+            merge_iocs_method=self._merge_iocs
+        )
 
         agent_logger.info("orchestrator_initialized")
 
@@ -215,389 +229,6 @@ class OrchestratorAgent(BaseAgent):
             if field not in input_data or not input_data[field]:
                 return False
         return True
-
-
-    def _build_iterative_workflow(self) -> Any:
-        workflow = StateGraph(dict)
-
-        workflow.add_node("process_iteration", self._iterative_process_node)
-        workflow.add_node("extract_leads", self._iterative_extract_leads_node)
-        workflow.add_node("human_approval_gateway", self._iterative_approval_node)
-
-        workflow.set_entry_point("process_iteration")
-        workflow.add_edge("process_iteration", "extract_leads")
-
-        def check_leads(state_dict: dict[str, Any]) -> str:
-            state = state_dict["state"]
-            if isinstance(state, dict):
-                state = AgentState(**state)
-            if state.stopping_reason:
-                return END
-            if state.awaiting_human_approval and state.human_approved is None:
-                return "human_approval_gateway"
-            return "process_iteration"
-
-        workflow.add_conditional_edges(
-            "extract_leads",
-            check_leads,
-            {END: END, "human_approval_gateway": "human_approval_gateway", "process_iteration": "process_iteration"}
-        )
-        
-        workflow.add_edge("human_approval_gateway", "process_iteration")
-
-        return workflow.compile(checkpointer=get_checkpointer(), interrupt_before=["human_approval_gateway"])
-
-    async def _iterative_process_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
-        state = state_dict["state"]
-        if isinstance(state, dict):
-            state = AgentState(**state)
-        
-        # Determine the goal for this iteration
-        current_goal = state.current_goal or state.analysis_goal
-        
-        agent_logger.info("iteration_started", session_id=state.session_id, iteration=state.step_count+1)
-        start_t = time.time()
-        
-        # Run standard process (tool selection -> execution -> analysis) as a sub-call
-        # This is safe because self.process does its own self.workflow.ainvoke without memory checkpointer conflicts
-        result = await self.process({
-            "incident_description": state.incident_description,
-            "analysis_goal": current_goal
-        })
-        
-        if not result.success:
-            state.stopping_reason = f"Iteration error: {result.error}"
-            state_dict["state"] = state
-            return state_dict
-            
-        inner_state = result.data["state"]
-        iteration_findings = [Finding(**f) for f in inner_state.findings]
-        iteration_iocs = self._merge_iocs(inner_state.iocs)
-        
-        duration = time.time() - start_t
-        state.total_duration += duration
-        state.step_count += 1
-        
-        it_res = IterationResult(
-            iteration_number=state.step_count,
-            tool_used=inner_state.selected_tools[0].tool_name if inner_state.selected_tools else "none",
-            tool_selection=inner_state.selected_tools[0] if inner_state.selected_tools else None,
-            execution_result=inner_state.execution_results[0] if inner_state.execution_results else None,
-            findings=iteration_findings,
-            iocs=iteration_iocs,
-            duration=duration
-        )
-        
-        state.iterations.append(it_res.model_dump())
-        state.findings.extend(inner_state.findings)
-        
-        # Merge dicts
-        merged_iocs = {}
-        # load existing
-        for ioc_entry in state.iocs:
-            typ = ioc_entry["type"]
-            vals = ioc_entry["values"]
-            merged_iocs.setdefault(typ, []).extend(vals)
-            
-        for k, v in iteration_iocs.items():
-            merged_iocs.setdefault(k, []).extend(v)
-            
-        # Push back into State IOCs format
-        state.iocs = [{"type": k, "values": list(set(v)), "source_tool": "iterative"} for k, v in merged_iocs.items()]
-        
-        state_dict["state"] = state
-        return state_dict
-
-    async def _iterative_extract_leads_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
-        state = state_dict["state"]
-        if isinstance(state, dict):
-            state = AgentState(**state)
-        if state.stopping_reason:
-            return state_dict
-            
-        # Get latest iteration
-        if not state.iterations:
-            return state_dict
-            
-        last_it = IterationResult(**state.iterations[-1])
-        
-        leads = await self._extract_leads(
-            findings=[f.model_dump() for f in last_it.findings],
-            iocs=last_it.iocs,
-            iteration_number=state.step_count
-        )
-        last_it.leads_discovered = leads
-        state.iterations[-1] = last_it.model_dump()
-        
-        # Check stopping criteria
-        if state.step_count >= state.max_iterations:
-            state.stopping_reason = "Maximum iterations reached"
-        elif not leads:
-            state.stopping_reason = "No investigative leads discovered"
-        else:
-            # We have leads! We must follow the top one.
-            next_lead = self._select_next_lead(leads)
-            state.current_lead = next_lead.model_dump() if next_lead else None
-            
-            if state.current_lead:
-                # Setup HITL required flag
-                state.awaiting_human_approval = True
-                state.human_approved = None
-        
-        state_dict["state"] = state
-        return state_dict
-
-    async def _iterative_approval_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
-        state = state_dict["state"]
-        if isinstance(state, dict):
-            state = AgentState(**state)
-        
-        # We only hit this node if execution unpaused and state.human_approved is no longer None
-        state.awaiting_human_approval = False
-        
-        if state.human_approved is False:
-            state.stopping_reason = "Overridden by Human Analyst"
-        else:
-            # Proceed
-            lead = InvestigativeLead(**state.current_lead)
-            state.investigation_chain.append(lead.model_dump())
-            prev_findings = [Finding(**f) for f in state.findings] # all findings
-            state.current_goal = self._create_follow_up_goal(lead, prev_findings)
-            
-        state_dict["state"] = state
-        return state_dict
-
-    def _build_workflow(self) -> Any:
-        """Build LangGraph workflow.
-
-        Returns:
-            Compiled LangGraph workflow
-        """
-        # Create state graph
-        workflow = StateGraph(dict)
-
-        # Add nodes
-        workflow.add_node("select_tool", self._select_tool_node)
-        workflow.add_node("execute_tool", self._execute_tool_node)
-        workflow.add_node("analyze_output", self._analyze_output_node)
-
-        # Define edges
-        workflow.set_entry_point("select_tool")
-        workflow.add_edge("select_tool", "execute_tool")
-        workflow.add_edge("execute_tool", "analyze_output")
-        workflow.add_edge("analyze_output", END)
-
-        # Compile workflow
-        return workflow.compile()
-
-    async def _select_tool_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
-        """Tool selection node.
-
-        Args:
-            state_dict: Workflow state dictionary
-
-        Returns:
-            Updated state dictionary
-        """
-        state = state_dict["state"]
-        if isinstance(state, dict):
-            state = AgentState(**state)
-        state.current_agent = "tool_selector"
-        state.step_count += 1
-
-        agent_logger.debug(
-            "workflow_step",
-            session_id=state.session_id,
-            step=state.step_count,
-            agent=state.current_agent
-        )
-
-        try:
-            # Call ToolSelectorAgent
-            result = await self.tool_selector.process({
-                "incident_description": state_dict["incident_description"],
-                "analysis_goal": state_dict["analysis_goal"]
-            })
-
-            if result.success:
-                tool_selection = result.data["tool_selection"]
-                state.selected_tools.append(tool_selection)
-
-                agent_logger.info(
-                    "tool_selected",
-                    session_id=state.session_id,
-                    tool=tool_selection.tool_name,
-                    confidence=tool_selection.confidence
-                )
-            else:
-                agent_logger.warning(
-                    "tool_selection_failed",
-                    session_id=state.session_id,
-                    error=result.error
-                )
-
-        except Exception as e:
-            agent_logger.error(
-                "tool_selection_error",
-                session_id=state.session_id,
-                error=str(e)
-            )
-
-        state_dict["state"] = state
-        return state_dict
-
-    async def _execute_tool_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
-        """Tool execution node.
-
-        Args:
-            state_dict: Workflow state dictionary
-
-        Returns:
-            Updated state dictionary
-        """
-        state = state_dict["state"]
-        if isinstance(state, dict):
-            state = AgentState(**state)
-        state.current_agent = "tool_executor"
-        state.step_count += 1
-
-        agent_logger.debug(
-            "workflow_step",
-            session_id=state.session_id,
-            step=state.step_count,
-            agent=state.current_agent
-        )
-
-        # Check if we have a selected tool
-        if not state.selected_tools:
-            agent_logger.warning(
-                "no_tools_selected",
-                session_id=state.session_id
-            )
-            state_dict["state"] = state
-            return state_dict
-
-        try:
-            # Execute the selected tool
-            tool_selection = state.selected_tools[0]  # Use first selected tool
-
-            # Build command dynamically using LLM and metadata
-            context = {
-                "incident": state.incident_description,
-                "goal": state.analysis_goal,
-                "evidence_paths": getattr(state, "evidence_paths", [])
-            }
-            command = await self.command_builder.build_command(tool_selection, context)
-
-            result = await self.tool_executor.process({
-                "tool_name": tool_selection.tool_name,
-                "command": command
-            })
-
-            if result.success or "execution_result" in result.data:
-                exec_result = result.data["execution_result"]
-                state.execution_results.append(exec_result)
-
-                agent_logger.info(
-                    "tool_executed",
-                    session_id=state.session_id,
-                    tool=exec_result.tool_name,
-                    status=exec_result.status.value,
-                    duration=exec_result.execution_time
-                )
-            else:
-                agent_logger.warning(
-                    "tool_execution_failed",
-                    session_id=state.session_id,
-                    error=result.error
-                )
-
-        except Exception as e:
-            agent_logger.error(
-                "tool_execution_error",
-                session_id=state.session_id,
-                error=str(e)
-            )
-
-        state_dict["state"] = state
-        return state_dict
-
-    async def _analyze_output_node(self, state_dict: dict[str, Any]) -> dict[str, Any]:
-        """Analysis node.
-
-        Args:
-            state_dict: Workflow state dictionary
-
-        Returns:
-            Updated state dictionary
-        """
-        state = state_dict["state"]
-        if isinstance(state, dict):
-            state = AgentState(**state)
-        state.current_agent = "analyzer"
-        state.step_count += 1
-
-        agent_logger.debug(
-            "workflow_step",
-            session_id=state.session_id,
-            step=state.step_count,
-            agent=state.current_agent
-        )
-
-        # Check if we have execution results
-        if not state.execution_results:
-            agent_logger.warning(
-                "no_execution_results",
-                session_id=state.session_id
-            )
-            state_dict["state"] = state
-            return state_dict
-
-        try:
-            # Analyze each execution result
-            for exec_result in state.execution_results:
-                result = await self.analyzer.process({
-                    "execution_result": exec_result
-                })
-
-                if result.success:
-                    analysis: AnalysisResult = result.data["analysis_result"]
-
-                    # Add findings to state
-                    for finding in analysis.findings:
-                        state.findings.append(finding.model_dump())
-
-                    # Add IOCs to state
-                    for ioc_type, values in analysis.iocs.items():
-                        state.iocs.append({
-                            "type": ioc_type,
-                            "values": values,
-                            "source_tool": exec_result.tool_name
-                        })
-
-                    agent_logger.info(
-                        "analysis_completed",
-                        session_id=state.session_id,
-                        tool=exec_result.tool_name,
-                        findings=len(analysis.findings),
-                        ioc_types=len(analysis.iocs)
-                    )
-                else:
-                    agent_logger.warning(
-                        "analysis_failed",
-                        session_id=state.session_id,
-                        error=result.error
-                    )
-
-        except Exception as e:
-            agent_logger.error(
-                "analysis_error",
-                session_id=state.session_id,
-                error=str(e)
-            )
-
-        state_dict["state"] = state
-        return state_dict
 
     def _build_tool_command(self, tool_selection: ToolSelection) -> str:
         """DEPRECATED: Build command from tool selection.
@@ -771,6 +402,7 @@ class OrchestratorAgent(BaseAgent):
         """Extract investigative leads from findings and IOCs.
 
         Uses LLM to identify potential next steps in the investigation.
+        Delegates to prompting helpers extracted in C3c refactor.
 
         Args:
             findings: List of findings from current iteration
@@ -792,15 +424,15 @@ class OrchestratorAgent(BaseAgent):
         if not findings and not iocs:
             return []
 
-        # Build prompt for LLM
-        prompt = self._build_lead_extraction_prompt(findings, iocs, iteration_number)
+        # Build prompt using extracted helper (C3c refactor)
+        prompt = build_lead_extraction_prompt(findings, iocs, iteration_number)
 
         try:
             # Use LLM to extract leads
             response = await self.llm.generate(prompt)
 
-            # Parse LLM response into leads
-            leads = self._parse_leads_from_response(response, findings, iocs)
+            # Parse LLM response using extracted helper (C3c refactor)
+            leads = parse_leads_from_response(response, findings, iocs)
 
             agent_logger.debug(
                 "leads_extracted",
@@ -816,150 +448,8 @@ class OrchestratorAgent(BaseAgent):
                 iteration=iteration_number,
                 error=str(e)
             )
-            # Fallback: simple rule-based lead extraction
-            return self._extract_leads_fallback(findings, iocs)
-
-    def _build_lead_extraction_prompt(
-        self,
-        findings: list[dict[str, Any]],
-        iocs: dict[str, list[str]],
-        iteration_number: int
-    ) -> str:
-        """Build LLM prompt for lead extraction."""
-        findings_text = "\n".join([
-            f"- {f.get('description', 'N/A')} (Severity: {f.get('severity', 'unknown')})"
-            for f in findings[:5]  # Limit to first 5
-        ])
-
-        iocs_text = "\n".join([
-            f"- {ioc_type}: {', '.join(values[:3])}"  # First 3 of each type
-            for ioc_type, values in iocs.items()
-            if values
-        ])
-
-        return f"""You are a DFIR expert analyzing investigation findings. Based on the current findings and IOCs, identify the next investigative steps.
-
-Current Findings:
-{findings_text or "No findings yet"}
-
-Current IOCs:
-{iocs_text or "No IOCs yet"}
-
-Iteration: {iteration_number}
-
-Identify 1-3 investigative leads that would help build a complete attack chain. For each lead, provide:
-1. Lead type (process/network/file/timeline/registry)
-2. Clear description of what to investigate
-3. Priority (high/medium/low)
-4. Suggested tool (if applicable)
-5. Confidence (0.0-1.0) that this lead is worth following
-
-Focus on leads that would:
-- Identify the initial infection vector
-- Trace network communication (C2 servers)
-- Identify malicious processes or files
-- Build a timeline of events
-- Uncover persistence mechanisms
-
-Respond in this format (one lead per line):
-LEAD: <type> | <priority> | <confidence> | <suggested_tool or none> | <description>
-
-Example:
-LEAD: network | high | 0.9 | bulk_extractor | Analyze network traffic to identify C2 server communication from suspicious process
-"""
-
-    def _parse_leads_from_response(
-        self,
-        response: str,
-        findings: list[dict[str, Any]],
-        iocs: dict[str, list[str]]
-    ) -> list[InvestigativeLead]:
-        """Parse LLM response into InvestigativeLead objects."""
-        leads = []
-
-        for line in response.split('\n'):
-            if not line.strip().startswith('LEAD:'):
-                continue
-
-            try:
-                # Parse: LEAD: <type> | <priority> | <confidence> | <tool> | <description>
-                parts = line.replace('LEAD:', '').split('|')
-                if len(parts) < 5:
-                    continue
-
-                lead_type_str = parts[0].strip().lower()
-                priority_str = parts[1].strip().lower()
-                confidence = float(parts[2].strip())
-                suggested_tool = parts[3].strip() if parts[3].strip() != 'none' else None
-                description = parts[4].strip()
-
-                # Map strings to enums
-                lead_type = LeadType(lead_type_str) if lead_type_str in [t.value for t in LeadType] else LeadType.PROCESS
-                priority = LeadPriority(priority_str) if priority_str in [p.value for p in LeadPriority] else LeadPriority.MEDIUM
-
-                # Build context from IOCs
-                context = {
-                    "findings_count": len(findings),
-                    "ioc_types": list(iocs.keys())
-                }
-
-                lead = InvestigativeLead(
-                    lead_type=lead_type,
-                    description=description,
-                    priority=priority,
-                    suggested_tool=suggested_tool,
-                    context=context,
-                    confidence=confidence,
-                    reasoning="LLM-generated lead based on current findings"
-                )
-
-                leads.append(lead)
-
-            except Exception as e:
-                agent_logger.debug("failed_to_parse_lead", line=line, error=str(e))
-                continue
-
-        # Sort by priority and confidence
-        leads.sort(key=lambda l: (
-            0 if l.priority == LeadPriority.HIGH else 1 if l.priority == LeadPriority.MEDIUM else 2,
-            -l.confidence
-        ))
-
-        return leads
-
-    def _extract_leads_fallback(
-        self,
-        findings: list[dict[str, Any]],
-        iocs: dict[str, list[str]]
-    ) -> list[InvestigativeLead]:
-        """Fallback rule-based lead extraction when LLM fails."""
-        leads = []
-
-        # If we found processes, suggest network analysis
-        if iocs.get("processes"):
-            leads.append(InvestigativeLead(
-                lead_type=LeadType.NETWORK,
-                description="Analyze network activity for suspicious processes",
-                priority=LeadPriority.HIGH,
-                suggested_tool="bulk_extractor",
-                context={"processes": iocs["processes"][:3]},
-                confidence=0.75,
-                reasoning="Processes found, network analysis is logical next step"
-            ))
-
-        # If we found IPs/domains, suggest timeline
-        if iocs.get("ips") or iocs.get("domains"):
-            leads.append(InvestigativeLead(
-                lead_type=LeadType.TIMELINE,
-                description="Build timeline to identify when IOCs first appeared",
-                priority=LeadPriority.MEDIUM,
-                suggested_tool="log2timeline",
-                context={"iocs": {k: v for k, v in iocs.items() if v}},
-                confidence=0.7,
-                reasoning="IOCs found, timeline helps establish attack sequence"
-            ))
-
-        return leads
+            # Fallback using extracted helper (C3c refactor)
+            return extract_leads_fallback(findings, iocs)
 
     def _select_next_lead(self, leads: list[InvestigativeLead]) -> InvestigativeLead | None:
         """Select the next lead to follow.
