@@ -29,6 +29,7 @@ from ..schemas import (
     AgentState,
     ToolSelection,
     InvestigativeLead,
+    LeadPriority,
     IterationResult,
     IterativeAnalysisResult,
     Finding,

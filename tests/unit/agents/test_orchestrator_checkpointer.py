@@ -244,8 +244,19 @@ class TestStaticGuards:
 
         from find_evil_agent.agents import orchestrator as orch
 
-        src = Path(orch.__file__).read_text()
+        # After C3c split, orchestrator is a package. Check all .py files in the package.
+        orch_file = Path(orch.__file__)
+        if orch_file.name == "__init__.py":
+            # Package - check all Python modules
+            orch_dir = orch_file.parent
+            src_files = list(orch_dir.glob("*.py"))
+            assert src_files, "orchestrator package should have .py modules after C3c split"
+            combined_src = "\n".join(f.read_text() for f in src_files if f.name != "__init__.py")
+        else:
+            # Monolithic file
+            combined_src = orch_file.read_text()
+
         # The literal global was the unbounded one — must be gone
-        assert "_global_memory_saver = MemorySaver()" not in src
+        assert "_global_memory_saver = MemorySaver()" not in combined_src
         # Replacement must source from the bounded checkpointer module
-        assert "checkpointer" in src
+        assert "checkpointer" in combined_src
