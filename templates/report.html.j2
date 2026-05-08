@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Evil Agent - Incident Response Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .metadata {
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .severity-critical {
+            border-left: 5px solid #dc3545;
+            padding-left: 15px;
+            background-color: #ffe6e6;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-high {
+            border-left: 5px solid #fd7e14;
+            padding-left: 15px;
+            background-color: #fff3e6;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-medium {
+            border-left: 5px solid #ffc107;
+            padding-left: 15px;
+            background-color: #fffbf0;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-low {
+            border-left: 5px solid #17a2b8;
+            padding-left: 15px;
+            background-color: #e6f7f9;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .severity-info {
+            border-left: 5px solid #6c757d;
+            padding-left: 15px;
+            background-color: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .ioc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .ioc-table th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .ioc-table td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .ioc-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .ioc-value {
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .timeline-entry {
+            border-left: 3px solid #667eea;
+            padding-left: 15px;
+            margin: 15px 0;
+        }
+        .recommendation {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .recommendation-priority {
+            background-color: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Find Evil Agent - Incident Response Report</h1>
+        <div class="metadata">
+            <strong>Session ID:</strong> {{ report.session_id }}<br>
+            <strong>Generated:</strong> {{ report.metadata.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}<br>
+            <strong>Incident:</strong> {{ report.incident_description }}
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Executive Summary</h2>
+        <p>{{ report.executive_summary.incident_overview }}</p>
+        <h3>Key Findings</h3>
+        <p>{{ key_findings_processed }}</p>
+        <h3>Impact Assessment</h3>
+        <p>{{ report.executive_summary.impact_assessment }}</p>
+        <h3>Recommendations Summary</h3>
+        <p>{{ report.executive_summary.recommendations_summary }}</p>
+    </div>
+
+    <div class="section">
+        <h2>🎯 MITRE ATT&CK Mapping</h2>
+        {% if report.mitre_mappings %}
+        <table class="ioc-table">
+            <tr>
+                <th>Technique ID</th>
+                <th>Technique Name</th>
+                <th>Tactic</th>
+                <th>Related Findings</th>
+            </tr>
+            {% for mapping in report.mitre_mappings %}
+            <tr>
+                <td><code>{{ mapping.technique_id }}</code></td>
+                <td>{{ mapping.technique_name }}</td>
+                <td>{{ mapping.tactic }}</td>
+                <td>{{ mapping.finding_references[:3]|join(', ') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p><em>No MITRE ATT&CK techniques mapped.</em></p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>🚨 Indicators of Compromise (IOCs)</h2>
+        {% if report.ioc_tables %}
+            {% for ioc_type, entries in report.ioc_tables|dictsort %}
+            <h3>{{ ioc_type|upper }}</h3>
+            <table class="ioc-table">
+                <tr>
+                    <th>IOC Value</th>
+                    <th>Occurrences</th>
+                    <th>Context</th>
+                </tr>
+                {% for entry in entries %}
+                <tr>
+                    <td><span class="ioc-value">{{ entry.value }}</span></td>
+                    <td>{{ entry.occurrences }}</td>
+                    <td>{{ entry.context }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% endfor %}
+        {% else %}
+        <p><em>No IOCs extracted during analysis.</em></p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>🔍 Findings by Severity</h2>
+        {% for severity in severity_order %}
+            {% set severity_findings = report.findings|selectattr('severity', 'equalto', severity)|list %}
+            {% if severity_findings %}
+                {% for finding in severity_findings %}
+                <div class="severity-{{ severity.value }}">
+                    <h3>{{ finding.title }}</h3>
+                    <p>{{ finding.description }}</p>
+                    <p><strong>Confidence:</strong> {{ "%.2f"|format(finding.confidence) }}</p>
+                    {% if finding.evidence %}
+                    <p><strong>Evidence:</strong></p>
+                    <ul>
+                        {% for evidence in finding.evidence %}
+                        <li>{{ evidence }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="section">
+        <h2>💡 Recommendations</h2>
+        {% if report.recommendations %}
+            {% for rec in report.recommendations %}
+            <div class="recommendation">
+                <span class="recommendation-priority">Priority {{ rec.priority }}</span>
+                <strong>{{ rec.title }}</strong>
+                <p>{{ rec.description }}</p>
+                <p><small><strong>Urgency:</strong> {{ rec.urgency }}</small></p>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    {% if attack_graph_html %}
+    {{ attack_graph_html|safe }}
+    {% endif %}
+</body>
+</html>
