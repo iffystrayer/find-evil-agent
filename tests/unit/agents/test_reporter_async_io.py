@@ -151,17 +151,39 @@ async def test_concurrent_report_writes_complete_independently(tmp_path: Path) -
 
 
 def test_reporter_source_uses_aiofiles_in_async_paths() -> None:
-    """Static guard: reporter.py async paths must not reintroduce sync open()."""
-    src = Path(__file__).resolve().parents[3] / "src" / "find_evil_agent" / "agents" / "reporter.py"
-    text = src.read_text()
-    assert "import aiofiles" in text or "aiofiles.open" in text, (
-        "reporter.py is expected to use aiofiles for async file I/O (B3)"
+    """Static guard: reporter + reporting/*.py async paths must not reintroduce sync open().
+
+    After C3b split, aiofiles usage is distributed across reporter.py and
+    reporting/*.py modules. Check all of them for the expected 3+ instances.
+    """
+    agents_dir = Path(__file__).resolve().parents[3] / "src" / "find_evil_agent" / "agents"
+    reporter_path = agents_dir / "reporter.py"
+    reporting_dir = agents_dir / "reporting"
+
+    # Collect all source files to check
+    files_to_check = [reporter_path]
+    if reporting_dir.exists():
+        files_to_check.extend(reporting_dir.glob("*.py"))
+
+    total_count = 0
+    has_import = False
+
+    for src_file in files_to_check:
+        if not src_file.exists() or src_file.name == "__init__.py":
+            continue
+        text = src_file.read_text()
+        if "import aiofiles" in text or "aiofiles.open" in text:
+            has_import = True
+        total_count += text.count("aiofiles.open")
+
+    assert has_import, (
+        "reporter.py or reporting/*.py should import aiofiles for async file I/O (B3)"
     )
-    # The three documented blocking sites at lines ~232 / ~634 / ~1129 must
-    # now go through aiofiles.open. Search for the paired patterns.
-    assert text.count("aiofiles.open") >= 3, (
-        "expected at least 3 aiofiles.open call sites in reporter.py "
+    # The three documented blocking sites (generate_report writer,
+    # _generate_graph_html template read, format_pdf html fallback) must
+    # now go through aiofiles.open across all modules.
+    assert total_count >= 3, (
+        "expected at least 3 aiofiles.open call sites across reporter.py + reporting/*.py "
         "(generate_report writer, _generate_graph_html template read, "
-        "format_pdf html fallback). Found: "
-        f"{text.count('aiofiles.open')}"
+        f"format_pdf html fallback). Found: {total_count}"
     )
