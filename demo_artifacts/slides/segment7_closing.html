@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Evil Agent - Closing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            padding: 60px;
+            max-width: 1200px;
+            animation: fadeIn 1.5s ease-in;
+        }
+
+        h1 {
+            font-size: 5rem;
+            font-weight: 800;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 20px rgba(0,0,0,0.3);
+        }
+
+        .tagline {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 50px;
+            opacity: 0.95;
+            line-height: 1.5;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin: 50px 0;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            animation: slideUp 1s ease-out;
+            animation-fill-mode: backwards;
+        }
+
+        .stat:nth-child(1) { animation-delay: 0.3s; }
+        .stat:nth-child(2) { animation-delay: 0.5s; }
+        .stat:nth-child(3) { animation-delay: 0.7s; }
+
+        .stat-number {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.3rem;
+            opacity: 0.95;
+        }
+
+        .mission {
+            background: rgba(255, 215, 0, 0.2);
+            padding: 40px;
+            border-radius: 25px;
+            margin: 50px 0;
+            border: 3px solid #ffd700;
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        .mission h2 {
+            font-size: 2.5rem;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .mission p {
+            font-size: 1.5rem;
+            line-height: 1.7;
+            opacity: 0.95;
+        }
+
+        .cta {
+            margin-top: 50px;
+            font-size: 2rem;
+            font-weight: 600;
+            animation: fadeIn 2s ease-in;
+            animation-delay: 1.5s;
+            animation-fill-mode: backwards;
+        }
+
+        .cta-link {
+            color: #ffd700;
+            text-decoration: none;
+            border-bottom: 3px solid #ffd700;
+            padding-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .cta-link:hover {
+            color: white;
+            border-bottom-color: white;
+        }
+
+        .thank-you {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-top: 50px;
+            color: #ffd700;
+            animation: fadeIn 2s ease-in;
+            animation-delay: 2s;
+            animation-fill-mode: backwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Find Evil Agent</h1>
+        <div class="tagline">
+            AI-Powered Incident Response that Augments, Not Replaces, Human Analysts
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat">
+                <div class="stat-number">606</div>
+                <div class="stat-label">Comprehensive Tests</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">3</div>
+                <div class="stat-label">Interfaces<br>(CLI, API, React)</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">12</div>
+                <div class="stat-label">MCP Tools<br>(Claude Integration)</div>
+            </div>
+        </div>
+
+        <div class="mission">
+            <h2>Our Mission</h2>
+            <p>
+                By combining semantic search, LLM reasoning, and human oversight,
+                we've created a system that's both powerful and safe.
+                <br><br>
+                <strong>Find Evil Agent helps security teams investigate faster, more thoroughly,
+                and with complete confidence in the results.</strong>
+            </p>
+        </div>
+
+        <div class="cta">
+            🚀 Open Source • Docker Ready • Production Tested
+            <br><br>
+            <a href="https://github.com/ifiokmoses/find-evil-agent" class="cta-link">github.com/ifiokmoses/find-evil-agent</a>
+        </div>
+
+        <div class="thank-you">
+            Thank You! 🎉<br>
+            <span style="font-size: 2rem; font-weight: 400; opacity: 0.9;">Happy Hunting!</span>
+        </div>
+    </div>
+
+    <script>
+        setTimeout(() => {
+            console.log('Segment 7 complete');
+        }, 30000);
+    </script>
+</body>
+</html>

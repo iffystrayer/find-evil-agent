@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Evil Agent - Differentiators</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            overflow: hidden;
+        }
+
+        .container {
+            padding: 50px;
+            max-width: 1500px;
+            animation: fadeIn 1s ease-in;
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 50px;
+            text-align: center;
+            text-shadow: 2px 2px 20px rgba(0,0,0,0.3);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(15px);
+            padding: 35px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            animation: slideUp 1s ease-out;
+            animation-fill-mode: backwards;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card:nth-child(1) { animation-delay: 0.2s; }
+        .card:nth-child(2) { animation-delay: 0.4s; }
+        .card:nth-child(3) { animation-delay: 0.6s; }
+        .card:nth-child(4) { animation-delay: 0.8s; }
+
+        .card h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #ffd700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .card h2 .emoji {
+            font-size: 2.5rem;
+        }
+
+        .card ul {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .card li {
+            font-size: 1.15rem;
+            line-height: 1.7;
+            margin-bottom: 12px;
+            padding-left: 25px;
+            position: relative;
+            opacity: 0.95;
+        }
+
+        .card li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4fd1c5;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        .stats {
+            text-align: center;
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(255, 215, 0, 0.15);
+            border-radius: 20px;
+            border: 2px solid #ffd700;
+            animation: fadeIn 1.5s ease-in;
+            animation-delay: 1s;
+            animation-fill-mode: backwards;
+        }
+
+        .stats h3 {
+            font-size: 2.2rem;
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .stats p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⭐ What Makes Us Unique?</h1>
+
+        <div class="grid">
+            <div class="card">
+                <h2><span class="emoji">🛡️</span> Hallucination Prevention</h2>
+                <ul>
+                    <li>Most LLM-based DFIR tools hallucinate non-existent tools</li>
+                    <li>We use semantic search + LLM ranking with thresholds</li>
+                    <li>Tools validated against registry before execution</li>
+                    <li><strong>No other DFIR tool combines both techniques</strong></li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">🔄</span> Autonomous Iteration</h2>
+                <ul>
+                    <li>Traditional tools run once and stop</li>
+                    <li>We automatically extract and follow investigative leads</li>
+                    <li>Builds complete attack chains without manual steps</li>
+                    <li><strong>Human-in-the-loop prevents wasteful investigations</strong></li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">🤖</span> Multi-Provider LLM Support</h2>
+                <ul>
+                    <li>Switch between Ollama, OpenAI, and Anthropic</li>
+                    <li>No vendor lock-in or single-provider dependency</li>
+                    <li>Choose the best model for your security requirements</li>
+                    <li><strong>Run fully offline or in hybrid cloud mode</strong></li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2><span class="emoji">📊</span> Professional Output</h2>
+                <ul>
+                    <li>MITRE ATT&CK technique mapping automatically</li>
+                    <li>HTML, PDF, and Markdown report generation</li>
+                    <li>IOC extraction and enrichment ready for sharing</li>
+                    <li><strong>Incident response documentation-ready output</strong></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="stats">
+            <h3>🧪 Built with Quality in Mind</h3>
+            <p>606 comprehensive tests • 100% TDD • Open Source • Docker-ready</p>
+        </div>
+    </div>
+
+    <script>
+        setTimeout(() => {
+            console.log('Segment 6 complete');
+        }, 45000);
+    </script>
+</body>
+</html>

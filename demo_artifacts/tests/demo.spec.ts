@@ -131,37 +131,53 @@ async function submitAnalysisAndWait(page: Page) {
 test.describe('TestSpecification', () => {
   test('should document demo requirements and capabilities', async () => {
     const requirements = {
-      purpose: 'Automated demo recording for Find Evil Agent hackathon submission',
-      duration_target: '5-7 minutes',
-      interfaces_covered: ['React UI', 'Gradio Web UI', 'MCP Server'],
+      purpose: 'Automated 7-segment demo recording for Find Evil Agent hackathon submission',
+      duration_target: '6 minutes',
+      segments: [
+        { name: 'Introduction', duration: 30 },
+        { name: 'System Overview', duration: 30 },
+        { name: 'React UI Demo', duration: 150 },
+        { name: 'CLI Demo', duration: 60 },
+        { name: 'API Demo', duration: 45 },
+        { name: 'Differentiators', duration: 45 },
+        { name: 'Closing', duration: 30 },
+      ],
+      interfaces_covered: ['React UI', 'CLI', 'REST API'],
       outputs: {
-        video: 'Full 1080p recording of demo walkthrough',
-        screenshots: '10-12 key moment captures',
-        artifacts: 'Timestamped evidence files',
+        video: 'Full 1080p recording of 7-segment demo walkthrough',
+        screenshots: '5 key React UI captures',
+        slides: '6 professional HTML slides',
       },
       llm_providers: ['Ollama', 'OpenAI', 'Anthropic'],
       key_features_demonstrated: [
         'Hallucination-resistant tool selection',
         'Autonomous investigative reasoning',
-        'Multi-interface support',
+        'Multi-interface support (CLI, API, React)',
         'Professional report generation',
         'Real-time analysis execution',
+        'MCP server integration',
       ],
       performance_metrics: {
         analysis_speed: '< 60 seconds (vs 20-60 minutes manual)',
         accuracy: 'Zero tool selection failures',
-        coverage: 'All 6 critical gaps demonstrated',
+        coverage: 'All unique features demonstrated',
       },
     };
 
     // Verify requirements are well-defined
     expect(requirements.purpose).toBeTruthy();
+    expect(requirements.segments).toHaveLength(7);
     expect(requirements.interfaces_covered).toHaveLength(3);
     expect(requirements.outputs.video).toContain('1080p');
     expect(requirements.llm_providers).toHaveLength(3);
     expect(requirements.key_features_demonstrated.length).toBeGreaterThanOrEqual(5);
 
+    // Calculate total duration
+    const totalDuration = requirements.segments.reduce((sum, seg) => sum + seg.duration, 0);
+    expect(totalDuration).toBeGreaterThanOrEqual(300); // At least 5 minutes
+
     console.log('✅ Demo requirements specification validated');
+    console.log(`   Total duration: ${totalDuration} seconds (${(totalDuration / 60).toFixed(1)} minutes)`);
   });
 
   test('should define demo workflow position in E2E testing', async () => {
@@ -202,7 +218,54 @@ test.describe('TestSpecification', () => {
 });
 
 // ============================================================================
-// TEST EXECUTION - REACT UI DEMO
+// TEST EXECUTION - SEGMENT 1: INTRODUCTION
+// ============================================================================
+
+test.describe('TestExecution - Segment 1: Introduction', () => {
+  test('should display introduction slide with project overview', async ({ page }) => {
+    console.log('\n🎬 Segment 1: Introduction (30s)\n');
+
+    const slidePath = `file://${path.join(__dirname, '../slides/segment1_introduction.html')}`;
+    await page.goto(slidePath);
+
+    // Wait for slide to be fully loaded
+    await page.waitForLoadState('networkidle');
+
+    // Verify key elements are visible
+    await expect(page.locator('h1')).toContainText('Find Evil Agent');
+
+    // Let the slide display with animations (30 seconds)
+    await page.waitForTimeout(30000);
+
+    console.log('✅ Segment 1: Introduction complete\n');
+  });
+});
+
+// ============================================================================
+// TEST EXECUTION - SEGMENT 2: SYSTEM OVERVIEW
+// ============================================================================
+
+test.describe('TestExecution - Segment 2: System Overview', () => {
+  test('should display system architecture overview', async ({ page }) => {
+    console.log('\n🎬 Segment 2: System Overview (30s)\n');
+
+    const slidePath = `file://${path.join(__dirname, '../slides/segment2_overview.html')}`;
+    await page.goto(slidePath);
+
+    await page.waitForLoadState('networkidle');
+
+    // Verify content
+    await expect(page.locator('h1')).toContainText('System Architecture');
+
+    // Let the slide display (30 seconds)
+    await page.waitForTimeout(30000);
+
+    console.log('✅ Segment 2: System Overview complete\n');
+  });
+});
+
+// ============================================================================
+// TEST EXECUTION - SEGMENT 3: REACT UI DEMO
 // ============================================================================
 
 test.describe('TestExecution - React UI', () => {
@@ -300,6 +363,99 @@ test.describe('TestExecution - React UI', () => {
 // ============================================================================
 // NOTE: Gradio UI was replaced by React UI - no longer testing
 // ============================================================================
+
+// ============================================================================
+// TEST EXECUTION - SEGMENT 4: CLI DEMO
+// ============================================================================
+
+test.describe('TestExecution - Segment 4: CLI Demo', () => {
+  test('should display CLI demo with animated terminal output', async ({ page }) => {
+    console.log('\n🎬 Segment 4: CLI Demo (1 min)\n');
+
+    const slidePath = `file://${path.join(__dirname, '../slides/segment4_cli_demo.html')}`;
+    await page.goto(slidePath);
+
+    await page.waitForLoadState('networkidle');
+
+    // Verify terminal content
+    await expect(page.locator('.header h1')).toContainText('CLI Demo');
+
+    // Let the CLI animation run (60 seconds for full output)
+    await page.waitForTimeout(60000);
+
+    console.log('✅ Segment 4: CLI Demo complete\n');
+  });
+});
+
+// ============================================================================
+// TEST EXECUTION - SEGMENT 5: API DEMO
+// ============================================================================
+
+test.describe('TestExecution - Segment 5: API Demo', () => {
+  test('should display API demo with curl commands and responses', async ({ page }) => {
+    console.log('\n🎬 Segment 5: API Demo (45s)\n');
+
+    const slidePath = `file://${path.join(__dirname, '../slides/segment5_api_demo.html')}`;
+    await page.goto(slidePath);
+
+    await page.waitForLoadState('networkidle');
+
+    // Verify API content
+    await expect(page.locator('.header h1')).toContainText('REST API Demo');
+
+    // Let the API demo animation run (45 seconds)
+    await page.waitForTimeout(45000);
+
+    console.log('✅ Segment 5: API Demo complete\n');
+  });
+});
+
+// ============================================================================
+// TEST EXECUTION - SEGMENT 6: DIFFERENTIATORS
+// ============================================================================
+
+test.describe('TestExecution - Segment 6: Differentiators', () => {
+  test('should display unique features and differentiators', async ({ page }) => {
+    console.log('\n🎬 Segment 6: Differentiators (45s)\n');
+
+    const slidePath = `file://${path.join(__dirname, '../slides/segment6_differentiators.html')}`;
+    await page.goto(slidePath);
+
+    await page.waitForLoadState('networkidle');
+
+    // Verify content
+    await expect(page.locator('h1')).toContainText('What Makes Us Unique');
+
+    // Let the slide display (45 seconds)
+    await page.waitForTimeout(45000);
+
+    console.log('✅ Segment 6: Differentiators complete\n');
+  });
+});
+
+// ============================================================================
+// TEST EXECUTION - SEGMENT 7: CLOSING
+// ============================================================================
+
+test.describe('TestExecution - Segment 7: Closing', () => {
+  test('should display closing slide with call to action', async ({ page }) => {
+    console.log('\n🎬 Segment 7: Closing (30s)\n');
+
+    const slidePath = `file://${path.join(__dirname, '../slides/segment7_closing.html')}`;
+    await page.goto(slidePath);
+
+    await page.waitForLoadState('networkidle');
+
+    // Verify content
+    await expect(page.locator('h1')).toContainText('Find Evil Agent');
+    await expect(page.locator('.thank-you')).toContainText('Thank You');
+
+    // Let the slide display (30 seconds)
+    await page.waitForTimeout(30000);
+
+    console.log('✅ Segment 7: Closing complete\n');
+  });
+});
 
 // ============================================================================
 // TEST EXECUTION - MCP SERVER INFO
