@@ -1,0 +1,31 @@
+
+╭────────────────────────────────────────────╮
+│ Find Evil Agent - Autonomous Investigation │
+│ Automatically follows investigative leads  │
+╰────────────────────────────────────────────╯
+
+Incident: Ransomware detected on Windows 10 endpoint with encrypted files in 
+user directories
+Goal: Reconstruct the complete attack chain from initial access to encryption, 
+identifying tools used and timeline of events
+Max Iterations: 3
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7167.25it/s]
+{"session_id": "bed8c5bf-40c0-46df-8119-c64022c517e1", "error": "Command injection pattern detected in: Since no specific evidence files were provided in the \"Available Evidence Files\" section of your prompt, I will use a standard forensic path based on the investigation context (Windows 10 endpoint).\n\nlog2timeline.py ransomware_timeline.plaso /mnt/evidence/win10_image/", "event": "tool_execution_error", "timestamp": "2026-05-09T02:36:27.474669Z", "logger": "langgraph.pregel._utils", "level": "error"}
+{"session_id": "bed8c5bf-40c0-46df-8119-c64022c517e1", "event": "no_execution_results", "timestamp": "2026-05-09T02:36:27.475936Z", "logger": "langgraph.pregel._utils", "level": "warning"}
+Deserializing unregistered type find_evil_agent.agents.schemas.AgentState from checkpoint. This will be blocked in a future version. Set LANGGRAPH_STRICT_MSGPACK=true to block now, or add to allowed_msgpack_modules to allow explicitly: [('find_evil_agent.agents.schemas', 'AgentState')]
+
+✓ Investigation Complete
+
+Investigation complete
+
+Iterations (1):
+
+  Iteration 1: log2timeline
+    Findings: 0, IOCs: 0, Leads: 0
+    Duration: 30.9s
+
+Total Duration: 30.9s
+Stopped: No investigative leads discovered
+
+⠇ Starting investigation...
