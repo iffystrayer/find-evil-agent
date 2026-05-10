@@ -78,3 +78,6 @@ findevil/
 .archive/
 
 .DS_Store
+
+# Cleanup archive
+.cleanup-archive/
